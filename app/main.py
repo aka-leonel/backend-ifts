@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.features.recordatorios.router import router as recordatorios_router
+from app.features.materias.router import router as materias_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(recordatorios_router)
+app.include_router(materias_router)
 
 @app.get("/")
 def root():
