@@ -1,5 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
+
+
+NotaOpcional = Optional[float]
+
 
 class CarreraResponse(BaseModel):
     id: int
@@ -9,15 +13,17 @@ class CarreraResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class MateriaResponse(BaseModel):
     id: int
     nombre: str
     carrera_id: int
-    año: int
+    anio: int
     cuatrimestre: int
 
     class Config:
         from_attributes = True
+
 
 class CorrelativaResponse(BaseModel):
     id: int
@@ -27,27 +33,36 @@ class CorrelativaResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class MateriaUsuarioCreate(BaseModel):
     materia_id: int
-    estado: Optional[str] = "pendiente"
-    nota_parcial_1: Optional[float] = None
-    nota_parcial_2: Optional[float] = None
-    nota_final: Optional[float] = None
+    cursando: bool = False
+    nota_parcial_1: NotaOpcional = Field(default=None, ge=1, le=10)
+    nota_parcial_2: NotaOpcional = Field(default=None, ge=1, le=10)
+    nota_final: NotaOpcional = Field(default=None, ge=1, le=10)
+
 
 class MateriaUsuarioUpdate(BaseModel):
-    estado: Optional[str] = None
-    nota_parcial_1: Optional[float] = None
-    nota_parcial_2: Optional[float] = None
-    nota_final: Optional[float] = None
+    cursando: Optional[bool] = None
+    nota_parcial_1: NotaOpcional = Field(default=None, ge=1, le=10)
+    nota_parcial_2: NotaOpcional = Field(default=None, ge=1, le=10)
+    nota_final: NotaOpcional = Field(default=None, ge=1, le=10)
+
 
 class MateriaUsuarioResponse(BaseModel):
     id: int
     usuario_id: int
     materia_id: int
+    cursando: bool
     estado: str
-    nota_parcial_1: Optional[float]
-    nota_parcial_2: Optional[float]
-    nota_final: Optional[float]
+    nota_parcial_1: NotaOpcional
+    nota_parcial_2: NotaOpcional
+    nota_final: NotaOpcional
 
     class Config:
         from_attributes = True
+
+
+class PromedioResponse(BaseModel):
+    promedio: Optional[float]
+    materias_computadas: int

@@ -1,54 +1,80 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from app.features.materias.model import Carrera, Correlativa, Materia, MateriaUsuario
 from app.features.materias.repository import (
     CarreraRepository,
-    MateriaRepository,
     CorrelativaRepository,
-    MateriaUsuarioRepository
+    MateriaRepository,
+    MateriaUsuarioRepository,
 )
-from app.features.materias.model import MateriaUsuario
 from app.features.materias.schema import MateriaUsuarioCreate, MateriaUsuarioUpdate
 
-def get_carreras(db: Session):
-    repo = CarreraRepository(db)
-    return repo.get_all()
 
-def get_materias_by_carrera(db: Session, carrera_id: int):
-    repo = MateriaRepository(db)
-    return repo.get_by_carrera(carrera_id)
+class MateriaNoEncontrada(Exception):
+    pass
 
-def get_correlativas(db: Session, materia_id: int):
-    repo = CorrelativaRepository(db)
-    return repo.get_by_materia(materia_id)
 
-def get_materias_usuario(db: Session, usuario_id: int):
+class MateriaYaCargada(Exception):
+    pass
+
+
+def get_carreras(db: Session) -> list[Carrera]:
+    return CarreraRepository(db).get_all()
+
+
+def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
+    return MateriaRepository(db).get_by_carrera(carrera_id)
+
+
+def get_correlativas(db: Session, materia_id: int) -> list[Correlativa]:
+    return CorrelativaRepository(db).get_by_materia(materia_id)
+
+
+def get_materias_usuario(db: Session, usuario_id: int) -> list[MateriaUsuario]:
+    return MateriaUsuarioRepository(db).get_by_usuario(usuario_id)
+
+
+def add_materia_usuario(
+    db: Session, datos: MateriaUsuarioCreate, usuario_id: int
+) -> MateriaUsuario:
+    if MateriaRepository(db).get_by_id(datos.materia_id) is None:
+        raise MateriaNoEncontrada(f"No existe la materia {datos.materia_id}")
+
     repo = MateriaUsuarioRepository(db)
-    return repo.get_by_usuario(usuario_id)
+    if repo.get_by_usuario_y_materia(usuario_id, datos.materia_id) is not None:
+        raise MateriaYaCargada("Esa materia ya está cargada")
 
-def add_materia_usuario(db: Session, datos: MateriaUsuarioCreate, usuario_id: int):
-    repo = MateriaUsuarioRepository(db)
-    nueva = MateriaUsuario(
-        usuario_id=usuario_id,
-        materia_id=datos.materia_id,
-        estado=datos.estado,
-        nota_parcial_1=datos.nota_parcial_1,
-        nota_parcial_2=datos.nota_parcial_2,
-        nota_final=datos.nota_final
-    )
-    return repo.create(nueva)
+    nueva = MateriaUsuario(usuario_id=usuario_id, **datos.model_dump())
 
-def update_materia_usuario(db: Session, materia_usuario_id: int, usuario_id: int, datos: MateriaUsuarioUpdate):
-    repo = MateriaUsuarioRepository(db)
-    return repo.update(materia_usuario_id, usuario_id, datos)
+    try:
+        return repo.create(nueva)
+    except IntegrityError:
+        db.rollback()
+        raise MateriaYaCargada("Esa materia ya está cargada")
 
-def delete_materia_usuario(db: Session, materia_usuario_id: int, usuario_id: int):
-    repo = MateriaUsuarioRepository(db)
-    return repo.delete(materia_usuario_id, usuario_id)
 
-def calcular_promedio(db: Session, usuario_id: int):
-    repo = MateriaUsuarioRepository(db)
-    materias = repo.get_by_usuario(usuario_id)
-    aprobadas = [m for m in materias if m.estado == "aprobada" and m.nota_final is not None]
-    if not aprobadas:
-        return 0.0
-    promedio = sum(m.nota_final for m in aprobadas) / len(aprobadas)
-    return round(promedio, 2)
+def update_materia_usuario(
+    db: Session,
+    materia_usuario_id: int,
+    usuario_id: int,
+    datos: MateriaUsuarioUpdate,
+) -> MateriaUsuario | None:
+    return MateriaUsuarioRepository(db).update(materia_usuario_id, usuario_id, datos)
+
+
+def delete_materia_usuario(
+    db: Session, materia_usuario_id: int, usuario_id: int
+) -> MateriaUsuario | None:
+    return MateriaUsuarioRepository(db).delete(materia_usuario_id, usuario_id)
+
+
+def calcular_promedio(db: Session, usuario_id: int) -> dict:
+    cursadas = MateriaUsuarioRepository(db).get_by_usuario(usuario_id)
+    computadas = [c for c in cursadas if c.nota_final is not None]
+
+    if not computadas:
+        return {"promedio": None, "materias_computadas": 0}
+
+    promedio = sum(c.nota_final for c in computadas) / len(computadas)
+    return {"promedio": round(promedio, 2), "materias_computadas": len(computadas)}
