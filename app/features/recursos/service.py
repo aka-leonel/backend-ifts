@@ -1,8 +1,8 @@
 from typing import List
 
-from features.recursos.model import Recurso, Convenio, TalentoTech
-from features.recursos.schema import RecursoCreate, ConvenioCreate, TalentoTechCreate
-from features.recursos.repository import RecursoRepository, ConvenioRepository, TalentoTechRepository
+from app.features.recursos.model import Recurso, Convenio, TalentoTech
+from app.features.recursos.schema import RecursoCreate, ConvenioCreate, TalentoTechCreate
+from app.features.recursos.repository import RecursoRepository, ConvenioRepository, TalentoTechRepository
 
 class RecursoNotFound(Exception):
     pass

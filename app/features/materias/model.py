@@ -38,7 +38,7 @@ class MateriaUsuario(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, nullable=False, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
     materia_id = Column(Integer, ForeignKey("materias.id"), nullable=False, index=True)
     cursando = Column(Boolean, nullable=False, default=False)
     nota_parcial_1 = Column(Float, nullable=True)

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
-from app.features.recursos.service import ConvenioService
+from app.features.recursos.service import ConvenioService, ConvenioNotFound
 from app.features.recursos import ConvenioCreate, ConvenioResponse
 from app.features.recursos.dependencies import get_convenio_service
 
@@ -32,7 +32,7 @@ def get_by_carrera(carrera_id: int, service_convenio: ConvenioService = Depends(
 def create(convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
     return service_convenio.create(convenio)
 
-@router.update("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_204_NO_CONTENT)
+@router.put("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_204_NO_CONTENT)
 def update(convenio_id: int, convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
     try:
         return service_convenio.update(convenio_id, convenio)
@@ -44,4 +44,4 @@ def delete(convenio_id: int, service_convenio: ConvenioService = Depends(get_con
     try:
         return service_convenio.delete(convenio_id)
     except ConvenioNotFound as err:
-        raise: HTTPException(status_code= 404, detail=str(err))
+        raise HTTPException(status_code= 404, detail=str(err))

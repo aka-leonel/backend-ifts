@@ -117,7 +117,7 @@ class TalentoTechRepository:
     def get_talentotech_by_categoria(self, categoria: str) -> list[TalentoTech]:
         return self.db.query(TalentoTech).filter(TalentoTech.categoria == categoria).all()
 
-    def create_talentotech(self, talentotech: TalentoTechCreate) -> [TalentoTech]:
+    def create_talentotech(self, talentotech: TalentoTechCreate) -> TalentoTech:
         db_talentotech = TalentoTech(
             carrera_id = talentotech.carrera_id,
             nombre_curso = talentotech.nombre_curso,

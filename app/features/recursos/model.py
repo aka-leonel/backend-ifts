@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint
+from datetime import datetime
 from app.database import Base
 from app.features.materias.model import Materia, Carrera
 
@@ -7,35 +8,34 @@ class Recurso(Base):
     __tablename__ = "recursos"
 
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, nullable=False, index=True)
-    materia_id = Column(Integer, nullable=False, ForeignKey("materias.id"), index=True)
+    # Se agregó ForeignKey opcional hacia la tabla de usuarios
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    materia_id = Column(Integer, ForeignKey("materias.id"), nullable=False, index=True)
     titulo = Column(String(150), nullable=False)
-    url = Columnn(Text, nullable=False)
+    url = Column(Text, nullable=False)
     descripcion = Column(Text, nullable=False)
     fecha_creacion = Column(DateTime, nullable=False, default=datetime.utcnow)
+
 
 class Convenio(Base):
     __tablename__ = "convenios"
 
     id = Column(Integer, primary_key=True, index=True)
-    carrera_id = Column(Integer, nullable=False, ForeignKey("carreras.id"))
+    carrera_id = Column(Integer, ForeignKey("carreras.id"), nullable=False,  index=True)
+    
     institucion = Column(String(150), nullable=False)
     carrera_destino = Column(String(150), nullable=False)
-    descripcioon = Column(Text, nullable=False)
+    descripcion = Column(Text, nullable=False)
     link_info = Column(Text, nullable=False)
 
+
 class TalentoTech(Base):
-    __table_name__ = "talentotech"
+    __tablename__ = "talentotech"
 
     id = Column(Integer, primary_key=True, index=True)
-    carrera_id = Column(Integer, nullable=False, ForeignKey("carreras.id"))  
+    carrera_id = Column(Integer,  ForeignKey("carreras.id"),nullable=False)
     nombre_curso = Column(String(150), nullable=False)
     categoria = Column(String(20), nullable=False)
     descripcion = Column(Text, nullable=False)
     duracion = Column(String(50), nullable=False)
     link_inscripcion = Column(Text, nullable=False)
-
-
-
-
-

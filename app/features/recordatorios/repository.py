@@ -3,7 +3,7 @@ from app.features.recordatorios.model import Recordatorio
 
 class RecordatorioRepository:
     
-    def _init_(self, db: Session):
+    def __init__(self, db: Session):
         self.db = db
     
     def get_by_usuario(self, usuario_id: int):
