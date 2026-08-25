@@ -8,3 +8,4 @@ passlib[bcrypt]
 alembic
 python-multipart
 httpx
+email-validator 
