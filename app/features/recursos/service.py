@@ -22,8 +22,6 @@ class ConvenioAlreadyExists(Exception):
 class TalentoTechAlreadyExists(Exception):
     pass
 
-
-
 class RecursoService:
     def __init__(self, repository: RecursoRepository):
         self.repository = repository
