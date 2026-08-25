@@ -27,21 +27,29 @@ class ConvenioResponse(BaseModel):
     id = int
     institucion = str
     carrera_destino = str
-    descripcion: str | None = None
+    descripcion: str 
     link_info: HttpUrl 
     carrera_id: int
 
     class Config:
         from_attributes: True 
 
+class ConvenioCreate(BaseModel):
+    institucion = str
+    carrera_destino = str
+    descripcion: str 
+    link_info: HttpUrl 
+    carrera_id: int   
+
+
 class TalentoTechResponse(BaseModel):
     id = int
-    carrera_id = int | None = None
-    nombre_curso = str | None = None
-    categoria = str | None = None
-    descripcion = str | None = None
-    link_descripcion = HttpUrl | None = None
-    duracion = str | None = None
+    carrera_id = int 
+    nombre_curso = str 
+    categoria = str 
+    descripcion = str 
+    link_descripcion = HttpUrl
+    duracion = str
 
     class Config:
         from_attributes = True
