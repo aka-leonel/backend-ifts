@@ -1,0 +1,16 @@
+# Normalizar saltos de línea al hacer commit (todos los archivos de texto quedan con LF en el repo)
+* text=auto
+
+# Python explícito
+*.py text eol=lf
+
+# Configs y scripts
+*.txt text eol=lf
+*.md text eol=lf
+*.env text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+
+# Archivos binarios — sin conversión
+*.db binary
+*.pyc binary

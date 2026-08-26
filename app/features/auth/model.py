@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
 
@@ -18,3 +19,4 @@ class Usuario(Base):
     carrera_id = Column(Integer, ForeignKey("carreras.id"), nullable=False, index=True)
     fecha_registro = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     rol = Column(Enum(RolUsuario), nullable=False, default=RolUsuario.ESTUDIANTE)
+    recordatorios = relationship("Recordatorio", back_populates="usuario")

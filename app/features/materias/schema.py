@@ -5,10 +5,40 @@ from typing import Optional
 NotaOpcional = Optional[float]
 
 
+# ─── IFTS ────────────────────────────────────────────────────────────────────
+
+class IFTSCreate(BaseModel):
+    nombre: str
+    ubicacion: Optional[str] = None
+
+
+class IFTSResponse(BaseModel):
+    id: int
+    nombre: str
+    ubicacion: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Carrera ─────────────────────────────────────────────────────────────────
+
+class CarreraCreate(BaseModel):
+    nombre: str
+    duracion_cuatrimestres: int
+    ifts_id: int
+
+
+class CarreraUpdate(BaseModel):
+    nombre: Optional[str] = None
+    duracion_cuatrimestres: Optional[int] = None
+
+
 class CarreraResponse(BaseModel):
     id: int
     nombre: str
     duracion_cuatrimestres: int
+    ifts_id: int
 
     class Config:
         from_attributes = True
@@ -17,6 +47,7 @@ class CarreraResponse(BaseModel):
 class MateriaResponse(BaseModel):
     id: int
     nombre: str
+    codigo: str
     carrera_id: int
     anio: int
     cuatrimestre: int
@@ -24,6 +55,21 @@ class MateriaResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class MateriaCreate(BaseModel):         
+    carrera_id: int
+    nombre: str
+    codigo: str
+    anio: int
+    cuatrimestre: int
+
+    class Config:
+        from_attributes = True
+
+class MateriaUpdate(BaseModel):         
+    nombre: Optional[str] = None
+    codigo: Optional[str] = None        
+    anio: Optional[int] = None
+    cuatrimestre: Optional[int] = None
 
 class CorrelativaResponse(BaseModel):
     id: int
