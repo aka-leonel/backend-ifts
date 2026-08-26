@@ -32,7 +32,7 @@ def get_by_carrera(carrera_id: int, service_convenio: ConvenioService = Depends(
 def create(convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
     return service_convenio.create(convenio)
 
-@router.put("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_204_NO_CONTENT)
+@router.put("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_200_OK)
 def update(convenio_id: int, convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
     try:
         return service_convenio.update(convenio_id, convenio)

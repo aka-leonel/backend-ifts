@@ -1,6 +1,13 @@
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, UniqueConstraint
 from app.database import Base
 
+class IFTS(Base):
+    __tablename__ = "ifts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+    ubicacion = Column(String, nullable=True)
+
 
 class Carrera(Base):
     __tablename__ = "carreras"
@@ -8,14 +15,19 @@ class Carrera(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, nullable=False)
     duracion_cuatrimestres = Column(Integer, nullable=False)
+    ifts_id = Column(Integer, ForeignKey("ifts.id"), nullable=False, index=True)
 
 
 class Materia(Base):
     __tablename__ = "materias"
+    __table_args__ = (
+        UniqueConstraint("carrera_id", "codigo", name="uq_materia_codigo_carrera"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String, nullable=False)
     carrera_id = Column(Integer, ForeignKey("carreras.id"), nullable=False, index=True)
+    nombre = Column(String, nullable=False)
+    codigo = Column(String(20), nullable=False)
     anio = Column(Integer, nullable=False)
     cuatrimestre = Column(Integer, nullable=False)
 

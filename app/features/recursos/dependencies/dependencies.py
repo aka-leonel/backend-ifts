@@ -1,4 +1,4 @@
-from database import get_db
+from app.database import get_db
 from sqlalchemy.orm import Session
 from app.features.recursos.schema import RecursoCreate, RecursoResponse
 from app.features.recursos import repository

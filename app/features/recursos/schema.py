@@ -5,7 +5,7 @@ from datetime import datetime
 class RecursoBase(BaseModel):
     titulo: str = Field(..., min_length=1, max_length=150)
     url: HttpUrl
-    descripcion: Optional[str] = None
+    descripcion: str
     materia_id: int
 
     class Config:
@@ -13,10 +13,12 @@ class RecursoBase(BaseModel):
 
 class RecursoCreate(RecursoBase):
     usuario_id: int
-    fecha_creacion: datetime = datetime.utcnow
+    
 
-class RecursoResponse(RecursoCreate):
+class RecursoResponse(RecursoBase):
     id: int
+    usuario_id: int
+    fecha_creacion: datetime
 
     class Config:
         from_attributes = True

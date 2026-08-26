@@ -1,5 +1,5 @@
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint
-from datetime import datetime
+from sqlalchemy import Column, ForeignKey, Integer, String, Text, DateTime
+from sqlalchemy.sql import func
 from app.database import Base
 from app.features.materias.model import Materia, Carrera
 
@@ -14,7 +14,7 @@ class Recurso(Base):
     titulo = Column(String(150), nullable=False)
     url = Column(Text, nullable=False)
     descripcion = Column(Text, nullable=False)
-    fecha_creacion = Column(DateTime, nullable=False, default=datetime.utcnow)
+    fecha_creacion = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class Convenio(Base):

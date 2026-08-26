@@ -20,16 +20,16 @@ def get_all(service_recurso: RecursoService = Depends(get_recurso_service)):
 def get_by_usuario(usuario_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
     return service_recurso.get_by_usuario(usuario_id)
 
+@router.get("/materia/{materia_id}", response_model=List[RecursoResponse])
+def get_by_materia(materia_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
+    return service_recurso.get_by_materia(materia_id)
+
 @router.get("/{recurso_id}", response_model=RecursoResponse)
 def get_by_id(recurso_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
     try:
         return service_recurso.get_by_id(recurso_id)
     except RecursoNotFound as err:
         raise HTTPException(status_code=404, detail=str(err))
-
-@router.get("/materia/{materia_id}", response_model=List[RecursoResponse])
-def get_by_materia(materia_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
-    return service_recurso.get_by_materia(materia_id)
 
 @router.post("/", response_model=RecursoResponse, status_code=status.HTTP_201_CREATED)
 def create(recurso: RecursoCreate, service_recurso: RecursoService = Depends(get_recurso_service)):
