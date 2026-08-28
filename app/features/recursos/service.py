@@ -32,8 +32,8 @@ class RecursoService:
     def get_by_usuario(self, usuario_id: int) -> list[Recurso]:
         return self.repository.get_recursos_by_usuario(usuario_id)
 
-    def create(self, recurso: RecursoCreate) -> Recurso:
-        return self.repository.create_recurso(recurso)
+    def create(self, recurso: RecursoCreate, usuario_id: int) -> Recurso:
+        return self.repository.create_recurso(recurso, usuario_id)
 
     def update(self, recurso_id: int, recurso: RecursoCreate) -> Recurso:
         self.get_by_id(recurso_id)

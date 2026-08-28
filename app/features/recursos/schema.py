@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
 from datetime import datetime
+from app.features.auth.service import get_current_user
+
 
 class RecursoBase(BaseModel):
     titulo: str = Field(..., min_length=1, max_length=150)
@@ -12,7 +14,7 @@ class RecursoBase(BaseModel):
         from_attributes = True
 
 class RecursoCreate(RecursoBase):
-    usuario_id: int
+    pass    
     
 
 class RecursoResponse(RecursoBase):

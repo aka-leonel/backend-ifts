@@ -15,14 +15,14 @@ class RecursoRepository:
     def get_recursos_by_usuario(self, usuario_id: int) -> list[Recurso]:
         return (self.db.query(Recurso).filter(Recurso.usuario_id == usuario_id).all())
 
-    def create_recurso(self, recurso: RecursoCreate) -> Recurso:
+    def create_recurso(self, recurso: RecursoCreate, usuario_id: int) -> Recurso:
         recurso_db = Recurso(
-            usuario_id = recurso.usuario_id,
+            usuario_id = usuario_id,
             materia_id = recurso.materia_id,
             titulo = recurso.titulo,
             url = str(recurso.url),
             descripcion = recurso.descripcion if recurso.descripcion else None,
-            fecha_creacion = recurso.fecha_creacion
+          ##  fecha_creacion = recurso.fecha_creacion
         )
         self.db.add(recurso_db)
         self.db.commit()
