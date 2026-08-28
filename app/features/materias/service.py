@@ -8,7 +8,14 @@ from app.features.materias.repository import (
     MateriaRepository,
     MateriaUsuarioRepository,
 )
-from app.features.materias.schema import MateriaUsuarioCreate, MateriaUsuarioUpdate
+from app.features.materias.schema import (
+    CarreraCreate,
+    CarreraUpdate,
+    MateriaCreate,
+    MateriaUpdate,
+    MateriaUsuarioCreate,
+    MateriaUsuarioUpdate,
+)
 
 
 class MateriaNoEncontrada(Exception):
@@ -23,8 +30,32 @@ def get_carreras(db: Session) -> list[Carrera]:
     return CarreraRepository(db).get_all()
 
 
+def create_carrera(db: Session, datos: CarreraCreate) -> Carrera:
+    return CarreraRepository(db).create(datos)
+
+
+def update_carrera(db: Session, carrera_id: int, datos: CarreraUpdate) -> Carrera | None:
+    return CarreraRepository(db).update(carrera_id, datos)
+
+
+def delete_carrera(db: Session, carrera_id: int) -> Carrera | None:
+    return CarreraRepository(db).delete(carrera_id)
+
+
 def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
     return MateriaRepository(db).get_by_carrera(carrera_id)
+
+
+def create_materia(db: Session, datos: MateriaCreate) -> Materia:
+    return MateriaRepository(db).create(datos)
+
+
+def update_materia(db: Session, materia_id: int, datos: MateriaUpdate) -> Materia | None:
+    return MateriaRepository(db).update(materia_id, datos)
+
+
+def delete_materia(db: Session, materia_id: int) -> Materia | None:
+    return MateriaRepository(db).delete(materia_id)
 
 
 def get_correlativas(db: Session, materia_id: int) -> list[Correlativa]:
