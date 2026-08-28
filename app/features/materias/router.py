@@ -5,9 +5,13 @@ from typing import List
 from app.database import get_db
 from app.features.materias import service
 from app.features.materias.schema import (
+    CarreraCreate,
     CarreraResponse,
+    CarreraUpdate,
     CorrelativaResponse,
+    MateriaCreate,
     MateriaResponse,
+    MateriaUpdate,
     MateriaUsuarioCreate,
     MateriaUsuarioResponse,
     MateriaUsuarioUpdate,
@@ -27,6 +31,27 @@ def get_usuario_actual() -> int:
 @router.get("/carreras", response_model=List[CarreraResponse])
 def get_carreras(db: Session = Depends(get_db)):
     return service.get_carreras(db)
+
+
+@router.post("/carreras", response_model=CarreraResponse, status_code=status.HTTP_201_CREATED)
+def crear_carrera(datos: CarreraCreate, db: Session = Depends(get_db)):
+    return service.create_carrera(db, datos)
+
+
+@router.put("/carreras/{carrera_id}", response_model=CarreraResponse)
+def actualizar_carrera(carrera_id: int, datos: CarreraUpdate, db: Session = Depends(get_db)):
+    resultado = service.update_carrera(db, carrera_id, datos)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Carrera no encontrada")
+    return resultado
+
+
+@router.delete("/carreras/{carrera_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_carrera(carrera_id: int, db: Session = Depends(get_db)):
+    resultado = service.delete_carrera(db, carrera_id)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Carrera no encontrada")
+    return None
 
 
 @router.get("/carrera/{carrera_id}", response_model=List[MateriaResponse])
@@ -91,4 +116,25 @@ def delete_materia_usuario(
     resultado = service.delete_materia_usuario(db, materia_usuario_id, usuario_id)
     if resultado is None:
         raise HTTPException(status_code=404, detail="No se encontró esa cursada")
+    return None
+
+
+@router.post("/", response_model=MateriaResponse, status_code=status.HTTP_201_CREATED)
+def crear_materia(datos: MateriaCreate, db: Session = Depends(get_db)):
+    return service.create_materia(db, datos)
+
+
+@router.put("/{materia_id}", response_model=MateriaResponse)
+def actualizar_materia(materia_id: int, datos: MateriaUpdate, db: Session = Depends(get_db)):
+    resultado = service.update_materia(db, materia_id, datos)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Materia no encontrada")
+    return resultado
+
+
+@router.delete("/{materia_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_materia(materia_id: int, db: Session = Depends(get_db)):
+    resultado = service.delete_materia(db, materia_id)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Materia no encontrada")
     return None

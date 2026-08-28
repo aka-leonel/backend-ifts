@@ -1,7 +1,13 @@
 from sqlalchemy.orm import Session
 
 from app.features.materias.model import Carrera, Correlativa, Materia, MateriaUsuario
-from app.features.materias.schema import MateriaUsuarioUpdate
+from app.features.materias.schema import (
+    CarreraCreate,
+    CarreraUpdate,
+    MateriaCreate,
+    MateriaUpdate,
+    MateriaUsuarioUpdate,
+)
 
 
 class CarreraRepository:
@@ -13,6 +19,34 @@ class CarreraRepository:
 
     def get_by_id(self, carrera_id: int) -> Carrera | None:
         return self.db.query(Carrera).filter(Carrera.id == carrera_id).first()
+
+    def create(self, datos: CarreraCreate) -> Carrera:
+        carrera = Carrera(**datos.model_dump())
+        self.db.add(carrera)
+        self.db.commit()
+        self.db.refresh(carrera)
+        return carrera
+
+    def update(self, carrera_id: int, datos: CarreraUpdate) -> Carrera | None:
+        carrera = self.get_by_id(carrera_id)
+        if carrera is None:
+            return None
+
+        for campo, valor in datos.model_dump(exclude_unset=True).items():
+            setattr(carrera, campo, valor)
+
+        self.db.commit()
+        self.db.refresh(carrera)
+        return carrera
+
+    def delete(self, carrera_id: int) -> Carrera | None:
+        carrera = self.get_by_id(carrera_id)
+        if carrera is None:
+            return None
+
+        self.db.delete(carrera)
+        self.db.commit()
+        return carrera
 
 
 class MateriaRepository:
@@ -29,6 +63,34 @@ class MateriaRepository:
 
     def get_by_id(self, materia_id: int) -> Materia | None:
         return self.db.query(Materia).filter(Materia.id == materia_id).first()
+
+    def create(self, datos: MateriaCreate) -> Materia:
+        materia = Materia(**datos.model_dump())
+        self.db.add(materia)
+        self.db.commit()
+        self.db.refresh(materia)
+        return materia
+
+    def update(self, materia_id: int, datos: MateriaUpdate) -> Materia | None:
+        materia = self.get_by_id(materia_id)
+        if materia is None:
+            return None
+
+        for campo, valor in datos.model_dump(exclude_unset=True).items():
+            setattr(materia, campo, valor)
+
+        self.db.commit()
+        self.db.refresh(materia)
+        return materia
+
+    def delete(self, materia_id: int) -> Materia | None:
+        materia = self.get_by_id(materia_id)
+        if materia is None:
+            return None
+
+        self.db.delete(materia)
+        self.db.commit()
+        return materia
 
 
 class CorrelativaRepository:
