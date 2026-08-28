@@ -12,17 +12,6 @@ router = APIRouter(
     tags=["talentotech"]
 )
 
-@router.get("/", response_model=List[TalentoTechResponse])
-def get_all(service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    return service_talentotech.get_all()
-
-@router.get("/{talentotech_id}", response_model=TalentoTechResponse)
-def get_by_id(talentotech_id: int, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    try:
-        return service_talentotech.get_by_id(talentotech_id)
-    except TalentoTechNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
-
 @router.get("/carrera/{carrera_id}", response_model=List[TalentoTechResponse])
 def get_by_carrera(carrera_id: int, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
     return service_talentotech.get_by_carrera(carrera_id)
@@ -30,13 +19,6 @@ def get_by_carrera(carrera_id: int, service_talentotech: TalentoTechService = De
 @router.get("/categoria/{categoria}", response_model=List[TalentoTechResponse])
 def get_by_categoria(categoria: str, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
     return service_talentotech.get_by_categoria(categoria)
-
-@router.post("/", response_model=TalentoTechResponse, status_code=status.HTTP_201_CREATED)
-def create(talentotech: TalentoTechCreate, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    try:
-        return service_talentotech.create(talentotech)
-    except TalentoTechAlreadyExists as err:
-        raise HTTPException(status_code=409, detail=str(err))
 
 @router.put("/{talentotech_id}", response_model=TalentoTechResponse, status_code=status.HTTP_201_CREATED)
 def update(talentotech_id: int, talentotech: TalentoTechCreate, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
@@ -51,3 +33,21 @@ def delete(talentotech_id: int, service_talentotech: TalentoTechService = Depend
         return service_talentotech.delete(talentotech_id)
     except TalentoTechNotFound as err:
         raise HTTPException(status_code=404, detail=str(err))
+
+@router.get("/", response_model=List[TalentoTechResponse])
+def get_all(service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
+    return service_talentotech.get_all()
+
+@router.get("/{talentotech_id}", response_model=TalentoTechResponse)
+def get_by_id(talentotech_id: int, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
+    try:
+        return service_talentotech.get_by_id(talentotech_id)
+    except TalentoTechNotFound as err:
+        raise HTTPException(status_code=404, detail=str(err))
+
+@router.post("/", response_model=TalentoTechResponse, status_code=status.HTTP_201_CREATED)
+def create(talentotech: TalentoTechCreate, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
+    try:
+        return service_talentotech.create(talentotech)
+    except TalentoTechAlreadyExists as err:
+        raise HTTPException(status_code=409, detail=str(err))

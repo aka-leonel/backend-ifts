@@ -12,25 +12,10 @@ router = APIRouter(
     tags=["convenios"]
 )
 
-
-@router.get("/", response_model=List[ConvenioResponse])
-def get_all(service_convenio: ConvenioService = Depends(get_convenio_service)):
-    return service_convenio.get_all()
-
-@router.get("/{convenio_id}", response_model=ConvenioResponse)
-def get_by_id(convenio_id: int, service_convenio: ConvenioService = Depends(get_convenio_service)):
-    try:
-        return service_convenio.get_by_id(convenio_id)
-    except ConvenioNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
-
 @router.get("/carrera/{carrera_id}", response_model=List[ConvenioResponse])
 def get_by_carrera(carrera_id: int, service_convenio: ConvenioService = Depends(get_convenio_service)):
     return service_convenio.get_by_carrera(carrera_id)
 
-@router.post("/", response_model=ConvenioResponse, status_code=status.HTTP_201_CREATED)
-def create(convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
-    return service_convenio.create(convenio)
 
 @router.put("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_200_OK)
 def update(convenio_id: int, convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
@@ -45,3 +30,20 @@ def delete(convenio_id: int, service_convenio: ConvenioService = Depends(get_con
         return service_convenio.delete(convenio_id)
     except ConvenioNotFound as err:
         raise HTTPException(status_code= 404, detail=str(err))
+
+@router.get("/{convenio_id}", response_model=ConvenioResponse)
+def get_by_id(convenio_id: int, service_convenio: ConvenioService = Depends(get_convenio_service)):
+    try:
+        return service_convenio.get_by_id(convenio_id)
+    except ConvenioNotFound as err:
+        raise HTTPException(status_code=404, detail=str(err))
+
+@router.get("/", response_model=List[ConvenioResponse])
+def get_all(service_convenio: ConvenioService = Depends(get_convenio_service)):
+    return service_convenio.get_all()
+
+
+@router.post("/", response_model=ConvenioResponse, status_code=status.HTTP_201_CREATED)
+def create(convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
+    return service_convenio.create(convenio)
+
