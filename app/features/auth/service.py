@@ -74,9 +74,10 @@ class AuthService:
         Extrae el user_id del token y devuelve el objeto Usuario.
         """
         payload = self.decode_token(token)
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        user_id_str: str = payload.get("sub")
+        if user_id_str is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token sin subject")
+        user_id = int(user_id_str)  # Convertir string a int
         user = self.repository.get_by_id(user_id)
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
@@ -137,7 +138,7 @@ class AuthService:
             )
 
         # 3. Generar token
-        access_token = self.create_access_token(data={"sub": user.id, "email": user.email})
+        access_token = self.create_access_token(data={"sub": str(user.id), "email": user.email})
 
         # 4. Devolver token + datos del usuario (opcional)
         user_response = UsuarioResponse.model_validate(user)

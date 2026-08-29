@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
 from datetime import datetime
-from app.features.auth.service import get_current_user
 
 
 class RecursoBase(BaseModel):
