@@ -1,5 +1,73 @@
 # Guía de Testing - miIFTS API
 
+## 🤖 Tests automatizados (pytest)
+
+Antes de ponerte a probar todo a mano con los pasos de abajo, esta suite
+te da una verificación rápida y repetible de que lo esencial anda: corre
+contra una base SQLite **en memoria**, así que no toca `miifts.db` ni
+requiere levantar el servidor con `uvicorn`.
+
+### Instalar dependencias de testing
+
+```bash
+pip install -r requirements.txt
+pip install pytest pytest-cov
+```
+
+### Correr la suite completa
+
+```bash
+pytest --cov=app --cov-report=term-missing
+```
+
+### Qué cubre
+
+- **`tests/test_auth.py`** (7 tests): registro exitoso, registro con email
+  duplicado (409), login exitoso, login con credenciales inválidas (401),
+  `GET /auth/me` con token válido, con token inválido y sin token.
+- **`tests/test_materias.py`** (8 tests): CRUD de carreras (crear,
+  actualizar, actualizar inexistente → 404, eliminar, eliminar
+  inexistente → 404), CRUD de materias (crear, código duplicado → 409),
+  y un caso de acceso sin autenticación.
+
+Coverage actual: **~70%** sobre `app/`.
+
+### Test marcado como `xfail`
+
+- **`test_crear_carrera_sin_auth`**: espera un 401, pero hoy
+  `POST /materias/carreras` todavía no exige JWT (pendiente de
+  Integrante 1). Está marcado con `@pytest.mark.xfail` en
+  `tests/test_materias.py` para no romper el pipeline mientras tanto.
+  Cuando se agregue `Depends(get_current_user)` a ese endpoint, el test
+  va a empezar a pasar solo — en ese momento, sacar el decorador
+  `xfail` (vas a verlo reportado como `XPASS` en la consola, señal de
+  que hay que limpiarlo).
+
+### Estructura de la suite
+
+```
+tests/
+├── conftest.py       # fixtures: DB en memoria, TestClient, usuarios de prueba
+├── test_auth.py       # registro, login, get_current_user
+└── test_materias.py   # CRUD de carreras y materias
+```
+
+### Integración continua (CI)
+
+Cada push y Pull Request contra `dev` o `main` dispara automáticamente
+el workflow `.github/workflows/tests.yml`, que:
+
+1. Corre esta misma suite de tests.
+2. Calcula el coverage (falla el build si baja del 60%).
+3. Corre `black` y `pylint` de forma **informativa** — no bloquean el
+   build todavía, porque hay una deuda de formato en gran parte del
+   proyecto pendiente de una pasada coordinada con todo el equipo.
+
+Podés ver el resultado de cada corrida en la pestaña **Actions** del
+repositorio en GitHub.
+
+---
+
 ## 🚀 Paso 1: Ejecutar el seed
 
 ```bash
@@ -331,4 +399,18 @@ taskkill /PID <número> /F
 # Borra la DB y vuelve a ejecutar seed
 rm miifts.db
 python seed.py
+```
+
+### "pytest no encuentra los módulos de app" / `ModuleNotFoundError: No module named 'app'`
+```bash
+# Asegurate de correr pytest desde la raíz del repo, no desde tests/
+cd backend-ifts
+pytest
+```
+
+### Un test de auth o materias falla sin razón aparente
+```bash
+# Corré solo ese archivo con más detalle para ver el traceback completo
+pytest tests/test_auth.py -v
+pytest tests/test_materias.py -v
 ```
