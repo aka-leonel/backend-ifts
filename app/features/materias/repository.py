@@ -53,13 +53,23 @@ class MateriaRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_carrera(self, carrera_id: int) -> list[Materia]:
+    def get_paginated_by_carrera(self, carrera_id: int, limit: int, offset: int) -> list[Materia]:
         return (
             self.db.query(Materia)
             .filter(Materia.carrera_id == carrera_id)
             .order_by(Materia.anio, Materia.cuatrimestre)
+            .offset(offset)
+            .limit(limit)
             .all()
         )
+
+    def count_by_carrera(self, carrera_id: int) -> int:
+        return (
+            self.db.query(Materia)
+            .filter(Materia.carrera_id == carrera_id)
+            .count()
+        )
+
 
     def get_by_id(self, materia_id: int) -> Materia | None:
         return self.db.query(Materia).filter(Materia.id == materia_id).first()

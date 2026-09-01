@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
+from app.shared.schemas.pagination import PaginatedResponse
 
 
 NotaOpcional = Optional[float]
@@ -112,3 +113,7 @@ class MateriaUsuarioResponse(BaseModel):
 class PromedioResponse(BaseModel):
     promedio: Optional[float]
     materias_computadas: int
+
+
+class MateriaPage(PaginatedResponse[MateriaResponse]):
+    pass

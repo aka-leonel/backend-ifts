@@ -1,5 +1,6 @@
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from math import ceil
 
 from app.features.materias.model import Carrera, Correlativa, Materia, MateriaUsuario
 from app.features.materias.repository import (
@@ -13,6 +14,7 @@ from app.features.materias.schema import (
     CarreraUpdate,
     MateriaCreate,
     MateriaUpdate,
+    MateriaPage,
     MateriaUsuarioCreate,
     MateriaUsuarioUpdate,
 )
@@ -41,9 +43,26 @@ def update_carrera(db: Session, carrera_id: int, datos: CarreraUpdate) -> Carrer
 def delete_carrera(db: Session, carrera_id: int) -> Carrera | None:
     return CarreraRepository(db).delete(carrera_id)
 
+def get_materias_by_carrera(
+    db: Session, carrera_id: int, page: int, per_page: int
+) -> MateriaPage:
+    repo = MateriaRepository(db)
+    offset = (page - 1) * per_page
 
-def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
-    return MateriaRepository(db).get_by_carrera(carrera_id)
+    total_items = repo.count_by_carrera(carrera_id=carrera_id)
+    materias = repo.get_paginated_by_carrera(
+        carrera_id=carrera_id, limit=per_page, offset=offset
+    )
+
+    total_pages = ceil(total_items / per_page)
+
+    return MateriaPage(
+        items=materias,
+        total=total_items,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+    )
 
 
 class MateriaCodigoDuplicado(Exception):
