@@ -134,6 +134,20 @@ def seed():
         db.add(test_user)
         db.flush()
 
+        # ── 6. Usuario administrador ─────────────────────────────────────────
+        # El registro público (/auth/registro) SOLO crea estudiantes.
+        # El admin se crea acá (o promoviendo un usuario en la DB).
+        print("Cargando usuario administrador...")
+        admin_user = Usuario(
+            nombre="Administrador",
+            email="admin@miifts.ar",
+            password_hash=pwd_context.hash("admin1234"),
+            carrera_id=dev_software.id,
+            rol=RolUsuario.ADMIN,
+        )
+        db.add(admin_user)
+        db.flush()
+
         db.commit()
 
         print("\n[OK] Seed completado.")
@@ -141,7 +155,8 @@ def seed():
         print(f"  Carreras:     2")
         print(f"  Materias:     {len(materias_dev)} (Desarrollo de Software)")
         print(f"  Correlativas: {len(correlativas)}")
-        print(f"  Usuario test: test@miifts.ar / test1234  (id={test_user.id})")
+        print(f"  Usuario test:  test@miifts.ar / test1234   (id={test_user.id}, rol=estudiante)")
+        print(f"  Usuario admin: admin@miifts.ar / admin1234  (id={admin_user.id}, rol=admin)")
         print("\n  IMPORTANTE: el usuario de prueba tiene id=1.")
         print("  get_usuario_actual() devuelve 1 mientras no este el JWT completo.")
 

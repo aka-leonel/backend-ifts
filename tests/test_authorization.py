@@ -51,6 +51,41 @@ def segundo_estudiante_headers(client, carrera_test) -> dict:
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
+# ========== Registro público: no permite auto-asignarse rol admin ==========
+
+
+def test_registro_ignora_rol_del_body(client, carrera_test):
+    """Aunque el body mande rol=admin, el usuario se crea como estudiante."""
+    payload = {
+        "nombre": "Intruso",
+        "email": "intruso@example.com",
+        "password": "password123",
+        "carrera_id": carrera_test.id,
+        "rol": "admin",
+    }
+    reg = client.post("/auth/registro", json=payload)
+    assert reg.status_code == 201, reg.text
+    assert reg.json()["rol"] == "estudiante"
+
+    # Y en la práctica no puede operar como admin
+    login = client.post(
+        "/auth/login", json={"email": payload["email"], "password": payload["password"]}
+    )
+    token = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post(
+        "/materias/carreras",
+        json={
+            "nombre": "Carrera del intruso",
+            "duracion_cuatrimestres": 4,
+            "ifts_id": carrera_test.ifts_id,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 403
+
+
 # ========== Roles: carreras / materias son solo-admin ==========
 
 

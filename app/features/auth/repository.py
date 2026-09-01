@@ -27,16 +27,17 @@ class AuthRepository:
         """
         Crea un nuevo usuario en la base de datos.
         Recibe el schema de creación (con password en texto plano) y el hash ya calculado.
-        """
-        # Convertir el rol a Enum si viene como string, o usar el default
-        rol_enum = user_data.rol if isinstance(user_data.rol, RolUsuario) else RolUsuario(user_data.rol)
 
+        El registro público SIEMPRE crea usuarios con rol `estudiante`. El rol
+        no se toma del request para evitar escalada de privilegios; los admins
+        se crean por seed o promoción manual.
+        """
         db_user = Usuario(
             nombre=user_data.nombre,
             email=user_data.email,
             password_hash=hashed_password,
             carrera_id=user_data.carrera_id,
-            rol=rol_enum,
+            rol=RolUsuario.ESTUDIANTE,
             # fecha_registro se asigna automáticamente con server_default
         )
         self.db.add(db_user)

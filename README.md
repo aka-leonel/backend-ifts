@@ -16,6 +16,11 @@ El modelo `Usuario` tiene un campo `rol` con dos valores posibles:
 | Estudiante   | `estudiante`  | Rol por defecto al registrarse. Gestiona sus propios datos (cursadas, recursos). |
 | Administrador| `admin`       | Además de lo anterior, gestiona el catálogo académico (carreras y materias). |
 
+**Alta de usuarios:** `POST /auth/registro` **siempre** crea usuarios con rol
+`estudiante`. El campo `rol` del body se ignora (evita escalada de privilegios).
+Los administradores se crean con `python seed.py` (`admin@miifts.ar` / `admin1234`)
+o promoviendo un usuario en la base de datos.
+
 ### Dependencias de seguridad (`app/features/auth/dependencies.py`)
 
 - `get_current_user` — valida el token y devuelve el usuario autenticado.
