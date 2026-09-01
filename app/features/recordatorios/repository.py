@@ -9,9 +9,14 @@ class RecordatorioRepository:
         self.db = db
     
     def get_by_usuario(self, usuario_id: int):
-        return self.db.query(Recordatorio).filter(
-            Recordatorio.usuario_id == usuario_id
-        ).all()
+        return self.query_by_usuario(usuario_id).all()
+
+    def query_by_usuario(self, usuario_id: int):
+        return (
+            self.db.query(Recordatorio)
+            .filter(Recordatorio.usuario_id == usuario_id)
+            .order_by(Recordatorio.fecha)
+        )
     
     def create(self, recordatorio: Recordatorio):
         self.db.add(recordatorio)
@@ -29,7 +34,7 @@ class RecordatorioRepository:
             self.db.commit()
         return recordatorio
 
-    def search(self, usuario_id: int, tipo: Optional[str], desde: Optional[date], hasta: Optional[date], materia_id: Optional[int]) -> list[Recordatorio]:
+    def query_search(self, usuario_id: int, tipo: Optional[str], desde: Optional[date], hasta: Optional[date], materia_id: Optional[int]):
         query = self.db.query(Recordatorio).filter(Recordatorio.usuario_id == usuario_id)
         if tipo is not None:
             query = query.filter(Recordatorio.tipo == tipo)
@@ -39,5 +44,7 @@ class RecordatorioRepository:
             query = query.filter(Recordatorio.fecha >= desde)
         if hasta is not None:
             query = query.filter(Recordatorio.fecha <= hasta)
-        query = query.order_by(Recordatorio.fecha.desc())
-        return query.all()
+        return query.order_by(Recordatorio.fecha.desc())
+
+    def search(self, usuario_id: int, tipo: Optional[str], desde: Optional[date], hasta: Optional[date], materia_id: Optional[int]) -> list[Recordatorio]:
+        return self.query_search(usuario_id, tipo, desde, hasta, materia_id).all()

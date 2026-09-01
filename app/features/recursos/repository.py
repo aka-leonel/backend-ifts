@@ -14,8 +14,18 @@ class RecursoRepository:
     def get_all(self) -> list[Recurso]:
         return self.db.query(Recurso).all()
 
+    def query_all(self):
+        return self.db.query(Recurso).order_by(Recurso.fecha_creacion.desc())
+
     def get_recursos_by_usuario(self, usuario_id: int) -> list[Recurso]:
-        return (self.db.query(Recurso).filter(Recurso.usuario_id == usuario_id).all())
+        return self.query_by_usuario(usuario_id).all()
+
+    def query_by_usuario(self, usuario_id: int):
+        return (
+            self.db.query(Recurso)
+            .filter(Recurso.usuario_id == usuario_id)
+            .order_by(Recurso.fecha_creacion.desc())
+        )
 
     def create_recurso(self, recurso: RecursoCreate, usuario_id: int) -> Recurso:
         recurso_db = Recurso(
@@ -56,9 +66,16 @@ class RecursoRepository:
         return self.db.query(Recurso).filter(Recurso.id == recurso_id).first()
 
     def get_recurso_by_materia(self, materia_id: int) -> list[Recurso]:
-        return (self.db.query(Recurso).filter(Recurso.materia_id == materia_id).all())
+        return self.query_by_materia(materia_id).all()
 
-    def filter_recursos(self, materia_id: Optional[int], tipo: Optional[str], desde: Optional[date], hasta: Optional[date]) -> list[Recurso]:
+    def query_by_materia(self, materia_id: int):
+        return (
+            self.db.query(Recurso)
+            .filter(Recurso.materia_id == materia_id)
+            .order_by(Recurso.fecha_creacion.desc())
+        )
+
+    def query_filtered(self, materia_id: Optional[int], tipo: Optional[str], desde: Optional[date], hasta: Optional[date]):
         query = self.db.query(Recurso)
         if materia_id is not None:
             query = query.filter(Recurso.materia_id == materia_id)
@@ -68,8 +85,10 @@ class RecursoRepository:
             query = query.filter(func.date(Recurso.fecha_creacion) >= desde)
         if hasta is not None:
             query = query.filter(func.date(Recurso.fecha_creacion) <= hasta)
-        query = query.order_by(Recurso.fecha_creacion.desc(), Recurso.titulo)
-        return query.all()
+        return query.order_by(Recurso.fecha_creacion.desc(), Recurso.titulo)
+
+    def filter_recursos(self, materia_id: Optional[int], tipo: Optional[str], desde: Optional[date], hasta: Optional[date]) -> list[Recurso]:
+        return self.query_filtered(materia_id, tipo, desde, hasta).all()
 
 
 class ConvenioRepository:
@@ -81,7 +100,10 @@ class ConvenioRepository:
 
     def get_all(self) -> list[Convenio]:
         return self.db.query(Convenio).all()
-    
+
+    def query_all(self):
+        return self.db.query(Convenio)
+
     def get_convenios_by_carrera(self, carrera_id: int) -> list[Convenio]:
         return self.db.query(Convenio).filter(Convenio.carrera_id == carrera_id).all()
 
@@ -124,7 +146,10 @@ class TalentoTechRepository:
 
     def get_all(self) -> list[TalentoTech]:
         return self.db.query(TalentoTech).all()
-    
+
+    def query_all(self):
+        return self.db.query(TalentoTech)
+
     def get_talentotech_by_id(self, talentotech_id: int) -> Optional[TalentoTech]:
         return self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
     

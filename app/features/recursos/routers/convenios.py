@@ -6,6 +6,8 @@ from app.database import get_db
 from app.features.recursos.service import ConvenioService, ConvenioNotFound
 from app.features.recursos import ConvenioCreate, ConvenioResponse
 from app.features.recursos.dependencies import get_convenio_service
+from app.shared.schemas.pagination import PaginatedResponse
+from app.shared.utils.pagination import PaginationParams
 
 router = APIRouter(
     prefix="/convenios",
@@ -38,9 +40,12 @@ def get_by_id(convenio_id: int, service_convenio: ConvenioService = Depends(get_
     except ConvenioNotFound as err:
         raise HTTPException(status_code=404, detail=str(err))
 
-@router.get("/", response_model=List[ConvenioResponse])
-def get_all(service_convenio: ConvenioService = Depends(get_convenio_service)):
-    return service_convenio.get_all()
+@router.get("/", response_model=PaginatedResponse[ConvenioResponse])
+def get_all(
+    service_convenio: ConvenioService = Depends(get_convenio_service),
+    pagination: PaginationParams = Depends(),
+):
+    return service_convenio.get_all_paginado(pagination)
 
 
 @router.post("/", response_model=ConvenioResponse, status_code=status.HTTP_201_CREATED)

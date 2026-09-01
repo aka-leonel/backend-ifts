@@ -37,9 +37,10 @@ def test_recordatorio_filtrado_por_tipo(
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == rec1.id
-    assert data[0]["tipo"] == "examen"
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == rec1.id
+    assert data["items"][0]["tipo"] == "examen"
 
 
 def test_recordatorio_filtrado_por_rango_fechas(
@@ -71,8 +72,9 @@ def test_recordatorio_filtrado_por_rango_fechas(
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == rec_en_rango.id
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == rec_en_rango.id
 
 
 def test_recordatorio_filtrado_por_materia(
@@ -103,9 +105,10 @@ def test_recordatorio_filtrado_por_materia(
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == rec.id
-    assert data[0]["materia_id"] == materia1.id
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == rec.id
+    assert data["items"][0]["materia_id"] == materia1.id
 
 
 def test_recordatorio_filtrado_sin_resultados(
@@ -129,7 +132,8 @@ def test_recordatorio_filtrado_sin_resultados(
 
     assert response.status_code == 200
     data = response.json()
-    assert data == []
+    assert data["total"] == 0
+    assert data["items"] == []
 
 
 def test_recordatorio_ordenado_por_fecha_descendente(
@@ -167,11 +171,12 @@ def test_recordatorio_ordenado_por_fecha_descendente(
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 3
+    assert data["total"] == 3
+    assert len(data["items"]) == 3
     # Deben estar ordenados por fecha.desc(): reciente, medio, antiguo
-    assert data[0]["id"] == rec_reciente.id
-    assert data[1]["id"] == rec_medio.id
-    assert data[2]["id"] == rec_antiguo.id
+    assert data["items"][0]["id"] == rec_reciente.id
+    assert data["items"][1]["id"] == rec_medio.id
+    assert data["items"][2]["id"] == rec_antiguo.id
 
 
 def test_recordatorio_usuario_id_requerido(client, db_session):

@@ -112,8 +112,8 @@ Authorization: Bearer {{token}}
 DELETE {{baseUrl}}/materias/20
 Authorization: Bearer {{token}}
 
-### 12. Listar materias de una carrera
-GET {{baseUrl}}/materias/carrera/1
+### 12. Listar materias de una carrera (paginado)
+GET {{baseUrl}}/materias/carrera/1?page=1&per_page=10
 
 ### 13. Ver correlativas de una materia
 GET {{baseUrl}}/materias/correlativas/1
@@ -158,8 +158,8 @@ GET {{baseUrl}}/materias/promedio/1
 ### RECURSOS
 ### ============================================
 
-### 19. Listar todos los recursos
-GET {{baseUrl}}/recursos/
+### 19. Listar todos los recursos (paginado)
+GET {{baseUrl}}/recursos/?page=1&per_page=20
 
 ### 20. Crear un recurso
 POST {{baseUrl}}/recursos/
@@ -173,19 +173,19 @@ Authorization: Bearer {{token}}
   "materia_id": 1
 }
 
-### 21. Recursos de una materia
-GET {{baseUrl}}/recursos/materia/1
+### 21. Recursos de una materia (paginado)
+GET {{baseUrl}}/recursos/materia/1?page=1&per_page=10
 
-### 22. Recursos del usuario
-GET {{baseUrl}}/recursos/usuario/1
+### 22. Recursos del usuario (paginado)
+GET {{baseUrl}}/recursos/usuario/1?page=1&per_page=10
 
 
 ### ============================================
 ### CONVENIOS
 ### ============================================
 
-### 23. Listar convenios
-GET {{baseUrl}}/convenios/
+### 23. Listar convenios (paginado)
+GET {{baseUrl}}/convenios/?page=1&per_page=10
 
 ### 24. Crear convenio
 POST {{baseUrl}}/convenios/
@@ -208,8 +208,8 @@ GET {{baseUrl}}/convenios/carrera/1
 ### TALENTO TECH
 ### ============================================
 
-### 26. Listar cursos Talento Tech
-GET {{baseUrl}}/talentotech/
+### 26. Listar cursos Talento Tech (paginado)
+GET {{baseUrl}}/talentotech/?page=1&per_page=10
 
 ### 27. Crear curso Talento Tech
 POST {{baseUrl}}/talentotech/
@@ -236,8 +236,8 @@ GET {{baseUrl}}/talentotech/carrera/1
 ### RECORDATORIOS
 ### ============================================
 
-### 30. Listar recordatorios
-GET {{baseUrl}}/recordatorios/?usuario_id=1
+### 30. Listar recordatorios (paginado)
+GET {{baseUrl}}/recordatorios/?usuario_id=1&page=1&per_page=15
 
 ### 31. Crear recordatorio
 POST {{baseUrl}}/recordatorios/?usuario_id=1

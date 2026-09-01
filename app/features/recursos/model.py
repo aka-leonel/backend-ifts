@@ -34,7 +34,7 @@ class TalentoTech(Base):
     __tablename__ = "talentotech"
 
     id = Column(Integer, primary_key=True, index=True)
-    carrera_id = Column(Integer,  ForeignKey("carreras.id"),nullable=False)
+    carrera_id = Column(Integer, ForeignKey("carreras.id"), nullable=False, index=True)
     nombre_curso = Column(String(150), nullable=False)
     categoria = Column(String(20), nullable=False)
     descripcion = Column(Text, nullable=False)

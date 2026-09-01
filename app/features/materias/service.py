@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,8 @@ from app.features.materias.schema import (
     MateriaUsuarioCreate,
     MateriaUsuarioUpdate,
 )
+from app.shared.schemas.pagination import PaginatedResponse
+from app.shared.utils.pagination import PaginationParams, paginate
 
 
 class MateriaNoEncontrada(Exception):
@@ -48,6 +52,13 @@ def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
 
 def buscar_materias(db: Session, q: str, anio: Optional[int], cuatrimestre: Optional[int]) -> list[Materia]:
     return MateriaRepository(db).search(q, anio, cuatrimestre)
+
+
+def get_materias_by_carrera_paginado(
+    db: Session, carrera_id: int, params: PaginationParams
+) -> PaginatedResponse[Materia]:
+    query = MateriaRepository(db).query_by_carrera(carrera_id)
+    return paginate(query, params)
 
 
 class MateriaCodigoDuplicado(Exception):

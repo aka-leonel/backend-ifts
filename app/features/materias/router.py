@@ -20,6 +20,8 @@ from app.features.materias.schema import (
     MateriaUsuarioUpdate,
     PromedioResponse,
 )
+from app.shared.schemas.pagination import PaginatedResponse
+from app.shared.utils.pagination import PaginationParams
 
 router = APIRouter(
     prefix="/materias",
@@ -70,9 +72,13 @@ def eliminar_carrera(
     return None
 
 
-@router.get("/carrera/{carrera_id}", response_model=List[MateriaResponse])
-def get_materias_by_carrera(carrera_id: int, db: Session = Depends(get_db)):
-    return service.get_materias_by_carrera(db, carrera_id)
+@router.get("/carrera/{carrera_id}", response_model=PaginatedResponse[MateriaResponse])
+def get_materias_by_carrera(
+    carrera_id: int,
+    db: Session = Depends(get_db),
+    pagination: PaginationParams = Depends(),
+):
+    return service.get_materias_by_carrera_paginado(db, carrera_id, pagination)
 
 
 @router.get("/buscar", response_model=List[MateriaResponse])

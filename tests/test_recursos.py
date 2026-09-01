@@ -30,9 +30,10 @@ def test_recurso_filtrado_por_materia(client, db_session, usuario_registrado, ca
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == recurso.id
-    assert data[0]["materia_id"] == materia.id
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == recurso.id
+    assert data["items"][0]["materia_id"] == materia.id
 
 
 def test_recurso_filtrado_por_tipo(client, db_session, usuario_registrado, carrera_test):
@@ -64,9 +65,10 @@ def test_recurso_filtrado_por_tipo(client, db_session, usuario_registrado, carre
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == recurso_pdf.id
-    assert data[0]["tipo"] == "pdf"
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == recurso_pdf.id
+    assert data["items"][0]["tipo"] == "pdf"
 
 
 def test_recurso_filtrado_por_rango_fechas(client, db_session, usuario_registrado, carrera_test):
@@ -100,8 +102,9 @@ def test_recurso_filtrado_por_rango_fechas(client, db_session, usuario_registrad
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == recurso_en_rango.id
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == recurso_en_rango.id
 
 
 def test_recurso_filtrado_sin_resultados(client, db_session, usuario_registrado, carrera_test):
@@ -123,7 +126,8 @@ def test_recurso_filtrado_sin_resultados(client, db_session, usuario_registrado,
 
     assert response.status_code == 200
     data = response.json()
-    assert data == []
+    assert data["total"] == 0
+    assert data["items"] == []
 
 
 def test_recurso_filtrado_todos_los_parametros(
@@ -159,8 +163,9 @@ def test_recurso_filtrado_todos_los_parametros(
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == recurso_matching.id
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == recurso_matching.id
 
 
 def test_recurso_sin_filtros(client, db_session, usuario_registrado, carrera_test):
@@ -192,7 +197,8 @@ def test_recurso_sin_filtros(client, db_session, usuario_registrado, carrera_tes
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 2
+    assert data["total"] == 2
+    assert len(data["items"]) == 2
 
 
 # ========== Helpers ==========

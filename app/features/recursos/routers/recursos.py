@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 from datetime import date
 
 from app.database import get_db
 from app.features.recursos.service import RecursoService, RecursoNotFound
 from app.features.recursos import RecursoCreate, RecursoResponse
 from app.features.recursos.dependencies import get_recurso_service
-from app.features.auth.router import get_current_user 
+from app.features.auth.router import get_current_user
 from app.features.auth.schema import UsuarioResponse
+from app.shared.schemas.pagination import PaginatedResponse
+from app.shared.utils.pagination import PaginationParams
 
 router = APIRouter(
     prefix="/recursos",
@@ -17,13 +19,21 @@ router = APIRouter(
 
 
 
-@router.get("/usuario/{usuario_id}", response_model=List[RecursoResponse])
-def get_by_usuario(usuario_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
-    return service_recurso.get_by_usuario(usuario_id)
+@router.get("/usuario/{usuario_id}", response_model=PaginatedResponse[RecursoResponse])
+def get_by_usuario(
+    usuario_id: int,
+    service_recurso: RecursoService = Depends(get_recurso_service),
+    pagination: PaginationParams = Depends(),
+):
+    return service_recurso.get_by_usuario_paginado(usuario_id, pagination)
 
-@router.get("/materia/{materia_id}", response_model=List[RecursoResponse])
-def get_by_materia(materia_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
-    return service_recurso.get_by_materia(materia_id)
+@router.get("/materia/{materia_id}", response_model=PaginatedResponse[RecursoResponse])
+def get_by_materia(
+    materia_id: int,
+    service_recurso: RecursoService = Depends(get_recurso_service),
+    pagination: PaginationParams = Depends(),
+):
+    return service_recurso.get_by_materia_paginado(materia_id, pagination)
 
 @router.put("/{recurso_id}", response_model=RecursoResponse)
 def update(
@@ -67,15 +77,18 @@ def get_by_id(recurso_id: int, service_recurso: RecursoService = Depends(get_rec
     except RecursoNotFound as err:
         raise HTTPException(status_code=404, detail=str(err))
 
-@router.get("/", response_model=List[RecursoResponse])
+@router.get("/", response_model=PaginatedResponse[RecursoResponse])
 def get_all(
     materia_id: Optional[int] = None,
     tipo: Optional[str] = None,
     desde: Optional[date] = None,
     hasta: Optional[date] = None,
-    service_recurso: RecursoService = Depends(get_recurso_service)
+    service_recurso: RecursoService = Depends(get_recurso_service),
+    pagination: PaginationParams = Depends(),
 ):
-    return service_recurso.get_recursos_filtrados(materia_id, tipo, desde, hasta)
+    return service_recurso.get_recursos_filtrados_paginado(
+        materia_id, tipo, desde, hasta, pagination
+    )
 
 @router.post("/", response_model=RecursoResponse, status_code=status.HTTP_201_CREATED)
 def create(recurso: RecursoCreate, current_user: UsuarioResponse = Depends(get_current_user), service_recurso: RecursoService = Depends(get_recurso_service)): 
