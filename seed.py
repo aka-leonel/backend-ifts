@@ -11,6 +11,11 @@ según el plan de estudios real de tu institución (usá el PDF como fuente).
 import sys
 import os
 
+## imports para probar recordatorios
+
+import random
+from datetime import date, timedelta
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from passlib.context import CryptContext
@@ -132,6 +137,27 @@ def seed():
             rol=RolUsuario.ESTUDIANTE,
         )
         db.add(test_user)
+        db.flush()
+
+        ## datos para probar recordatorios y su paginado
+
+        # ── 6. Recordatorios de prueba ──────────────────────────────────────
+        print("Cargando recordatorios de prueba...")
+        recordatorios_prueba = []
+        tipos_recordatorio = ["EXAMEN", "TRABAJO_PRACTICO", "CONSULTA"]
+        for i in range(25):
+            materia_aleatoria = random.choice(materias_dev)
+            tipo_aleatorio = random.choice(tipos_recordatorio)
+            fecha_futura = date.today() + timedelta(days=random.randint(5, 90))
+            
+            recordatorios_prueba.append(Recordatorio(
+                titulo=f"Recordatorio de prueba {i+1} para {materia_aleatoria.nombre}",
+                fecha=fecha_futura,
+                tipo=tipo_aleatorio,
+                materia_id=materia_aleatoria.id,
+                usuario_id=test_user.id
+            ))
+        db.add_all(recordatorios_prueba)
         db.flush()
 
         db.commit()

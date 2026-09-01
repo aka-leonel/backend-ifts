@@ -11,13 +11,13 @@ from app.features.materias.schema import (
     CorrelativaResponse,
     MateriaCreate,
     MateriaResponse,
-    MateriaPage,
     MateriaUpdate,
     MateriaUsuarioCreate,
     MateriaUsuarioResponse,
     MateriaUsuarioUpdate,
     PromedioResponse,
 )
+from app.shared.schemas.pagination import PaginatedResponse
 
 router = APIRouter(
     prefix="/materias",
@@ -55,7 +55,7 @@ def eliminar_carrera(carrera_id: int, db: Session = Depends(get_db)):
     return None
 
 
-@router.get("/carrera/{carrera_id}", response_model=MateriaPage)
+@router.get("/carrera/{carrera_id}", response_model=PaginatedResponse[MateriaResponse])
 def get_materias_by_carrera(
     carrera_id: int,
     db: Session = Depends(get_db),
@@ -145,5 +145,5 @@ def actualizar_materia(materia_id: int, datos: MateriaUpdate, db: Session = Depe
 def eliminar_materia(materia_id: int, db: Session = Depends(get_db)):
     resultado = service.delete_materia(db, materia_id)
     if resultado is None:
-        raise HTTPException(status_code=404, detail="Materia no encontrada")
+        raise HTTPException(status_code=404, detail="Matea no encontrada")
     return None

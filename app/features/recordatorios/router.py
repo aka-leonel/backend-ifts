@@ -1,18 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from app.features.recordatorios import service
 from app.features.recordatorios.schema import RecordatorioCreate, RecordatorioResponse
+from app.shared.schemas.pagination import PaginatedResponse
+
 
 router = APIRouter(
     prefix="/recordatorios",
     tags=["recordatorios"]
 )
 
-@router.get("/", response_model=List[RecordatorioResponse])
-def get_recordatorios(usuario_id: int, db: Session = Depends(get_db)):
-    return service.get_recordatorios(db, usuario_id)
+@router.get("/", response_model=PaginatedResponse[RecordatorioResponse])
+def get_recordatorios_paginated(
+    usuario_id: int, 
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1, description="Número de página"),
+    per_page: int = Query(10, ge=1, le=100, description="Recordatorios por página")
+):
+    return service.get_recordatorios_paginated(db, usuario_id, page, per_page)
+
 
 @router.post("/", response_model=RecordatorioResponse)
 def create_recordatorio(

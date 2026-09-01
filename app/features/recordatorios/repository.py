@@ -5,11 +5,26 @@ class RecordatorioRepository:
     
     def __init__(self, db: Session):
         self.db = db
+
     
-    def get_by_usuario(self, usuario_id: int):
+    def count_by_usuario(self, usuario_id: int) -> int:
+        """Cuenta el número total de recordatorios para un usuario."""
         return self.db.query(Recordatorio).filter(
             Recordatorio.usuario_id == usuario_id
-        ).all()
+        ).count()
+
+    def get_paginated_by_usuario(self, usuario_id: int, page: int, per_page: int) -> list[Recordatorio]:
+        """Obtiene los recordatorios de un usuario de forma paginada."""
+        offset = (page - 1) * per_page
+        return self.db.query(Recordatorio).filter(
+            Recordatorio.usuario_id == usuario_id
+        ).offset(offset).limit(per_page).all()
+    
+    
+    # def get_by_usuario(self, usuario_id: int):
+    #     return self.db.query(Recordatorio).filter(
+    #         Recordatorio.usuario_id == usuario_id
+    #     ).all()
     
     def create(self, recordatorio: Recordatorio):
         self.db.add(recordatorio)
