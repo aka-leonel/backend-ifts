@@ -1,7 +1,8 @@
 from typing import List
-
+from app.schemas.pagination import PaginatedResponse
+import math
 from app.features.recursos.model import Recurso, Convenio, TalentoTech
-from app.features.recursos.schema import RecursoCreate, ConvenioCreate, TalentoTechCreate
+from app.features.recursos.schema import RecursoCreate, ConvenioCreate, TalentoTechCreate, RecursoResponse
 from app.features.recursos.repository import RecursoRepository, ConvenioRepository, TalentoTechRepository
 
 class RecursoNotFound(Exception):
@@ -26,6 +27,18 @@ class RecursoService:
     def __init__(self, repository: RecursoRepository):
         self.repository = repository
     
+    def get_all_paginated(self, page: int, per_page: int) -> PaginatedResponse[RecursoResponse]:
+
+        items, total = self.repository.get_all_paginated(page=page, per_page=per_page)
+
+        return PaginatedResponse(
+            items=items,
+            total=total,
+            page=page,
+            per_page=per_page,
+            total_pages=math.ceil(total / per_page)
+        )
+
     def get_all(self) -> list[Recurso]:
         return self.repository.get_all()
 
@@ -83,6 +96,14 @@ class ConvenioService:
 class TalentoTechService:
     def __init__(self, repository: TalentoTechRepository):
         self.repository = repository
+    
+    @router.get("/", response_model=PaginatedResponse[RecursoResponse])
+    def get_all_paginated(
+    service_recurso: RecursoService = Depends(get_recurso_service),
+    page: int = Query(1, ge=1, description="Número de página"),
+    per_page: int = Query(20, ge=1, le=100, description="Recursos por página")
+    ):
+    return service_recurso.get_all_paginated(page=page, per_page=per_page)
 
     def get_all(self) -> list[TalentoTech]:
         return self.repository.get_all()
