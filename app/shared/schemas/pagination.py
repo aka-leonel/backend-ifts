@@ -1,5 +1,3 @@
-Archivo: backend-ifts/app/schemas/pagination.py
-
 from pydantic import BaseModel
 from typing import List, Generic, TypeVar
 

@@ -1,4 +1,6 @@
-from sqlalchemy.orm import Session, func
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from typing import List, Tuple
 
 from app.features.recursos.model import Recurso, Convenio, TalentoTech
 from app.features.recursos.schema import RecursoBase, RecursoCreate, ConvenioResponse, TalentoTechResponse, TalentoTechCreate, ConvenioCreate
@@ -9,8 +11,7 @@ class RecursoRepository:
     def __init__(self, db: Session):
         self.db = db
     
-        def get_all_paginated(self, page: int, per_page: int) -> Tuple[List[Recurso], int]:
-        # 1. Calcula el offset (cuántos registros saltar)
+    def get_all_paginated(self, page: int, per_page: int) -> Tuple[List[Recurso], int]:
         offset = (page - 1) * per_page
 
         # 2. Obtiene el conteo total de recursos en la tabla
@@ -75,8 +76,14 @@ class ConvenioRepository:
     def get_convenio_by_id(self, convenio_id: int) -> Optional[Convenio]:
         return self.db.query(Convenio).filter(Convenio.id == convenio_id).first()  
 
-    def get_all(self) -> list[Convenio]:
-        return self.db.query(Convenio).all()
+    def get_all_paginated(self, page: int, per_page: int) -> Tuple[List[Convenio], int]:
+        offset = (page - 1) * per_page
+        total = self.db.query(func.count(Convenio.id)).scalar()
+        items = self.db.query(Convenio).offset(offset).limit(per_page).all()
+        return items, total
+
+    # def get_all(self) -> list[Convenio]:
+    #     return self.db.query(Convenio).all()
     
     def get_convenios_by_carrera(self, carrera_id: int) -> list[Convenio]:
         return self.db.query(Convenio).filter(Convenio.carrera_id == carrera_id).all()
@@ -118,8 +125,11 @@ class TalentoTechRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self) -> list[TalentoTech]:
-        return self.db.query(TalentoTech).all()
+    def get_all_paginated(self, page: int, per_page: int) -> Tuple[List[TalentoTech], int]:
+        offset = (page - 1) * per_page
+        total = self.db.query(func.count(TalentoTech.id)).scalar()
+        items = self.db.query(TalentoTech).offset(offset).limit(per_page).all()
+        return items, total
     
     def get_talentotech_by_id(self, talentotech_id: int) -> Optional[TalentoTech]:
         return self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
