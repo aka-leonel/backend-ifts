@@ -46,9 +46,18 @@ def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
     return MateriaRepository(db).get_by_carrera(carrera_id)
 
 
-def create_materia(db: Session, datos: MateriaCreate) -> Materia:
-    return MateriaRepository(db).create(datos)
+class MateriaCodigoDuplicado(Exception):
+    pass
 
+
+def create_materia(db: Session, datos: MateriaCreate) -> Materia:
+    try:
+        return MateriaRepository(db).create(datos)
+    except IntegrityError:
+        db.rollback()
+        raise MateriaCodigoDuplicado(
+            f"Ya existe una materia con código '{datos.codigo}' en esa carrera"
+        )
 
 def update_materia(db: Session, materia_id: int, datos: MateriaUpdate) -> Materia | None:
     return MateriaRepository(db).update(materia_id, datos)

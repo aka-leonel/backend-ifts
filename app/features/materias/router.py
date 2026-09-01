@@ -121,7 +121,10 @@ def delete_materia_usuario(
 
 @router.post("/", response_model=MateriaResponse, status_code=status.HTTP_201_CREATED)
 def crear_materia(datos: MateriaCreate, db: Session = Depends(get_db)):
-    return service.create_materia(db, datos)
+    try:
+        return service.create_materia(db, datos)
+    except service.MateriaCodigoDuplicado as error:
+        raise HTTPException(status_code=409, detail=str(error))
 
 
 @router.put("/{materia_id}", response_model=MateriaResponse)
