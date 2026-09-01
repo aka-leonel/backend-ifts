@@ -31,9 +31,9 @@
    - Solo admins pueden: crear/editar/eliminar carreras y materias
 
 **Entregables:**
-- [ ] Todos los endpoints CRUD protegidos
-- [ ] Tests de autorización (mínimo 3)
-- [ ] Documentación de roles en README
+- [x] Todos los endpoints CRUD protegidos
+- [x] Tests de autorización (mínimo 3) — `tests/test_authorization.py` (8 tests)
+- [x] Documentación de roles en README
 
 ---
 

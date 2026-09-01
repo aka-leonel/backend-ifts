@@ -25,18 +25,39 @@ def get_by_materia(materia_id: int, service_recurso: RecursoService = Depends(ge
     return service_recurso.get_by_materia(materia_id)
 
 @router.put("/{recurso_id}", response_model=RecursoResponse)
-def update(recurso_id: int, recurso: RecursoCreate, service_recurso: RecursoService = Depends(get_recurso_service)):
+def update(
+    recurso_id: int,
+    recurso: RecursoCreate,
+    current_user: UsuarioResponse = Depends(get_current_user),
+    service_recurso: RecursoService = Depends(get_recurso_service),
+):
     try:
-        return service_recurso.update(recurso_id, recurso)
+        existente = service_recurso.get_by_id(recurso_id)
     except RecursoNotFound as err:
         raise HTTPException(status_code=404, detail=str(err))
+    if existente.usuario_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No podés modificar un recurso de otro usuario",
+        )
+    return service_recurso.update(recurso_id, recurso)
 
 @router.delete("/{recurso_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete(recurso_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
+def delete(
+    recurso_id: int,
+    current_user: UsuarioResponse = Depends(get_current_user),
+    service_recurso: RecursoService = Depends(get_recurso_service),
+):
     try:
-        service_recurso.delete(recurso_id)
+        existente = service_recurso.get_by_id(recurso_id)
     except RecursoNotFound as err:
         raise HTTPException(status_code=404, detail=str(err))
+    if existente.usuario_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No podés eliminar un recurso de otro usuario",
+        )
+    service_recurso.delete(recurso_id)
 
 @router.get("/{recurso_id}", response_model=RecursoResponse)
 def get_by_id(recurso_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
