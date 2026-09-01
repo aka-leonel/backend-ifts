@@ -1,3 +1,5 @@
+from datetime import date
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.features.recordatorios.repository import RecordatorioRepository
 from app.features.recordatorios.model import Recordatorio
@@ -6,6 +8,10 @@ from app.features.recordatorios.schema import RecordatorioCreate
 def get_recordatorios(db: Session, usuario_id: int):
     repo = RecordatorioRepository(db)
     return repo.get_by_usuario(usuario_id)
+
+def get_recordatorios_filtrados(db: Session, usuario_id: int, tipo: Optional[str], desde: Optional[date], hasta: Optional[date], materia_id: Optional[int]):
+    repo = RecordatorioRepository(db)
+    return repo.search(usuario_id, tipo, desde, hasta, materia_id)
 
 def create_recordatorio(db: Session, recordatorio: RecordatorioCreate, usuario_id: int):
     repo = RecordatorioRepository(db)

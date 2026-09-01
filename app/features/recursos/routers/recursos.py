@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from datetime import date
 
 from app.database import get_db
 from app.features.recursos.service import RecursoService, RecursoNotFound
@@ -67,8 +68,14 @@ def get_by_id(recurso_id: int, service_recurso: RecursoService = Depends(get_rec
         raise HTTPException(status_code=404, detail=str(err))
 
 @router.get("/", response_model=List[RecursoResponse])
-def get_all(service_recurso: RecursoService = Depends(get_recurso_service)):
-    return service_recurso.get_all()
+def get_all(
+    materia_id: Optional[int] = None,
+    tipo: Optional[str] = None,
+    desde: Optional[date] = None,
+    hasta: Optional[date] = None,
+    service_recurso: RecursoService = Depends(get_recurso_service)
+):
+    return service_recurso.get_recursos_filtrados(materia_id, tipo, desde, hasta)
 
 @router.post("/", response_model=RecursoResponse, status_code=status.HTTP_201_CREATED)
 def create(recurso: RecursoCreate, current_user: UsuarioResponse = Depends(get_current_user), service_recurso: RecursoService = Depends(get_recurso_service)): 

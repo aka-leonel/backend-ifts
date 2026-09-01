@@ -1,4 +1,6 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.features.materias.model import Carrera, Correlativa, Materia, MateriaUsuario
 from app.features.materias.schema import (
@@ -91,6 +93,20 @@ class MateriaRepository:
         self.db.delete(materia)
         self.db.commit()
         return materia
+
+    def search(self, q: str, anio: Optional[int], cuatrimestre: Optional[int]) -> list[Materia]:
+        query = self.db.query(Materia)
+        query = query.filter(
+            or_(
+                Materia.nombre.ilike(f"%{q}%"),
+                Materia.codigo.ilike(f"%{q}%")
+            )
+        )
+        if anio is not None:
+            query = query.filter(Materia.anio == anio)
+        if cuatrimestre is not None:
+            query = query.filter(Materia.cuatrimestre == cuatrimestre)
+        return query.all()
 
 
 class CorrelativaRepository:

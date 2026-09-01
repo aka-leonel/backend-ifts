@@ -46,6 +46,10 @@ def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
     return MateriaRepository(db).get_by_carrera(carrera_id)
 
 
+def buscar_materias(db: Session, q: str, anio: Optional[int], cuatrimestre: Optional[int]) -> list[Materia]:
+    return MateriaRepository(db).search(q, anio, cuatrimestre)
+
+
 class MateriaCodigoDuplicado(Exception):
     pass
 

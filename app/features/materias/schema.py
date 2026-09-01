@@ -55,6 +55,16 @@ class MateriaResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class MateriaSearchQuery(BaseModel):
+    q: str
+    anio: Optional[int] = None
+    cuatrimestre: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
 class MateriaCreate(BaseModel):         
     carrera_id: int
     nombre: str
