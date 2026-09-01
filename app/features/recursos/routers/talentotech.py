@@ -6,6 +6,8 @@ from app.database import get_db
 from app.features.recursos.service import TalentoTechService, TalentoTechNotFound,TalentoTechAlreadyExists
 from app.features.recursos import TalentoTechCreate, TalentoTechResponse
 from app.features.recursos.dependencies import get_talentotech_service
+from app.shared.schemas.pagination import PaginatedResponse
+from app.shared.utils.pagination import PaginationParams
 
 router = APIRouter(
     prefix="/talentotech",
@@ -34,9 +36,12 @@ def delete(talentotech_id: int, service_talentotech: TalentoTechService = Depend
     except TalentoTechNotFound as err:
         raise HTTPException(status_code=404, detail=str(err))
 
-@router.get("/", response_model=List[TalentoTechResponse])
-def get_all(service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    return service_talentotech.get_all()
+@router.get("/", response_model=PaginatedResponse[TalentoTechResponse])
+def get_all(
+    service_talentotech: TalentoTechService = Depends(get_talentotech_service),
+    pagination: PaginationParams = Depends(),
+):
+    return service_talentotech.get_all_paginado(pagination)
 
 @router.get("/{talentotech_id}", response_model=TalentoTechResponse)
 def get_by_id(talentotech_id: int, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):

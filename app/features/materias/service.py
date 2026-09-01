@@ -16,6 +16,8 @@ from app.features.materias.schema import (
     MateriaUsuarioCreate,
     MateriaUsuarioUpdate,
 )
+from app.shared.schemas.pagination import PaginatedResponse
+from app.shared.utils.pagination import PaginationParams, paginate
 
 
 class MateriaNoEncontrada(Exception):
@@ -44,6 +46,13 @@ def delete_carrera(db: Session, carrera_id: int) -> Carrera | None:
 
 def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
     return MateriaRepository(db).get_by_carrera(carrera_id)
+
+
+def get_materias_by_carrera_paginado(
+    db: Session, carrera_id: int, params: PaginationParams
+) -> PaginatedResponse[Materia]:
+    query = MateriaRepository(db).query_by_carrera(carrera_id)
+    return paginate(query, params)
 
 
 def create_materia(db: Session, datos: MateriaCreate) -> Materia:

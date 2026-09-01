@@ -54,11 +54,13 @@ class MateriaRepository:
         self.db = db
 
     def get_by_carrera(self, carrera_id: int) -> list[Materia]:
+        return self.query_by_carrera(carrera_id).all()
+
+    def query_by_carrera(self, carrera_id: int):
         return (
             self.db.query(Materia)
             .filter(Materia.carrera_id == carrera_id)
             .order_by(Materia.anio, Materia.cuatrimestre)
-            .all()
         )
 
     def get_by_id(self, materia_id: int) -> Materia | None:

@@ -2,10 +2,19 @@ from sqlalchemy.orm import Session
 from app.features.recordatorios.repository import RecordatorioRepository
 from app.features.recordatorios.model import Recordatorio
 from app.features.recordatorios.schema import RecordatorioCreate
+from app.shared.schemas.pagination import PaginatedResponse
+from app.shared.utils.pagination import PaginationParams, paginate
 
 def get_recordatorios(db: Session, usuario_id: int):
     repo = RecordatorioRepository(db)
     return repo.get_by_usuario(usuario_id)
+
+
+def get_recordatorios_paginado(
+    db: Session, usuario_id: int, params: PaginationParams
+) -> PaginatedResponse[Recordatorio]:
+    repo = RecordatorioRepository(db)
+    return paginate(repo.query_by_usuario(usuario_id), params)
 
 def create_recordatorio(db: Session, recordatorio: RecordatorioCreate, usuario_id: int):
     repo = RecordatorioRepository(db)

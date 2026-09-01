@@ -7,9 +7,14 @@ class RecordatorioRepository:
         self.db = db
     
     def get_by_usuario(self, usuario_id: int):
-        return self.db.query(Recordatorio).filter(
-            Recordatorio.usuario_id == usuario_id
-        ).all()
+        return self.query_by_usuario(usuario_id).all()
+
+    def query_by_usuario(self, usuario_id: int):
+        return (
+            self.db.query(Recordatorio)
+            .filter(Recordatorio.usuario_id == usuario_id)
+            .order_by(Recordatorio.fecha)
+        )
     
     def create(self, recordatorio: Recordatorio):
         self.db.add(recordatorio)

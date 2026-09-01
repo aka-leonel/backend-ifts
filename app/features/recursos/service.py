@@ -3,6 +3,8 @@ from typing import List
 from app.features.recursos.model import Recurso, Convenio, TalentoTech
 from app.features.recursos.schema import RecursoCreate, ConvenioCreate, TalentoTechCreate
 from app.features.recursos.repository import RecursoRepository, ConvenioRepository, TalentoTechRepository
+from app.shared.schemas.pagination import PaginatedResponse
+from app.shared.utils.pagination import PaginationParams, paginate
 
 class RecursoNotFound(Exception):
     pass
@@ -29,8 +31,16 @@ class RecursoService:
     def get_all(self) -> list[Recurso]:
         return self.repository.get_all()
 
+    def get_all_paginado(self, params: PaginationParams) -> PaginatedResponse[Recurso]:
+        return paginate(self.repository.query_all(), params)
+
     def get_by_usuario(self, usuario_id: int) -> list[Recurso]:
         return self.repository.get_recursos_by_usuario(usuario_id)
+
+    def get_by_usuario_paginado(
+        self, usuario_id: int, params: PaginationParams
+    ) -> PaginatedResponse[Recurso]:
+        return paginate(self.repository.query_by_usuario(usuario_id), params)
 
     def create(self, recurso: RecursoCreate, usuario_id: int) -> Recurso:
         return self.repository.create_recurso(recurso, usuario_id)
@@ -52,6 +62,11 @@ class RecursoService:
     def get_by_materia(self, materia_id: int) -> list[Recurso]:
         return self.repository.get_recurso_by_materia(materia_id)
 
+    def get_by_materia_paginado(
+        self, materia_id: int, params: PaginationParams
+    ) -> PaginatedResponse[Recurso]:
+        return paginate(self.repository.query_by_materia(materia_id), params)
+
 class ConvenioService:
     def __init__(self, repository: ConvenioRepository):
         self.repository = repository
@@ -65,7 +80,10 @@ class ConvenioService:
     
     def get_all(self) -> list[Convenio]:
         return self.repository.get_all()
-    
+
+    def get_all_paginado(self, params: PaginationParams) -> PaginatedResponse[Convenio]:
+        return paginate(self.repository.query_all(), params)
+
     def get_by_carrera(self, carrera_id: int) -> list[Convenio]:
         return self.repository.get_convenios_by_carrera(carrera_id)
     
@@ -86,6 +104,9 @@ class TalentoTechService:
 
     def get_all(self) -> list[TalentoTech]:
         return self.repository.get_all()
+
+    def get_all_paginado(self, params: PaginationParams) -> PaginatedResponse[TalentoTech]:
+        return paginate(self.repository.query_all(), params)
 
     def get_by_id(self, talentotech_id: int) -> TalentoTech:
         talentotech_valid = self.repository.get_talentotech_by_id(talentotech_id)
