@@ -12,12 +12,16 @@ class RolUsuario(str, Enum):
 # ========== Schemas de entrada (requests) ==========
 
 class UsuarioCreate(BaseModel):
-    """Datos necesarios para registrar un nuevo usuario."""
+    """Datos necesarios para registrar un nuevo usuario.
+
+    Nota de seguridad: el rol NO se acepta desde el request. El registro
+    público siempre crea usuarios con rol `estudiante`; los administradores
+    se crean por seed o promoción manual en la base de datos.
+    """
     nombre: str = Field(..., min_length=2, max_length=100, description="Nombre completo")
     email: EmailStr = Field(..., description="Correo electrónico único")
     password: str = Field(..., min_length=8, description="Contraseña en texto plano (mínimo 8 caracteres)")
     carrera_id: int = Field(..., description="ID de la carrera a la que pertenece")
-    rol: Optional[RolUsuario] = Field(default=RolUsuario.ESTUDIANTE, description="Rol del usuario")
 
     @field_validator("password")
     @classmethod

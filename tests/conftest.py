@@ -108,12 +108,47 @@ def usuario_registrado(client, usuario_payload) -> dict:
 
 @pytest.fixture
 def auth_headers(client, usuario_registrado) -> dict:
-    """Hace login con el usuario_registrado y devuelve el header Authorization."""
+    """Hace login con el usuario_registrado (rol estudiante) y devuelve el header Authorization."""
     login_data = {
         "email": usuario_registrado["payload"]["email"],
         "password": usuario_registrado["payload"]["password"],
     }
     response = client.post("/auth/login", json=login_data)
+    assert response.status_code == 200, response.text
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+# --- Fixtures de admin (para tests de autorización por rol) ---
+
+
+@pytest.fixture
+def admin_usuario(db_session, carrera_test) -> dict:
+    """Crea un usuario con rol ADMIN directamente en la DB (sin depender del endpoint de registro)."""
+    from app.features.auth.model import RolUsuario, Usuario
+    from app.features.auth.service import AuthService
+
+    password = "adminpass123"
+    admin = Usuario(
+        nombre="Admin Root",
+        email="admin.root@example.com",
+        password_hash=AuthService.hash_password(password),
+        carrera_id=carrera_test.id,
+        rol=RolUsuario.ADMIN,
+    )
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+    return {"id": admin.id, "email": admin.email, "password": password}
+
+
+@pytest.fixture
+def admin_headers(client, admin_usuario) -> dict:
+    """Hace login con el usuario admin y devuelve el header Authorization."""
+    response = client.post(
+        "/auth/login",
+        json={"email": admin_usuario["email"], "password": admin_usuario["password"]},
+    )
     assert response.status_code == 200, response.text
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
