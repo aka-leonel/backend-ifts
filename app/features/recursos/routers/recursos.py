@@ -1,14 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status
 from typing import Optional
 from datetime import date
 
-from app.database import get_db
-from app.features.recursos.service import RecursoService, RecursoNotFound
+from app.features.recursos.service import RecursoService
 from app.features.recursos import RecursoCreate, RecursoResponse
 from app.features.recursos.dependencies import get_recurso_service
 from app.features.auth.router import get_current_user
 from app.features.auth.schema import UsuarioResponse
+from app.shared.exceptions import ForbiddenError
 from app.shared.schemas.pagination import PaginatedResponse
 from app.shared.utils.pagination import PaginationParams
 
@@ -42,15 +41,9 @@ def update(
     current_user: UsuarioResponse = Depends(get_current_user),
     service_recurso: RecursoService = Depends(get_recurso_service),
 ):
-    try:
-        existente = service_recurso.get_by_id(recurso_id)
-    except RecursoNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
+    existente = service_recurso.get_by_id(recurso_id)
     if existente.usuario_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No podés modificar un recurso de otro usuario",
-        )
+        raise ForbiddenError("No podés modificar un recurso de otro usuario")
     return service_recurso.update(recurso_id, recurso)
 
 @router.delete("/{recurso_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -59,23 +52,14 @@ def delete(
     current_user: UsuarioResponse = Depends(get_current_user),
     service_recurso: RecursoService = Depends(get_recurso_service),
 ):
-    try:
-        existente = service_recurso.get_by_id(recurso_id)
-    except RecursoNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
+    existente = service_recurso.get_by_id(recurso_id)
     if existente.usuario_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No podés eliminar un recurso de otro usuario",
-        )
+        raise ForbiddenError("No podés eliminar un recurso de otro usuario")
     service_recurso.delete(recurso_id)
 
 @router.get("/{recurso_id}", response_model=RecursoResponse)
 def get_by_id(recurso_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
-    try:
-        return service_recurso.get_by_id(recurso_id)
-    except RecursoNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
+    return service_recurso.get_by_id(recurso_id)
 
 @router.get("/", response_model=PaginatedResponse[RecursoResponse])
 def get_all(
@@ -91,7 +75,6 @@ def get_all(
     )
 
 @router.post("/", response_model=RecursoResponse, status_code=status.HTTP_201_CREATED)
-def create(recurso: RecursoCreate, current_user: UsuarioResponse = Depends(get_current_user), service_recurso: RecursoService = Depends(get_recurso_service)): 
+def create(recurso: RecursoCreate, current_user: UsuarioResponse = Depends(get_current_user), service_recurso: RecursoService = Depends(get_recurso_service)):
     usuario_id = current_user.id
     return service_recurso.create(recurso, usuario_id)
-

@@ -4,26 +4,18 @@ from datetime import date
 from app.features.recursos.model import Recurso, Convenio, TalentoTech
 from app.features.recursos.schema import RecursoCreate, ConvenioCreate, TalentoTechCreate
 from app.features.recursos.repository import RecursoRepository, ConvenioRepository, TalentoTechRepository
+from app.shared.exceptions import DuplicateError, NotFoundError
 from app.shared.schemas.pagination import PaginatedResponse
 from app.shared.utils.pagination import PaginationParams, paginate
 
-class RecursoNotFound(Exception):
-    pass
-
-class ConvenioNotFound(Exception):
-    pass
-
-class TalentoTechNotFound(Exception):
-    pass
-
-class RecursoAlreadyExists(Exception):
-    pass
-
-class ConvenioAlreadyExists(Exception):
-    pass
-
-class TalentoTechAlreadyExists(Exception):
-    pass
+# Alias retrocompatibles: el resto del código (y algún import viejo) usa estos
+# nombres; ahora todos resuelven a la jerarquía única de app.shared.exceptions.
+RecursoNotFound = NotFoundError
+ConvenioNotFound = NotFoundError
+TalentoTechNotFound = NotFoundError
+RecursoAlreadyExists = DuplicateError
+ConvenioAlreadyExists = DuplicateError
+TalentoTechAlreadyExists = DuplicateError
 
 class RecursoService:
     def __init__(self, repository: RecursoRepository):
@@ -57,7 +49,7 @@ class RecursoService:
     def get_by_id(self, recurso_id: int) -> Recurso:
         recurso_valid = self.repository.get_recurso_by_id(recurso_id)
         if recurso_valid is None:
-            raise RecursoNotFound(f"No se encontró el recurso {recurso_id}")
+            raise NotFoundError(f"No se encontró el recurso {recurso_id}")
         return recurso_valid
 
     def get_by_materia(self, materia_id: int) -> list[Recurso]:
@@ -89,7 +81,7 @@ class ConvenioService:
     def get_by_id(self, convenio_id: int) -> Convenio:
         convenio_valid = self.repository.get_convenio_by_id(convenio_id)
         if convenio_valid is None:
-            raise ConvenioNotFound(f"No se encontró el convenio {convenio_id}")
+            raise NotFoundError(f"No se encontró el convenio {convenio_id}")
 
         return convenio_valid
     
@@ -126,7 +118,7 @@ class TalentoTechService:
     def get_by_id(self, talentotech_id: int) -> TalentoTech:
         talentotech_valid = self.repository.get_talentotech_by_id(talentotech_id)
         if talentotech_valid is None:
-            raise TalentoTechNotFound(f"No se encontró el talentotech con ID: {talentotech_id}")
+            raise NotFoundError(f"No se encontró el talentotech con ID: {talentotech_id}")
 
         return talentotech_valid
 

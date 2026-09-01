@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -9,6 +8,14 @@ import os
 from app.features.auth.repository import AuthRepository
 from app.features.auth.schema import UsuarioCreate, UsuarioLogin, UsuarioResponse, TokenResponse
 from app.features.auth.model import Usuario
+from app.shared.exceptions import (
+    BadRequestError,
+    DuplicateError,
+    NotFoundError,
+    UnauthorizedError,
+)
+
+_BEARER = {"WWW-Authenticate": "Bearer"}
 
 # Configuración de hashing (bcrypt)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -62,12 +69,8 @@ class AuthService:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             return payload
-        except JWTError as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token inválido o expirado",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        except JWTError:
+            raise UnauthorizedError("Token inválido o expirado", headers=_BEARER)
 
     def get_user_from_token(self, token: str) -> Usuario:
         """
@@ -76,11 +79,11 @@ class AuthService:
         payload = self.decode_token(token)
         user_id_str: str = payload.get("sub")
         if user_id_str is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token sin subject")
+            raise UnauthorizedError("Token sin subject", headers=_BEARER)
         user_id = int(user_id_str)  # Convertir string a int
         user = self.repository.get_by_id(user_id)
         if user is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+            raise NotFoundError("Usuario no encontrado")
         return user
 
     # ========== Registro ==========
@@ -93,10 +96,7 @@ class AuthService:
         # 1. Verificar si el email ya está registrado
         existing = self.repository.get_by_email(user_data.email)
         if existing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="El email ya está registrado"
-            )
+            raise DuplicateError("El email ya está registrado")
 
         # 2. Hashear la contraseña
         hashed = self.hash_password(user_data.password)
@@ -104,11 +104,10 @@ class AuthService:
         # 3. Crear el usuario
         try:
             new_user = self.repository.create(user_data, hashed)
-        except Exception as e:
+        except Exception:
             # Capturar errores de integridad (ej: FK a carrera que no existe)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Error al crear usuario. Verifica que la carrera exista."
+            raise BadRequestError(
+                "Error al crear usuario. Verifica que la carrera exista."
             )
 
         # 4. Devolver response (sin password)
@@ -123,19 +122,11 @@ class AuthService:
         # 1. Buscar por email
         user = self.repository.get_by_email(credenciales.email)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Email o contraseña incorrectos",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise UnauthorizedError("Email o contraseña incorrectos", headers=_BEARER)
 
         # 2. Verificar contraseña
         if not self.verify_password(credenciales.password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Email o contraseña incorrectos",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise UnauthorizedError("Email o contraseña incorrectos", headers=_BEARER)
 
         # 3. Generar token
         access_token = self.create_access_token(data={"sub": str(user.id), "email": user.email})

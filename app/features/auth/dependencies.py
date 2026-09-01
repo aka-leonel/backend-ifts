@@ -1,12 +1,13 @@
 # app/features/auth/dependencies.py
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.features.auth.service import AuthService
 from app.features.auth.schema import RolUsuario, UsuarioResponse
+from app.shared.exceptions import ForbiddenError
 
 # Esquema OAuth2 para extraer el token del header Authorization
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -31,8 +32,5 @@ def require_admin(
     tenga rol de administrador. Devuelve 403 si es estudiante.
     """
     if usuario_actual.rol != RolUsuario.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Se requieren permisos de administrador",
-        )
+        raise ForbiddenError("Se requieren permisos de administrador")
     return usuario_actual

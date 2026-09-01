@@ -87,6 +87,44 @@ def listar(pagination: PaginationParams = Depends(), db: Session = Depends(get_d
     return paginate(query, pagination)
 ```
 
+## Validaciones y manejo de errores
+
+### Jerarquía de excepciones (`app/shared/exceptions.py`)
+
+Todos los services lanzan una de estas (heredan de `HTTPException`, así que se
+propagan solas hasta la respuesta; los routers no hacen `try/except`):
+
+| Excepción                | Código | Uso |
+|--------------------------|:-----:|-----|
+| `BadRequestError`        | 400 | Datos inválidos que no cubre Pydantic |
+| `UnauthorizedError`      | 401 | Token ausente/ inválido, credenciales incorrectas |
+| `ForbiddenError`         | 403 | Rol insuficiente, recurso de otro usuario |
+| `NotFoundError`          | 404 | La entidad referida no existe |
+| `DuplicateError`         | 409 | Único violado (código de materia, email, cursada repetida) |
+| `BusinessRuleError`      | 409 | Regla de negocio (ver abajo) |
+| `DomainValidationError`  | 422 | Validación de dominio fuera del schema |
+
+Formato de respuesta de error (siempre): `{"detail": "<mensaje>"}`.
+`app/main.py` registra además un handler de `IntegrityError` → 409 por si alguna
+violación de integridad se escapa de los services.
+
+### Validadores de schema (Pydantic `field_validator`)
+
+- **Materia** (`MateriaCreate`/`Update`): `cuatrimestre` ∈ {1, 2}; `anio` ∈ [1, 6];
+  `nombre` ≥ 2 caracteres; `codigo` no vacío (se normaliza a mayúsculas).
+- **Carrera**: `duracion_cuatrimestres` ∈ [1, 12].
+- **Cursada** (`MateriaUsuario*`): notas ∈ [1, 10].
+- **Recordatorio**: `fecha` debe ser futura; `titulo`/`tipo` no vacíos.
+- **Recurso**: `titulo` no vacío.
+- **Usuario** (`UsuarioCreate`): `password` con al menos una letra y un número.
+
+### Reglas de negocio (en los services)
+
+- No se puede eliminar una **carrera** con materias asociadas → 409.
+- No se puede eliminar una **materia** con cursadas asociadas → 409.
+- Una cursada solo se crea si la **materia pertenece a la carrera del alumno** → 409.
+- La fecha de un **recordatorio** debe ser futura → 422 (validador de schema).
+
 ## Tests
 
 ```bash
@@ -95,5 +133,6 @@ pytest -q
 ```
 
 Los tests de autorización están en `tests/test_authorization.py` (roles admin vs
-estudiante y ownership de recursos). Los fixtures `auth_headers` (estudiante) y
+estudiante y ownership de recursos). Las validaciones y reglas de negocio están en
+`tests/test_validaciones.py`. Los fixtures `auth_headers` (estudiante) y
 `admin_headers` (admin) están en `tests/conftest.py`.

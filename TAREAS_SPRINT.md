@@ -184,9 +184,9 @@
    - Validar que materia pertenezca a la carrera del usuario
 
 **Entregables:**
-- [ ] Validadores en todos los schemas principales
-- [ ] Manejo de errores consistente en toda la API
-- [ ] Tests de validaciones (mínimo 10)
+- [x] Validadores en todos los schemas principales
+- [x] Manejo de errores consistente en toda la API (`app/shared/exceptions.py` + handler global)
+- [x] Tests de validaciones (13 en `tests/test_validaciones.py`)
 
 ---
 

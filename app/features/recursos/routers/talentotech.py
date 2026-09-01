@@ -1,9 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status
 from typing import List
 
-from app.database import get_db
-from app.features.recursos.service import TalentoTechService, TalentoTechNotFound,TalentoTechAlreadyExists
+from app.features.recursos.service import TalentoTechService
 from app.features.recursos import TalentoTechCreate, TalentoTechResponse
 from app.features.recursos.dependencies import get_talentotech_service
 from app.shared.schemas.pagination import PaginatedResponse
@@ -24,17 +22,12 @@ def get_by_categoria(categoria: str, service_talentotech: TalentoTechService = D
 
 @router.put("/{talentotech_id}", response_model=TalentoTechResponse, status_code=status.HTTP_201_CREATED)
 def update(talentotech_id: int, talentotech: TalentoTechCreate, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    try:
-        return service_talentotech.update(talentotech_id, talentotech)
-    except TalentoTechNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
-        
-@router.delete("/{talentotech_id}", status_code=status.HTTP_204_NO_CONTENT)       
+    return service_talentotech.update(talentotech_id, talentotech)
+
+@router.delete("/{talentotech_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(talentotech_id: int, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    try:
-        return service_talentotech.delete(talentotech_id)
-    except TalentoTechNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
+    service_talentotech.delete(talentotech_id)
+    return None
 
 @router.get("/", response_model=PaginatedResponse[TalentoTechResponse])
 def get_all(
@@ -45,14 +38,8 @@ def get_all(
 
 @router.get("/{talentotech_id}", response_model=TalentoTechResponse)
 def get_by_id(talentotech_id: int, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    try:
-        return service_talentotech.get_by_id(talentotech_id)
-    except TalentoTechNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
+    return service_talentotech.get_by_id(talentotech_id)
 
 @router.post("/", response_model=TalentoTechResponse, status_code=status.HTTP_201_CREATED)
 def create(talentotech: TalentoTechCreate, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    try:
-        return service_talentotech.create(talentotech)
-    except TalentoTechAlreadyExists as err:
-        raise HTTPException(status_code=409, detail=str(err))
+    return service_talentotech.create(talentotech)

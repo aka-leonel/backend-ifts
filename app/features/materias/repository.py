@@ -134,6 +134,13 @@ class MateriaUsuarioRepository:
             .all()
         )
 
+    def count_by_materia(self, materia_id: int) -> int:
+        return (
+            self.db.query(MateriaUsuario)
+            .filter(MateriaUsuario.materia_id == materia_id)
+            .count()
+        )
+
     def get_by_usuario_y_materia(
         self, usuario_id: int, materia_id: int
     ) -> MateriaUsuario | None:

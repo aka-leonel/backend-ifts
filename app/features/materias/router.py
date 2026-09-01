@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -54,10 +54,7 @@ def actualizar_carrera(
     db: Session = Depends(get_db),
     usuario_actual: UsuarioResponse = Depends(require_admin),
 ):
-    resultado = service.update_carrera(db, carrera_id, datos)
-    if resultado is None:
-        raise HTTPException(status_code=404, detail="Carrera no encontrada")
-    return resultado
+    return service.update_carrera(db, carrera_id, datos)
 
 
 @router.delete("/carreras/{carrera_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -66,9 +63,7 @@ def eliminar_carrera(
     db: Session = Depends(get_db),
     usuario_actual: UsuarioResponse = Depends(require_admin),
 ):
-    resultado = service.delete_carrera(db, carrera_id)
-    if resultado is None:
-        raise HTTPException(status_code=404, detail="Carrera no encontrada")
+    service.delete_carrera(db, carrera_id)
     return None
 
 
@@ -116,12 +111,7 @@ def add_materia_usuario(
     datos: MateriaUsuarioCreate,
     db: Session = Depends(get_db),
 ):
-    try:
-        return service.add_materia_usuario(db, datos, usuario_id)
-    except service.MateriaNoEncontrada as error:
-        raise HTTPException(status_code=404, detail=str(error))
-    except service.MateriaYaCargada as error:
-        raise HTTPException(status_code=409, detail=str(error))
+    return service.add_materia_usuario(db, datos, usuario_id)
 
 
 @router.patch("/cursada/{materia_usuario_id}", response_model=MateriaUsuarioResponse)
@@ -131,12 +121,7 @@ def update_materia_usuario(
     db: Session = Depends(get_db),
     usuario_id: int = Depends(get_usuario_actual),
 ):
-    resultado = service.update_materia_usuario(
-        db, materia_usuario_id, usuario_id, datos
-    )
-    if resultado is None:
-        raise HTTPException(status_code=404, detail="No se encontró esa cursada")
-    return resultado
+    return service.update_materia_usuario(db, materia_usuario_id, usuario_id, datos)
 
 
 @router.delete("/cursada/{materia_usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -145,9 +130,7 @@ def delete_materia_usuario(
     db: Session = Depends(get_db),
     usuario_id: int = Depends(get_usuario_actual),
 ):
-    resultado = service.delete_materia_usuario(db, materia_usuario_id, usuario_id)
-    if resultado is None:
-        raise HTTPException(status_code=404, detail="No se encontró esa cursada")
+    service.delete_materia_usuario(db, materia_usuario_id, usuario_id)
     return None
 
 
@@ -157,10 +140,7 @@ def crear_materia(
     db: Session = Depends(get_db),
     usuario_actual: UsuarioResponse = Depends(require_admin),
 ):
-    try:
-        return service.create_materia(db, datos)
-    except service.MateriaCodigoDuplicado as error:
-        raise HTTPException(status_code=409, detail=str(error))
+    return service.create_materia(db, datos)
 
 
 @router.put("/{materia_id}", response_model=MateriaResponse)
@@ -170,10 +150,7 @@ def actualizar_materia(
     db: Session = Depends(get_db),
     usuario_actual: UsuarioResponse = Depends(require_admin),
 ):
-    resultado = service.update_materia(db, materia_id, datos)
-    if resultado is None:
-        raise HTTPException(status_code=404, detail="Materia no encontrada")
-    return resultado
+    return service.update_materia(db, materia_id, datos)
 
 
 @router.delete("/{materia_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -182,7 +159,5 @@ def eliminar_materia(
     db: Session = Depends(get_db),
     usuario_actual: UsuarioResponse = Depends(require_admin),
 ):
-    resultado = service.delete_materia(db, materia_id)
-    if resultado is None:
-        raise HTTPException(status_code=404, detail="Materia no encontrada")
+    service.delete_materia(db, materia_id)
     return None

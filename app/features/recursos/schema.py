@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 from typing import Optional
 from datetime import date, datetime
 from app.features.auth.dependencies import get_current_user
@@ -12,6 +12,14 @@ class RecursoBase(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("titulo")
+    @classmethod
+    def _titulo_no_vacio(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("El título no puede estar vacío")
+        return v
 
 
 class RecursoFilter(BaseModel):

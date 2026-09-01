@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.features.recordatorios.repository import RecordatorioRepository
 from app.features.recordatorios.model import Recordatorio
 from app.features.recordatorios.schema import RecordatorioCreate
+from app.shared.exceptions import NotFoundError
 from app.shared.schemas.pagination import PaginatedResponse
 from app.shared.utils.pagination import PaginationParams, paginate
 
@@ -42,4 +43,7 @@ def create_recordatorio(db: Session, recordatorio: RecordatorioCreate, usuario_i
 
 def delete_recordatorio(db: Session, recordatorio_id: int, usuario_id: int):
     repo = RecordatorioRepository(db)
-    return repo.delete(recordatorio_id, usuario_id)
+    eliminado = repo.delete(recordatorio_id, usuario_id)
+    if eliminado is None:
+        raise NotFoundError("Recordatorio no encontrado")
+    return eliminado

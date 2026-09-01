@@ -26,8 +26,16 @@ class UsuarioCreate(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        # Validación adicional si querés (por ejemplo, que tenga número)
-        # pero no es obligatorio para el TP.
+        if not any(c.isalpha() for c in v) or not any(c.isdigit() for c in v):
+            raise ValueError("La contraseña debe incluir al menos una letra y un número")
+        return v
+
+    @field_validator("nombre")
+    @classmethod
+    def validate_nombre(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("El nombre debe tener al menos 2 caracteres")
         return v
 
 

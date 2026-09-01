@@ -3,6 +3,7 @@ from typing import Optional
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.features.auth.repository import AuthRepository
 from app.features.materias.model import Carrera, Correlativa, Materia, MateriaUsuario
 from app.features.materias.repository import (
     CarreraRepository,
@@ -18,16 +19,9 @@ from app.features.materias.schema import (
     MateriaUsuarioCreate,
     MateriaUsuarioUpdate,
 )
+from app.shared.exceptions import BusinessRuleError, DuplicateError, NotFoundError
 from app.shared.schemas.pagination import PaginatedResponse
 from app.shared.utils.pagination import PaginationParams, paginate
-
-
-class MateriaNoEncontrada(Exception):
-    pass
-
-
-class MateriaYaCargada(Exception):
-    pass
 
 
 def get_carreras(db: Session) -> list[Carrera]:
@@ -38,12 +32,25 @@ def create_carrera(db: Session, datos: CarreraCreate) -> Carrera:
     return CarreraRepository(db).create(datos)
 
 
-def update_carrera(db: Session, carrera_id: int, datos: CarreraUpdate) -> Carrera | None:
-    return CarreraRepository(db).update(carrera_id, datos)
+def update_carrera(db: Session, carrera_id: int, datos: CarreraUpdate) -> Carrera:
+    carrera = CarreraRepository(db).update(carrera_id, datos)
+    if carrera is None:
+        raise NotFoundError("Carrera no encontrada")
+    return carrera
 
 
-def delete_carrera(db: Session, carrera_id: int) -> Carrera | None:
-    return CarreraRepository(db).delete(carrera_id)
+def delete_carrera(db: Session, carrera_id: int) -> Carrera:
+    repo = CarreraRepository(db)
+    carrera = repo.get_by_id(carrera_id)
+    if carrera is None:
+        raise NotFoundError("Carrera no encontrada")
+
+    if MateriaRepository(db).query_by_carrera(carrera_id).count() > 0:
+        raise BusinessRuleError(
+            "No se puede eliminar una carrera con materias asociadas"
+        )
+
+    return repo.delete(carrera_id)
 
 
 def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
@@ -61,25 +68,35 @@ def get_materias_by_carrera_paginado(
     return paginate(query, params)
 
 
-class MateriaCodigoDuplicado(Exception):
-    pass
-
-
 def create_materia(db: Session, datos: MateriaCreate) -> Materia:
     try:
         return MateriaRepository(db).create(datos)
     except IntegrityError:
         db.rollback()
-        raise MateriaCodigoDuplicado(
+        raise DuplicateError(
             f"Ya existe una materia con código '{datos.codigo}' en esa carrera"
         )
 
-def update_materia(db: Session, materia_id: int, datos: MateriaUpdate) -> Materia | None:
-    return MateriaRepository(db).update(materia_id, datos)
+
+def update_materia(db: Session, materia_id: int, datos: MateriaUpdate) -> Materia:
+    materia = MateriaRepository(db).update(materia_id, datos)
+    if materia is None:
+        raise NotFoundError("Materia no encontrada")
+    return materia
 
 
-def delete_materia(db: Session, materia_id: int) -> Materia | None:
-    return MateriaRepository(db).delete(materia_id)
+def delete_materia(db: Session, materia_id: int) -> Materia:
+    repo = MateriaRepository(db)
+    materia = repo.get_by_id(materia_id)
+    if materia is None:
+        raise NotFoundError("Materia no encontrada")
+
+    if MateriaUsuarioRepository(db).count_by_materia(materia_id) > 0:
+        raise BusinessRuleError(
+            "No se puede eliminar una materia con cursadas asociadas"
+        )
+
+    return repo.delete(materia_id)
 
 
 def get_correlativas(db: Session, materia_id: int) -> list[Correlativa]:
@@ -93,12 +110,20 @@ def get_materias_usuario(db: Session, usuario_id: int) -> list[MateriaUsuario]:
 def add_materia_usuario(
     db: Session, datos: MateriaUsuarioCreate, usuario_id: int
 ) -> MateriaUsuario:
-    if MateriaRepository(db).get_by_id(datos.materia_id) is None:
-        raise MateriaNoEncontrada(f"No existe la materia {datos.materia_id}")
+    usuario = AuthRepository(db).get_by_id(usuario_id)
+    if usuario is None:
+        raise NotFoundError("Usuario no encontrado")
+
+    materia = MateriaRepository(db).get_by_id(datos.materia_id)
+    if materia is None:
+        raise NotFoundError(f"No existe la materia {datos.materia_id}")
+
+    if materia.carrera_id != usuario.carrera_id:
+        raise BusinessRuleError("La materia no pertenece a la carrera del alumno")
 
     repo = MateriaUsuarioRepository(db)
     if repo.get_by_usuario_y_materia(usuario_id, datos.materia_id) is not None:
-        raise MateriaYaCargada("Esa materia ya está cargada")
+        raise DuplicateError("Esa materia ya está cargada")
 
     nueva = MateriaUsuario(usuario_id=usuario_id, **datos.model_dump())
 
@@ -106,7 +131,7 @@ def add_materia_usuario(
         return repo.create(nueva)
     except IntegrityError:
         db.rollback()
-        raise MateriaYaCargada("Esa materia ya está cargada")
+        raise DuplicateError("Esa materia ya está cargada")
 
 
 def update_materia_usuario(
@@ -114,14 +139,20 @@ def update_materia_usuario(
     materia_usuario_id: int,
     usuario_id: int,
     datos: MateriaUsuarioUpdate,
-) -> MateriaUsuario | None:
-    return MateriaUsuarioRepository(db).update(materia_usuario_id, usuario_id, datos)
+) -> MateriaUsuario:
+    cursada = MateriaUsuarioRepository(db).update(materia_usuario_id, usuario_id, datos)
+    if cursada is None:
+        raise NotFoundError("No se encontró esa cursada")
+    return cursada
 
 
 def delete_materia_usuario(
     db: Session, materia_usuario_id: int, usuario_id: int
-) -> MateriaUsuario | None:
-    return MateriaUsuarioRepository(db).delete(materia_usuario_id, usuario_id)
+) -> MateriaUsuario:
+    cursada = MateriaUsuarioRepository(db).delete(materia_usuario_id, usuario_id)
+    if cursada is None:
+        raise NotFoundError("No se encontró esa cursada")
+    return cursada
 
 
 def calcular_promedio(db: Session, usuario_id: int) -> dict:

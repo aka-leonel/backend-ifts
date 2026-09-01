@@ -1,5 +1,5 @@
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.database import get_db
@@ -41,7 +41,5 @@ def delete_recordatorio(
     usuario_id: int,
     db: Session = Depends(get_db)
 ):
-    resultado = service.delete_recordatorio(db, recordatorio_id, usuario_id)
-    if not resultado:
-        raise HTTPException(status_code=404, detail="Recordatorio no encontrado")
+    service.delete_recordatorio(db, recordatorio_id, usuario_id)
     return {"ok": True}

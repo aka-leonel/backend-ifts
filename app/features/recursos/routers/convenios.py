@@ -1,9 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status
 from typing import List
 
-from app.database import get_db
-from app.features.recursos.service import ConvenioService, ConvenioNotFound
+from app.features.recursos.service import ConvenioService
 from app.features.recursos import ConvenioCreate, ConvenioResponse
 from app.features.recursos.dependencies import get_convenio_service
 from app.shared.schemas.pagination import PaginatedResponse
@@ -21,24 +19,16 @@ def get_by_carrera(carrera_id: int, service_convenio: ConvenioService = Depends(
 
 @router.put("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_200_OK)
 def update(convenio_id: int, convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
-    try:
-        return service_convenio.update(convenio_id, convenio)
-    except ConvenioNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
+    return service_convenio.update(convenio_id, convenio)
 
 @router.delete("/{convenio_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(convenio_id: int, service_convenio: ConvenioService = Depends(get_convenio_service)):
-    try:
-        return service_convenio.delete(convenio_id)
-    except ConvenioNotFound as err:
-        raise HTTPException(status_code= 404, detail=str(err))
+    service_convenio.delete(convenio_id)
+    return None
 
 @router.get("/{convenio_id}", response_model=ConvenioResponse)
 def get_by_id(convenio_id: int, service_convenio: ConvenioService = Depends(get_convenio_service)):
-    try:
-        return service_convenio.get_by_id(convenio_id)
-    except ConvenioNotFound as err:
-        raise HTTPException(status_code=404, detail=str(err))
+    return service_convenio.get_by_id(convenio_id)
 
 @router.get("/", response_model=PaginatedResponse[ConvenioResponse])
 def get_all(
@@ -51,4 +41,3 @@ def get_all(
 @router.post("/", response_model=ConvenioResponse, status_code=status.HTTP_201_CREATED)
 def create(convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
     return service_convenio.create(convenio)
-
