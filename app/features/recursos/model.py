@@ -14,6 +14,7 @@ class Recurso(Base):
     titulo = Column(String(150), nullable=False)
     url = Column(Text, nullable=False)
     descripcion = Column(Text, nullable=False)
+    tipo = Column(String, nullable=True)
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

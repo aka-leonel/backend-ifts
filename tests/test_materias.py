@@ -157,3 +157,145 @@ def test_crear_materia_codigo_duplicado(client, auth_headers, carrera_test):
     segunda = client.post("/materias/", json=payload, headers=auth_headers)
 
     assert segunda.status_code == 409
+
+
+# ========== Búsqueda de Materias ==========
+
+
+def test_buscar_materia_por_nombre(client, db_session, carrera_test):
+    from app.features.materias.model import Materia
+
+    materia = Materia(
+        carrera_id=carrera_test.id,
+        nombre="Programación I",
+        codigo="PROG1",
+        anio=1,
+        cuatrimestre=1,
+    )
+    db_session.add(materia)
+    db_session.commit()
+    db_session.refresh(materia)
+
+    response = client.get(f"/materias/buscar?q=Programación")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == materia.id
+    assert data[0]["nombre"] == materia.nombre
+
+
+def test_buscar_materia_por_codigo(client, db_session, carrera_test):
+    from app.features.materias.model import Materia
+
+    materia = Materia(
+        carrera_id=carrera_test.id,
+        nombre="Programación II",
+        codigo="PROG2",
+        anio=2,
+        cuatrimestre=1,
+    )
+    db_session.add(materia)
+    db_session.commit()
+    db_session.refresh(materia)
+
+    response = client.get(f"/materias/buscar?q=PROG2")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == materia.id
+    assert data[0]["codigo"] == materia.codigo
+
+
+def test_buscar_materia_con_filtro_anio(client, db_session, carrera_test):
+    from app.features.materias.model import Materia
+
+    materia_matching = Materia(
+        carrera_id=carrera_test.id,
+        nombre="Programación I",
+        codigo="PROG1",
+        anio=1,
+        cuatrimestre=1,
+    )
+    db_session.add(materia_matching)
+    db_session.commit()
+    db_session.refresh(materia_matching)
+
+    materia_other = Materia(
+        carrera_id=carrera_test.id,
+        nombre="Programación I",
+        codigo="PROG2",
+        anio=2,
+        cuatrimestre=1,
+    )
+    db_session.add(materia_other)
+    db_session.commit()
+    db_session.refresh(materia_other)
+
+    response = client.get(
+        f"/materias/buscar?q=Programación&anio=1"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == materia_matching.id
+    assert data[0]["anio"] == 1
+
+
+def test_buscar_materia_con_filtro_cuatrimestre(client, db_session, carrera_test):
+    from app.features.materias.model import Materia
+
+    materia_matching = Materia(
+        carrera_id=carrera_test.id,
+        nombre="Programación I",
+        codigo="PROG1",
+        anio=1,
+        cuatrimestre=1,
+    )
+    db_session.add(materia_matching)
+    db_session.commit()
+    db_session.refresh(materia_matching)
+
+    materia_other = Materia(
+        carrera_id=carrera_test.id,
+        nombre="Programación I",
+        codigo="PROG2",
+        anio=1,
+        cuatrimestre=2,
+    )
+    db_session.add(materia_other)
+    db_session.commit()
+    db_session.refresh(materia_other)
+
+    response = client.get(
+        f"/materias/buscar?q=Programación&cuatrimestre=1"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == materia_matching.id
+    assert data[0]["cuatrimestre"] == 1
+
+
+def test_buscar_materia_sin_resultados(client, db_session, carrera_test):
+    from app.features.materias.model import Materia
+
+    materia = Materia(
+        carrera_id=carrera_test.id,
+        nombre="Programación I",
+        codigo="PROG1",
+        anio=1,
+        cuatrimestre=1,
+    )
+    db_session.add(materia)
+    db_session.commit()
+    db_session.refresh(materia)
+
+    response = client.get("/materias/buscar?q=Matemática")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data == []

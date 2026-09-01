@@ -1,4 +1,5 @@
-from typing import List
+from typing import List, Optional
+from datetime import date
 
 from app.features.recursos.model import Recurso, Convenio, TalentoTech
 from app.features.recursos.schema import RecursoCreate, ConvenioCreate, TalentoTechCreate
@@ -51,6 +52,9 @@ class RecursoService:
 
     def get_by_materia(self, materia_id: int) -> list[Recurso]:
         return self.repository.get_recurso_by_materia(materia_id)
+
+    def get_recursos_filtrados(self, materia_id: Optional[int], tipo: Optional[str], desde: Optional[date], hasta: Optional[date]) -> list[Recurso]:
+        return self.repository.filter_recursos(materia_id, tipo, desde, hasta)
 
 class ConvenioService:
     def __init__(self, repository: ConvenioRepository):

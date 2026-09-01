@@ -1,4 +1,6 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
+from datetime import date
 
 from app.features.recursos.model import Recurso, Convenio, TalentoTech
 from app.features.recursos.schema import RecursoBase, RecursoCreate, ConvenioResponse, TalentoTechResponse, TalentoTechCreate, ConvenioCreate
@@ -22,6 +24,7 @@ class RecursoRepository:
             titulo = recurso.titulo,
             url = str(recurso.url),
             descripcion = recurso.descripcion if recurso.descripcion else None,
+            tipo = recurso.tipo if recurso.tipo else None,
           ##  fecha_creacion = recurso.fecha_creacion
         )
         self.db.add(recurso_db)
@@ -36,6 +39,7 @@ class RecursoRepository:
         db_recurso.titulo = recurso.titulo
         db_recurso.url = str(recurso.url)
         db_recurso.descripcion = recurso.descripcion if recurso.descripcion else None
+        db_recurso.tipo = recurso.tipo if recurso.tipo else db_recurso.tipo
         db_recurso.materia_id = recurso.materia_id
         self.db.commit()
         self.db.refresh(db_recurso)
@@ -53,6 +57,19 @@ class RecursoRepository:
 
     def get_recurso_by_materia(self, materia_id: int) -> list[Recurso]:
         return (self.db.query(Recurso).filter(Recurso.materia_id == materia_id).all())
+
+    def filter_recursos(self, materia_id: Optional[int], tipo: Optional[str], desde: Optional[date], hasta: Optional[date]) -> list[Recurso]:
+        query = self.db.query(Recurso)
+        if materia_id is not None:
+            query = query.filter(Recurso.materia_id == materia_id)
+        if tipo is not None:
+            query = query.filter(Recurso.tipo == tipo)
+        if desde is not None:
+            query = query.filter(func.date(Recurso.fecha_creacion) >= desde)
+        if hasta is not None:
+            query = query.filter(func.date(Recurso.fecha_creacion) <= hasta)
+        query = query.order_by(Recurso.fecha_creacion.desc(), Recurso.titulo)
+        return query.all()
 
 
 class ConvenioRepository:

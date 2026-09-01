@@ -1,13 +1,24 @@
 from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
-from datetime import datetime
+from datetime import date, datetime
 from app.features.auth.dependencies import get_current_user
 
 class RecursoBase(BaseModel):
     titulo: str = Field(..., min_length=1, max_length=150)
     url: HttpUrl
     descripcion: str
+    tipo: Optional[str] = None
     materia_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class RecursoFilter(BaseModel):
+    materia_id: Optional[int] = None
+    tipo: Optional[str] = None
+    desde: Optional[date] = None
+    hasta: Optional[date] = None
 
     class Config:
         from_attributes = True

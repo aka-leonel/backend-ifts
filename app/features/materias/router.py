@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.database import get_db
 from app.features.materias import service
@@ -11,6 +11,7 @@ from app.features.materias.schema import (
     CorrelativaResponse,
     MateriaCreate,
     MateriaResponse,
+    MateriaSearchQuery,
     MateriaUpdate,
     MateriaUsuarioCreate,
     MateriaUsuarioResponse,
@@ -57,6 +58,16 @@ def eliminar_carrera(carrera_id: int, db: Session = Depends(get_db)):
 @router.get("/carrera/{carrera_id}", response_model=List[MateriaResponse])
 def get_materias_by_carrera(carrera_id: int, db: Session = Depends(get_db)):
     return service.get_materias_by_carrera(db, carrera_id)
+
+
+@router.get("/buscar", response_model=List[MateriaResponse])
+def buscar_materias(
+    q: str,
+    anio: Optional[int] = None,
+    cuatrimestre: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    return service.buscar_materias(db, q, anio, cuatrimestre)
 
 
 @router.get("/correlativas/{materia_id}", response_model=List[CorrelativaResponse])

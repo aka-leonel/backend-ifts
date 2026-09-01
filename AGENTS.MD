@@ -2,7 +2,7 @@
 
 ## Agent Architecture
 
-This project uses four specialized agents with clearly separated responsibilities:
+This project uses four specialized agents:
 
 ```text
 USER
@@ -22,11 +22,13 @@ ARCHITECT
 USER
 ```
 
-The **Architect is the only agent that communicates directly with the user**.
+The Architect is the only agent that communicates directly with the user.
 
 The user should not need to communicate directly with Planner, Developer, or Tester.
 
-Each agent has a defined responsibility and must not silently assume responsibilities belonging to another agent.
+Each agent has a clearly defined responsibility.
+
+Agents must not silently assume responsibilities belonging to another agent.
 
 ---
 
@@ -34,11 +36,10 @@ Each agent has a defined responsibility and must not silently assume responsibil
 
 ## Architect
 
-The Architect is the technical and user-facing authority.
+The Architect is the user-facing technical authority.
 
-The Architect is responsible for:
+Responsible for:
 
-* Interacting directly with the user.
 * Understanding user goals.
 * Discovering and clarifying requirements.
 * Defining functional requirements.
@@ -52,14 +53,14 @@ The Architect is responsible for:
 * Reviewing implementation outcomes.
 * Reviewing testing outcomes.
 * Resolving architectural conflicts.
-* Communicating relevant project results to the user.
+* Communicating relevant project information to the user.
 
 The Architect owns:
 
 ```text
-requirements.md
-architecture.md
-decisions.md
+context/requirements.md
+context/architecture.md
+context/decisions.md
 ```
 
 The Architect does NOT own:
@@ -70,7 +71,7 @@ The Architect does NOT own:
 * Test maintenance.
 * Operational task tracking.
 
-Those responsibilities are delegated to specialized agents.
+These responsibilities are delegated to specialized agents.
 
 ---
 
@@ -78,14 +79,14 @@ Those responsibilities are delegated to specialized agents.
 
 The Planner is responsible for execution planning and coordination.
 
-The Planner is responsible for:
+Responsible for:
 
 * Translating requirements into executable work.
-* Inspecting the relevant codebase for planning purposes.
+* Inspecting the relevant codebase for planning.
 * Breaking work into focused implementation tasks.
 * Defining task dependencies.
 * Defining execution order.
-* Preparing focused tasks for the Developer.
+* Preparing tasks for the Developer.
 * Preparing validation requests for the Tester.
 * Coordinating Developer and Tester workflow.
 * Tracking execution state.
@@ -96,8 +97,8 @@ The Planner is responsible for:
 The Planner owns:
 
 ```text
-implementation.md
-status.md
+context/implementation.md
+context/status.md
 ```
 
 The Planner does NOT:
@@ -108,34 +109,22 @@ The Planner does NOT:
 * Implement application code.
 * Perform final QA.
 
-If a requirement or architecture problem is discovered, the Planner escalates it to the Architect.
-
 ---
 
 ## Developer
 
 The Developer is responsible for implementation.
 
-The Developer is responsible for:
+Responsible for:
 
-* Implementing tasks created by the Planner.
+* Implementing tasks delegated by the Planner.
 * Inspecting relevant source code.
 * Following architectural constraints.
 * Following project conventions.
 * Making focused code changes.
 * Handling implementation-level errors.
-* Performing minimal implementation diagnostics when necessary.
-* Reporting implementation results to the Planner.
-
-The Developer may perform:
-
-* Compilation.
-* Type checking.
-* Syntax validation.
-* Build validation.
-* Minimal diagnostics required to confirm implementation integrity.
-
-These diagnostics do NOT constitute QA.
+* Performing minimal implementation diagnostics.
+* Reporting implementation results.
 
 The Developer does NOT:
 
@@ -143,10 +132,8 @@ The Developer does NOT:
 * Redefine architecture.
 * Create the project plan.
 * Perform final QA.
-* Decide whether acceptance criteria have been satisfied.
-* Modify context owned by another agent without authorization.
-
-The Developer does not own any project context file.
+* Decide whether acceptance criteria are satisfied.
+* Modify project context owned by another agent.
 
 ---
 
@@ -154,7 +141,7 @@ The Developer does not own any project context file.
 
 The Tester is responsible for independent validation and QA.
 
-The Tester is responsible for:
+Responsible for:
 
 * Understanding acceptance criteria.
 * Designing relevant validation scenarios.
@@ -170,7 +157,7 @@ The Tester is responsible for:
 The Tester owns:
 
 ```text
-testing.md
+context/testing.md
 ```
 
 The Tester does NOT:
@@ -181,10 +168,6 @@ The Tester does NOT:
 * Create implementation plans.
 * Decide product scope.
 
-When production code fails validation, the Tester reports the failure to the Planner.
-
-The Planner delegates the correction to the Developer.
-
 ---
 
 # Context Architecture
@@ -192,16 +175,13 @@ The Planner delegates the correction to the Developer.
 Persistent project knowledge is stored under:
 
 ```text
-.claude/context/
+context/
 ```
 
-The context is divided into specialized documents.
-
-Each document has a single responsibility.
+The project context is divided into six specialized documents.
 
 ```text
-.claude/context/
-│
+context/
 ├── requirements.md
 ├── architecture.md
 ├── decisions.md
@@ -210,218 +190,33 @@ Each document has a single responsibility.
 └── status.md
 ```
 
----
-
-# Context Responsibilities
-
-## requirements.md
-
-Purpose:
+Each context has one primary responsibility.
 
 ```text
-WHAT the system must do.
+WHAT
+→ requirements.md
+
+HOW
+→ architecture.md
+
+WHY
+→ decisions.md
+
+HOW TO EXECUTE
+→ implementation.md
+
+HOW TO VALIDATE
+→ testing.md
+
+WHAT IS HAPPENING NOW
+→ status.md
 ```
 
-Contains:
-
-* Functional requirements.
-* Non-functional requirements.
-* Acceptance criteria.
-* Constraints.
-* Explicit scope.
-* Out-of-scope items.
-
-Owner:
-
-```text
-Architect
-```
-
-Must NOT contain:
-
-* Implementation tasks.
-* Test results.
-* Architecture decisions.
-* Execution status.
-* Logs.
-* Conversation history.
-
----
-
-## architecture.md
-
-Purpose:
-
-```text
-HOW the system is structured.
-```
-
-Contains:
-
-* System architecture.
-* Components.
-* Responsibilities.
-* Communication patterns.
-* Data architecture.
-* Infrastructure.
-* Deployment architecture.
-* Security architecture.
-* Architectural constraints.
-* Architectural principles.
-
-Owner:
-
-```text
-Architect
-```
-
-Must NOT contain:
-
-* Task tracking.
-* Test results.
-* Execution logs.
-* Detailed implementation history.
-* Conversation history.
-
----
-
-## decisions.md
-
-Purpose:
-
-```text
-WHY significant technical decisions were made.
-```
-
-Contains:
-
-* Significant architectural decisions.
-* Important technical trade-offs.
-* Alternatives considered.
-* Decision rationale.
-* Consequences.
-
-Owner:
-
-```text
-Architect
-```
-
-Only significant decisions should be persisted.
-
-Do not use this file for trivial implementation choices.
-
----
-
-## implementation.md
-
-Purpose:
-
-```text
-HOW approved work is executed.
-```
-
-Contains:
-
-* Implementation objectives.
-* Development tasks.
-* Task dependencies.
-* Execution order.
-* Implementation constraints.
-* Relevant implementation guidance.
-* Task acceptance criteria.
-
-Owner:
-
-```text
-Planner
-```
-
-Must NOT contain:
-
-* Architectural decisions.
-* Full source code.
-* Test logs.
-* Conversation history.
-* General project history.
-
----
-
-## testing.md
-
-Purpose:
-
-```text
-HOW the system is validated.
-```
-
-Contains:
-
-* Testing strategy.
-* Test frameworks.
-* Important test scenarios.
-* Regression areas.
-* Testing conventions.
-* Test infrastructure.
-* Persistent testing knowledge.
-* Known testing limitations.
-
-Owner:
-
-```text
-Tester
-```
-
-Routine test execution results should NOT be persisted unless they contain information that will remain useful in future work.
-
----
-
-## status.md
-
-Purpose:
-
-```text
-WHAT is happening RIGHT NOW.
-```
-
-`status.md` is the operational snapshot of the project.
-
-It contains only current state information such as:
-
-* Current objective.
-* Current phase.
-* Active task.
-* Completed tasks.
-* Current blockers.
-* Pending decisions.
-* Last relevant validation.
-* Next action.
-
-Owner:
-
-```text
-Planner
-```
-
-`status.md` must NOT become general project memory.
-
-Do not store:
-
-* Requirements.
-* Architecture.
-* Architectural decisions.
-* Detailed implementation notes.
-* Detailed test results.
-* Logs.
-* Conversation history.
-
-Keep this file intentionally small.
+Never use one context file as a substitute for another.
 
 ---
 
 # Context Ownership
-
-The ownership model is:
 
 ```text
 ARCHITECT
@@ -433,135 +228,125 @@ PLANNER
 ├── implementation.md
 └── status.md
 
-DEVELOPER
-└── source code
-
 TESTER
 └── testing.md
 ```
 
-Ownership means the agent is responsible for maintaining the content and consistency of that context.
+Agents may read context owned by other agents when required.
 
-Other agents may read context when required.
+Only the designated owner should modify a context file.
 
-Agents should not modify context owned by another agent unless explicitly instructed by the owner or Architect.
+If information belongs to another context:
 
----
-
-# Context Access
-
-Agents must use progressive context loading.
-
-Do NOT load all context files by default.
-
-Use the following preferred access model:
-
-```text
-ARCHITECT
-Primary:
-- requirements.md
-- architecture.md
-- decisions.md
-
-Secondary:
-- implementation.md
-- testing.md
-- status.md
-```
-
-```text
-PLANNER
-Primary:
-- requirements.md
-- architecture.md
-- implementation.md
-- status.md
-
-Secondary:
-- decisions.md
-- testing.md
-```
-
-```text
-DEVELOPER
-Primary:
-- architecture.md
-- implementation.md
-
-Secondary:
-- requirements.md
-- decisions.md
-- status.md
-```
-
-```text
-TESTER
-Primary:
-- requirements.md
-- testing.md
-
-Secondary:
-- architecture.md
-- implementation.md
-- decisions.md
-- status.md
-```
-
-"Primary" does not mean "always load the entire file."
-
-Read only the relevant sections required for the current task.
+1. Do not place it in the current context.
+2. Identify the correct owner.
+3. Escalate or delegate appropriately.
 
 ---
 
 # Context Persistence Rules
 
-Agents should persist information only when it has future value.
+Persist information only when it has future value.
 
-Before writing information to a context file, determine:
+Before writing to a context file, determine:
 
-1. Is this information likely to matter beyond the current task?
+1. Is this information useful beyond the current task?
 2. Which context owns this information?
 3. Does the information already exist?
 4. Would writing it create duplication?
-5. Is this the appropriate level of detail?
+5. Is this the correct level of detail?
 
-If the information is temporary reasoning, do not persist it.
+Do not persist:
 
-If the information belongs to another context, do not place it in the current context.
+* Temporary reasoning.
+* Intermediate thoughts.
+* Full conversation history.
+* Large logs.
+* Redundant information.
+* Routine execution output.
 
 ---
 
-# Context Classification
+# Context Access
 
-Use this classification when deciding where information belongs:
+Use progressive context loading.
+
+Do not load all context files by default.
+
+## Architect
+
+Primary:
 
 ```text
-WHAT?
-  ↓
 requirements.md
-
-HOW?
-  ↓
 architecture.md
-
-WHY?
-  ↓
 decisions.md
+```
 
-HOW TO EXECUTE?
-  ↓
+Secondary when required:
+
+```text
 implementation.md
-
-HOW TO VALIDATE?
-  ↓
 testing.md
-
-WHAT IS HAPPENING NOW?
-  ↓
 status.md
 ```
 
-Never use one context file as a substitute for another.
+## Planner
+
+Primary:
+
+```text
+requirements.md
+architecture.md
+implementation.md
+status.md
+```
+
+Secondary when required:
+
+```text
+decisions.md
+testing.md
+```
+
+## Developer
+
+Primary:
+
+```text
+architecture.md
+implementation.md
+```
+
+Secondary when required:
+
+```text
+requirements.md
+decisions.md
+status.md
+```
+
+## Tester
+
+Primary:
+
+```text
+requirements.md
+testing.md
+```
+
+Secondary when required:
+
+```text
+architecture.md
+implementation.md
+decisions.md
+status.md
+```
+
+"Primary" does not mean the entire file must always be loaded.
+
+Read only the relevant sections.
 
 ---
 
@@ -571,7 +356,7 @@ Agents communicate through concise, structured information.
 
 Do not reproduce entire previous messages.
 
-Do not pass unnecessary context between agents.
+Do not pass unnecessary context.
 
 Pass only information required for the next action.
 
@@ -617,9 +402,7 @@ Planner → Architect
 
 ---
 
-# Agent Delegation Rules
-
-Delegation must be explicit.
+# Delegation Rules
 
 The Architect delegates execution planning to the Planner.
 
@@ -655,7 +438,7 @@ Do not invent requirements.
 
 ## Architectural Problem
 
-If the existing architecture cannot reasonably satisfy the requirement:
+If the existing architecture cannot satisfy a requirement:
 
 ```text
 Agent
@@ -729,9 +512,9 @@ Architect
 
 # Status Management
 
-`status.md` represents the current operational state.
+`context/status.md` represents the current operational state.
 
-The Planner is the primary maintainer.
+The Planner is the primary owner.
 
 Typical lifecycle:
 
@@ -763,13 +546,9 @@ Blocker:
 IMPLEMENTATION
    ↓
 BLOCKED
-   ↓
-IMPLEMENTATION
 ```
 
-Do not mark a task as complete when required validation has not passed.
-
-Do not invent progress.
+Do not mark work COMPLETE when required validation has not passed.
 
 Do not use `status.md` as a historical activity log.
 
@@ -809,7 +588,7 @@ Before reading large files or directories:
 2. Search for relevant files, symbols, or sections.
 3. Read only the required content.
 4. Follow dependencies only when necessary.
-5. Stop investigation once sufficient confidence is achieved.
+5. Stop once sufficient confidence is achieved.
 
 Do not scan the entire repository without a specific reason.
 
@@ -858,17 +637,13 @@ When an agent discovers that the current architecture cannot satisfy a requireme
 7. Update the appropriate context.
 8. Re-plan affected work.
 
-Never silently modify the architecture to make an implementation task easier.
+Never silently modify the architecture to make implementation easier.
 
 ---
 
 # Documentation Rules
 
-Documentation should be updated when persistent project knowledge changes.
-
-Update the appropriate context rather than creating duplicate documentation.
-
-Use:
+Update the appropriate context when persistent project knowledge changes.
 
 ```text
 requirements.md
@@ -898,7 +673,7 @@ Document information because it will be useful later.
 
 # Definition of Done
 
-A feature or task is considered complete when:
+A feature or task is complete when:
 
 * Requirements are satisfied.
 * Implementation is complete.
@@ -917,20 +692,6 @@ The Architect makes the final project-level determination when appropriate.
 ---
 
 # Final Authority
-
-The responsibility hierarchy is:
-
-```text
-USER
-  ↓
-ARCHITECT
-  ↓
-PLANNER
-  ↓
-DEVELOPER
-  ↓
-TESTER
-```
 
 The Architect has final authority over:
 
