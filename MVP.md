@@ -9,44 +9,88 @@ administra el catálogo académico.
 
 ## Stack
 
-FastAPI + SQLAlchemy + SQLite. Auth con JWT (HS256, 24 h). Passwords con bcrypt.
-Arquitectura por capas y por feature: `router → service → repository → model`,
-con `app/shared/` para paginación y jerarquía de errores. Swagger en `/docs`.
+FastAPI + SQLAlchemy + PostgreSQL (gestionado en la nube). Auth con JWT
+(HS256, 24 h). Passwords con bcrypt. Arquitectura por capas y por feature:
+`router → service → repository → model`, con `app/shared/` para paginación y
+jerarquía de errores. Swagger en `/docs`.
+
+### Persistencia
+
+La capa de persistencia está pensada para vivir en la nube desde el MVP, no como
+un agregado posterior:
+
+- **Motor de base de datos**: PostgreSQL gestionado (por ejemplo Supabase, Neon,
+  Railway o RDS) como entorno de staging/producción. SQLite queda solo como motor
+  local para desarrollo rápido y para correr los tests, nunca como destino de
+  despliegue — evita el problema de filesystem efímero de la mayoría de los
+  hosting cloud (los contenedores no garantizan disco persistente entre deploys)
+  y el hecho de que SQLite no soporta bien escrituras concurrentes desde
+  múltiples instancias.
+- **Configuración por variable de entorno**: la connection string vive en
+  `DATABASE_URL` (con fallback a un SQLite local si no está seteada, para no
+  romper el entorno de desarrollo). Nada de credenciales hardcodeadas; se maneja
+  con `.env` + `pydantic-settings` en local y variables de entorno del proveedor
+  en la nube.
+- **Pooling de conexiones**: `SQLAlchemy` con `pool_pre_ping=True` y un pool
+  acotado (`pool_size` / `max_overflow`) para no agotar las conexiones que suelen
+  limitar los planes gratuitos/chicos de Postgres gestionado.
+- **Migraciones versionadas**: se incorpora **Alembic** desde el arranque del
+  proyecto en lugar de `Base.metadata.create_all()`. Esto es necesario apenas hay
+  una base remota compartida entre entornos (dev/staging/prod) — sin migraciones
+  versionadas, cualquier cambio de modelo rompe la base en la nube.
+- **Backups**: se delega en el backup automático del proveedor gestionado
+  (point-in-time recovery cuando el plan lo incluye) en vez de implementar backup
+  propio para el MVP.
+- **TLS**: la conexión a la base en la nube se fuerza con `sslmode=require` (o el
+  equivalente del driver) ya que el tráfico sale a internet.
 
 ## Funcionalidades
 
 ### Autenticación y roles
-- Registro (siempre rol `estudiante`; el rol del body se ignora → sin escalada de
-  privilegios), login (JSON para el front, form OAuth2 para Swagger),
-  `/auth/me`, `/auth/verify`.
-- Dos roles: `estudiante` y `admin`. Dependencias `get_current_user` (401) y
-  `require_admin` (403).
+
+Registro (siempre rol estudiante; el rol del body se ignora → sin escalada de
+privilegios), login (JSON para el front, form OAuth2 para Swagger), `/auth/me`,
+`/auth/verify`.
+
+Dos roles: estudiante y admin. Dependencias `get_current_user` (401) y
+`require_admin` (403).
 
 ### Catálogo académico (`/materias`)
-- Estructura: IFTS → Carrera → Materia → Correlativas.
-- Lectura pública: listar carreras, materias por carrera (paginado), búsqueda por
-  nombre/código con filtros de año y cuatrimestre, correlativas (con la materia
-  correlativa embebida en `requiere`).
-- Escritura (carreras y materias): solo admin. Con validaciones (año 1–6,
-  cuatrimestre 1/2, duración 1–12) y reglas de negocio (no borrar carrera con
-  materias, no borrar materia con cursadas, código de materia único por
-  carrera → 409).
+
+Estructura: IFTS → Carrera → Materia → Correlativas.
+
+Lectura pública: listar carreras, materias por carrera (paginado), búsqueda por
+nombre/código con filtros de año y cuatrimestre, correlativas.
+
+Escritura (carreras y materias): solo admin. Con validaciones (año 1–6,
+cuatrimestre 1/2, duración 1–12) y reglas de negocio (no borrar carrera con
+materias, no borrar materia con cursadas, código de materia único por
+carrera → 409).
 
 ### Cursadas y promedio (`/materias/usuario`, `/materias/cursada`, `/materias/promedio`)
-- El alumno registra las materias que cursa/aprobó, con notas parciales y final
-  (1–10).
-- Regla: solo se puede cargar una materia de la carrera del alumno. Cálculo de
-  promedio sobre notas finales.
+
+El alumno registra las materias que cursa/aprobó, con notas parciales y final
+(1–10).
+
+Identidad tomada del token JWT; un alumno solo ve/gestiona lo suyo (403 si es de
+otro), un admin puede consultar cualquiera.
+
+Regla: solo se puede cargar una materia de la carrera del alumno. Cálculo de
+promedio sobre notas finales.
 
 ### Recursos de estudio (`/recursos`, `/convenios`, `/talentotech`)
-- Recursos: links de material por materia, con dueño. Lectura pública con filtros
-  (materia, tipo, rango de fechas) y paginación. Crear requiere login;
-  editar/borrar solo el dueño (403 si no).
-- Convenios y cursos TalentoTech: lectura pública; alta/edición/baja solo admin.
+
+Recursos: links de material por materia, con dueño. Lectura pública con filtros
+(materia, tipo, rango de fechas) y paginación. Crear requiere login;
+editar/borrar solo el dueño (403 si no).
+
+Convenios y cursos TalentoTech: lectura pública; alta/edición/baja solo admin.
 
 ### Recordatorios (`/recordatorios`)
-- Agenda de fechas (parcial/tp/final/otro) del alumno. Listado paginado con
-  filtros por tipo, materia y rango de fechas. Validación de fecha futura (422).
+
+Agenda de fechas (parcial/tp/final/otro) del alumno. Identidad del token. Listado
+paginado con filtros por tipo, materia y rango de fechas. Validación de fecha
+futura (422).
 
 ## Contrato de respuestas (para el front)
 
@@ -62,90 +106,48 @@ errores*.
 
 ---
 
-## Límites del MVP (fuera de alcance por ahora)
+## Estado actual — qué falta para cerrar este MVP
 
-- **Sin persistencia gestionada**: corre sobre SQLite local. No hay migraciones
-  (el schema se crea con `Base.metadata.create_all()` al arrancar).
-- **Sin deploy**: no hay Dockerfile ni hosting; la API solo corre en la máquina
-  del dev.
-- **Identidad parcial desde el token** (ver *Deuda técnica* #1): varios endpoints
-  de cursadas y recordatorios reciben `usuario_id` por path/query y **no** lo
-  validan contra el JWT. El "un alumno solo ve lo suyo (403)" está implementado
-  para **recursos**, no para cursadas ni recordatorios.
-- **Sin recuperación de contraseña, refresh token ni logout real** (JWT stateless).
-- **Recursos = solo links**: no hay carga de archivos.
-- **Sin notificaciones** de recordatorios (no se envían mails ni push).
-- **Sin endpoints de detalle**: no existe `GET /materias/{id}` ni
-  `GET /materias/carreras/{id}` individuales; el front resuelve por las listas.
-- **Admin se crea solo por seed o a mano en la DB**.
-- **Un IFTS**: el modelo soporta varios, el seed carga uno.
+Lo que ya está implementado y probado (60 tests, coverage ~81%): auth + roles,
+catálogo con validaciones y reglas de negocio, cursadas/promedio, recursos con
+ownership, recordatorios con fecha futura, paginación en todos los listados,
+jerarquía de errores unificada. **Falta** para que el MVP sea el descrito arriba:
 
----
+| # | Brecha | Detalle | Sprint 2 |
+|---|--------|---------|----------|
+| 1 | **Identidad desde el token incompleta** | El MVP dice "identidad tomada del token; un alumno solo ve/gestiona lo suyo (403)". Hoy eso rige para **recursos**, pero **cursadas y recordatorios** reciben `usuario_id` por path/query sin validarlo contra el JWT, y `get_usuario_actual()` en `materias/router.py` está **hardcodeado a `1`**. | Integrante 1 |
+| 2 | **Persistencia sigue en SQLite local** | `app/database.py` ya lee `DATABASE_URL`, pero no hay Postgres gestionado, ni Alembic (el schema se crea con `create_all()`), ni `pydantic-settings`, ni pool tuneado, ni `sslmode`. | Integrante 2 |
+| 3 | **Sin deploy y sin CI que bloquee** | No hay Dockerfile ni hosting. `pydantic` **no está pinneado** en `requirements.txt` y el CI está seteado a Python 3.12 pero **nunca se confirmó que corra ni que gatee PRs** (por eso pasó a `dev` un bug que sólo se ve en Python < 3.14). Falta branch protection en `dev`/`main`. | Integrante 3 |
+| 4 | **Contrato incompleto para el front** | Faltan `GET /materias/{id}` y `GET /materias/carreras/{id}` (detalle). CORS default sólo `localhost:5173`. `api-requests.http` desactualizado. Sin documento de integración. | Integrante 4 |
+| 5 | **Deuda de calidad** | `class Config` de Pydantic v2 deprecado, `black` sin correr ni gate, `datetime.utcnow()` deprecado, `python-jose` (2021) sin mantenimiento, imports muertos, schemas `*Filter` sin uso, coverage bajo en repos de recursos. | Integrante 5 |
 
-## Deuda técnica / pendientes
-
-| # | Tema | Detalle | Dónde |
-|---|------|---------|-------|
-| 1 | **Identidad desde el token** | `usuario_id` viene del path/query en cursadas, promedio y recordatorios. `get_usuario_actual()` está hardcodeado a `1`. Falta `Depends(get_current_user)` + 403 si el `usuario_id` pedido no es el propio (salvo admin). | `materias/router.py`, `recordatorios/router.py` |
-| 2 | **Base de datos local** | SQLite + `create_all()`. Sin Alembic (está en `requirements.txt` sin usar). `psycopg2-binary` comentado. | `app/database.py`, `app/main.py` |
-| 3 | **Sin deploy** | Falta Dockerfile, hosting, `.env.example`, branch protection en `dev`/`main`. `SECRET_KEY` tiene default hardcodeado. | raíz, `auth/service.py` |
-| 4 | **Contrato para el front** | Faltan endpoints de detalle. `api-requests.http` desactualizado. CORS default solo localhost:5173. Sin doc de integración. | varios |
-| 5 | **Deuda de calidad** | `class Config` de Pydantic v2 deprecado (~15 warnings). `black` sin correr (32 archivos) y sin gate en CI. Python 3.14 local vs 3.12 CI. `datetime.utcnow()` deprecado en `auth/service.py` y `jose`. `python-jose` 3.3.0 (2021, poco mantenido). Imports muertos (`get_current_user` en `recursos/schema.py`; schemas `*Filter` no usados). Coverage bajo en repos de recursos (28–50%). | schemas, workflow, `auth/service.py` |
-
-Estado de tests: **60 pasando**, coverage **~81%**.
+Desglose completo con tareas y cronograma en **`SPRINT_2.md`**.
 
 ---
 
-## Cómo avanzar con el front (dentro de los límites del MVP)
+## Fuera de alcance del MVP (no van al Sprint 2)
 
-1. **Fuente de verdad = OpenAPI.** El backend expone el schema en
-   `GET /openapi.json` y Swagger en `/docs`. Generar un cliente tipado con
-   `openapi-typescript` (tipos) u `orval` / `openapi-generator` (cliente + hooks).
-2. **Auth flow:**
-   - `POST /auth/login` con `{ email, password }` → `{ access_token, token_type, usuario }`.
-   - Guardar el token (memoria + `localStorage` o cookie) y mandarlo en
-     `Authorization: Bearer <token>` en cada request.
-   - Interceptar `401` → limpiar sesión y mandar a login. `403` → “no tenés permiso”.
-3. **Manejo de respuestas** (contrato ya unificado):
-   - Listas: siempre `res.items` + `res.total` / `res.total_pages` para paginar.
-   - Errores: mostrar `res.detail` (string). En formularios, usar `res.errors`
-     (`[{campo, msg}]`) para marcar campos.
-4. **Pantallas MVP sugeridas:**
-   - Registro / login.
-   - Plan de estudios: carreras → materias por carrera → correlativas.
-   - Mis cursadas: alta de cursada, notas, promedio.
-   - Recursos: lista con filtros + alta (requiere login), editar/borrar solo propios.
-   - Recordatorios: agenda con filtros, alta con fecha futura.
-5. **Stack sugerido** (o el que maneje el equipo): Vite + React + TanStack Query
-   + cliente generado. Nada acoplado al backend salvo el `baseURL`.
-6. **Requisitos del backend para poder integrar** (van al Sprint 2):
-   - Agregar el origin del front a `CORS_ORIGINS`.
-   - Endpoints de detalle `GET /materias/{id}` y `GET /materias/carreras/{id}`.
-   - Cerrar la brecha de identidad (#1) para que “mis cursadas / mis recordatorios”
-     sean realmente del usuario logueado.
+- Recuperación de contraseña, refresh token, logout real (JWT stateless).
+- Carga de archivos: los recursos son solo links.
+- Notificaciones de recordatorios (mails / push).
+- Multi-IFTS en el front (el modelo lo soporta; el seed carga uno).
+- Panel de administración de usuarios (el admin se crea por seed o a mano).
+- Rate limiting, auditoría, métricas de negocio.
 
 ---
 
-## Cómo sacar la BD de local
+## Integración con el front (dentro del MVP)
 
-`app/database.py` **ya** lee `DATABASE_URL` de entorno (SQLite es solo el
-fallback), así que el cambio es acotado:
-
-1. **Proveedor gestionado free tier:** Neon, Supabase o Railway (Postgres).
-   Crear la base y copiar la `DATABASE_URL` (`postgresql+psycopg://user:pass@host/db`).
-2. **Driver:** descomentar/actualizar en `requirements.txt` → `psycopg[binary]`
-   (o `psycopg2-binary`).
-3. **Migraciones con Alembic** (reemplaza `Base.metadata.create_all()`):
-   - `alembic init alembic`, apuntar `sqlalchemy.url` a `DATABASE_URL`.
-   - `alembic revision --autogenerate -m "schema inicial"` con todos los modelos
-     importados.
-   - Quitar `Base.metadata.create_all(bind=engine)` de `app/main.py` (dejarlo solo
-     en `tests/conftest.py`).
-   - Deploy y CI corren `alembic upgrade head` antes de arrancar.
-4. **`seed.py`** contra la nueva base (o convertirlo en una migración de datos).
-5. **Higiene:** `.env.example` con `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`;
-   confirmar que `miifts.db` no se vuelva a trackear (ya está en `.gitignore`).
-6. **Deploy del backend:** Render / Railway / Fly.io (free). Dockerfile o buildpack
-   de Python; setear las env vars; `GET /health` como health check.
-
-Todo esto está desglosado en `SPRINT_2.md` (Integrantes 2 y 3).
+1. **Fuente de verdad = OpenAPI** (`GET /openapi.json`, Swagger en `/docs`).
+   Generar cliente tipado con `openapi-typescript` u `orval`.
+2. **Auth**: `POST /auth/login` → `{ access_token, usuario }`. Guardar el token,
+   mandarlo en `Authorization: Bearer`. `401` → a login; `403` → sin permiso.
+3. **Respuestas** (contrato unificado): listas → `res.items` + `res.total_pages`;
+   errores → `res.detail` (string), y `res.errors` (`[{campo, msg}]`) para marcar
+   campos en formularios.
+4. **Pantallas MVP**: registro/login · plan de estudios (carreras → materias →
+   correlativas) · mis cursadas + promedio · recursos (lista con filtros + alta) ·
+   recordatorios (agenda).
+5. **Requisitos que el backend debe entregar** (Sprint 2, Integrantes 1 y 4):
+   endpoints de detalle, CORS con el origin del front, y la identidad real desde
+   el token para "mis cursadas / mis recordatorios".
