@@ -241,11 +241,13 @@ GET {{baseUrl}}/talentotech/carrera/1
 ### RECORDATORIOS
 ### ============================================
 
-### 30. Listar recordatorios (paginado)
-GET {{baseUrl}}/recordatorios/?usuario_id=1&page=1&per_page=15
+### 30. Listar recordatorios (paginado) - solo los del usuario del token
+GET {{baseUrl}}/recordatorios/?page=1&per_page=15
+Authorization: Bearer {{token}}
 
-### 31. Crear recordatorio
-POST {{baseUrl}}/recordatorios/?usuario_id=1
+### 31. Crear recordatorio (el dueño sale del token)
+POST {{baseUrl}}/recordatorios/
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -255,8 +257,9 @@ Content-Type: application/json
   "materia_id": 1
 }
 
-### 32. Eliminar recordatorio
-DELETE {{baseUrl}}/recordatorios/1?usuario_id=1
+### 32. Eliminar recordatorio - solo los propios (404 si es de otro)
+DELETE {{baseUrl}}/recordatorios/1
+Authorization: Bearer {{token}}
 
 
 ### ============================================

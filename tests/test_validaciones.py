@@ -95,24 +95,24 @@ def test_cursada_nota_fuera_de_rango(client, auth_headers, usuario_registrado, c
     assert r.status_code == 422
 
 
-def test_recordatorio_fecha_pasada(client, usuario_registrado):
-    user_id = usuario_registrado["response"]["id"]
+def test_recordatorio_fecha_pasada(client, auth_headers, usuario_registrado):
     r = client.post(
-        f"/recordatorios/?usuario_id={user_id}",
+        "/recordatorios/",
         json={"titulo": "Final viejo", "fecha": "2020-01-01T10:00:00", "tipo": "final"},
+        headers=auth_headers,
     )
     assert r.status_code == 422
     assert "futura" in r.text.lower()
 
 
-def test_recordatorio_fecha_futura_ok(client, usuario_registrado):
-    user_id = usuario_registrado["response"]["id"]
+def test_recordatorio_fecha_futura_ok(client, auth_headers, usuario_registrado):
     futura = (datetime.now() + timedelta(days=30)).replace(microsecond=0).isoformat()
     r = client.post(
-        f"/recordatorios/?usuario_id={user_id}",
+        "/recordatorios/",
         json={"titulo": "Final próximo", "fecha": futura, "tipo": "final"},
+        headers=auth_headers,
     )
-    assert r.status_code == 200, r.text
+    assert r.status_code == 201, r.text
     assert r.json()["titulo"] == "Final próximo"
 
 
