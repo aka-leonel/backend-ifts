@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, status
-from typing import List
 
 from app.features.recursos.service import TalentoTechService
 from app.features.recursos import TalentoTechCreate, TalentoTechResponse
@@ -12,15 +11,23 @@ router = APIRouter(
     tags=["talentotech"]
 )
 
-@router.get("/carrera/{carrera_id}", response_model=List[TalentoTechResponse])
-def get_by_carrera(carrera_id: int, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    return service_talentotech.get_by_carrera(carrera_id)
+@router.get("/carrera/{carrera_id}", response_model=PaginatedResponse[TalentoTechResponse])
+def get_by_carrera(
+    carrera_id: int,
+    service_talentotech: TalentoTechService = Depends(get_talentotech_service),
+    pagination: PaginationParams = Depends(),
+):
+    return service_talentotech.get_by_carrera_paginado(carrera_id, pagination)
 
-@router.get("/categoria/{categoria}", response_model=List[TalentoTechResponse])
-def get_by_categoria(categoria: str, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
-    return service_talentotech.get_by_categoria(categoria)
+@router.get("/categoria/{categoria}", response_model=PaginatedResponse[TalentoTechResponse])
+def get_by_categoria(
+    categoria: str,
+    service_talentotech: TalentoTechService = Depends(get_talentotech_service),
+    pagination: PaginationParams = Depends(),
+):
+    return service_talentotech.get_by_categoria_paginado(categoria, pagination)
 
-@router.put("/{talentotech_id}", response_model=TalentoTechResponse, status_code=status.HTTP_201_CREATED)
+@router.put("/{talentotech_id}", response_model=TalentoTechResponse)
 def update(talentotech_id: int, talentotech: TalentoTechCreate, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
     return service_talentotech.update(talentotech_id, talentotech)
 

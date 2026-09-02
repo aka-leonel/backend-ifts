@@ -69,6 +69,12 @@ class TokenResponse(BaseModel):
     usuario: Optional[UsuarioResponse] = None
 
 
+class VerifyResponse(BaseModel):
+    """Respuesta de `GET /auth/verify`."""
+    valid: bool
+    user_id: int
+
+
 # ========== Schemas auxiliares (para cambiar datos) ==========
 
 class UsuarioUpdate(BaseModel):

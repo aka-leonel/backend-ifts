@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, status
-from typing import List
 
 from app.features.recursos.service import ConvenioService
 from app.features.recursos import ConvenioCreate, ConvenioResponse
@@ -12,9 +11,13 @@ router = APIRouter(
     tags=["convenios"]
 )
 
-@router.get("/carrera/{carrera_id}", response_model=List[ConvenioResponse])
-def get_by_carrera(carrera_id: int, service_convenio: ConvenioService = Depends(get_convenio_service)):
-    return service_convenio.get_by_carrera(carrera_id)
+@router.get("/carrera/{carrera_id}", response_model=PaginatedResponse[ConvenioResponse])
+def get_by_carrera(
+    carrera_id: int,
+    service_convenio: ConvenioService = Depends(get_convenio_service),
+    pagination: PaginationParams = Depends(),
+):
+    return service_convenio.get_by_carrera_paginado(carrera_id, pagination)
 
 
 @router.put("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_200_OK)

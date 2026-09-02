@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 class IFTS(Base):
@@ -41,6 +42,9 @@ class Correlativa(Base):
     id = Column(Integer, primary_key=True, index=True)
     materia_id = Column(Integer, ForeignKey("materias.id"), nullable=False, index=True)
     requiere_id = Column(Integer, ForeignKey("materias.id"), nullable=False, index=True)
+
+    # Materia que se exige como correlativa (para embeberla en la respuesta).
+    requiere = relationship("Materia", foreign_keys=[requiere_id], lazy="selectin")
 
 
 class MateriaUsuario(Base):

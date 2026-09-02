@@ -17,7 +17,10 @@ class CarreraRepository:
         self.db = db
 
     def get_all(self) -> list[Carrera]:
-        return self.db.query(Carrera).all()
+        return self.query_all().all()
+
+    def query_all(self):
+        return self.db.query(Carrera).order_by(Carrera.nombre)
 
     def get_by_id(self, carrera_id: int) -> Carrera | None:
         return self.db.query(Carrera).filter(Carrera.id == carrera_id).first()
@@ -96,7 +99,7 @@ class MateriaRepository:
         self.db.commit()
         return materia
 
-    def search(self, q: str, anio: Optional[int], cuatrimestre: Optional[int]) -> list[Materia]:
+    def query_search(self, q: str, anio: Optional[int], cuatrimestre: Optional[int]):
         query = self.db.query(Materia)
         query = query.filter(
             or_(
@@ -108,31 +111,40 @@ class MateriaRepository:
             query = query.filter(Materia.anio == anio)
         if cuatrimestre is not None:
             query = query.filter(Materia.cuatrimestre == cuatrimestre)
-        return query.all()
+        return query.order_by(Materia.anio, Materia.cuatrimestre, Materia.nombre)
+
+    def search(self, q: str, anio: Optional[int], cuatrimestre: Optional[int]) -> list[Materia]:
+        return self.query_search(q, anio, cuatrimestre).all()
 
 
 class CorrelativaRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_materia(self, materia_id: int) -> list[Correlativa]:
+    def query_by_materia(self, materia_id: int):
         return (
             self.db.query(Correlativa)
             .filter(Correlativa.materia_id == materia_id)
-            .all()
+            .order_by(Correlativa.id)
         )
+
+    def get_by_materia(self, materia_id: int) -> list[Correlativa]:
+        return self.query_by_materia(materia_id).all()
 
 
 class MateriaUsuarioRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_usuario(self, usuario_id: int) -> list[MateriaUsuario]:
+    def query_by_usuario(self, usuario_id: int):
         return (
             self.db.query(MateriaUsuario)
             .filter(MateriaUsuario.usuario_id == usuario_id)
-            .all()
+            .order_by(MateriaUsuario.id)
         )
+
+    def get_by_usuario(self, usuario_id: int) -> list[MateriaUsuario]:
+        return self.query_by_usuario(usuario_id).all()
 
     def count_by_materia(self, materia_id: int) -> int:
         return (

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 
 from app.database import get_db
 from app.features.auth.dependencies import require_admin
@@ -33,9 +33,12 @@ def get_usuario_actual() -> int:
     return 1
 
 
-@router.get("/carreras", response_model=List[CarreraResponse])
-def get_carreras(db: Session = Depends(get_db)):
-    return service.get_carreras(db)
+@router.get("/carreras", response_model=PaginatedResponse[CarreraResponse])
+def get_carreras(
+    db: Session = Depends(get_db),
+    pagination: PaginationParams = Depends(),
+):
+    return service.get_carreras(db, pagination)
 
 
 @router.post("/carreras", response_model=CarreraResponse, status_code=status.HTTP_201_CREATED)
@@ -76,24 +79,33 @@ def get_materias_by_carrera(
     return service.get_materias_by_carrera_paginado(db, carrera_id, pagination)
 
 
-@router.get("/buscar", response_model=List[MateriaResponse])
+@router.get("/buscar", response_model=PaginatedResponse[MateriaResponse])
 def buscar_materias(
     q: str,
     anio: Optional[int] = None,
     cuatrimestre: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    pagination: PaginationParams = Depends(),
 ):
-    return service.buscar_materias(db, q, anio, cuatrimestre)
+    return service.buscar_materias(db, q, anio, cuatrimestre, pagination)
 
 
-@router.get("/correlativas/{materia_id}", response_model=List[CorrelativaResponse])
-def get_correlativas(materia_id: int, db: Session = Depends(get_db)):
-    return service.get_correlativas(db, materia_id)
+@router.get("/correlativas/{materia_id}", response_model=PaginatedResponse[CorrelativaResponse])
+def get_correlativas(
+    materia_id: int,
+    db: Session = Depends(get_db),
+    pagination: PaginationParams = Depends(),
+):
+    return service.get_correlativas(db, materia_id, pagination)
 
 
-@router.get("/usuario/{usuario_id}", response_model=List[MateriaUsuarioResponse])
-def get_materias_usuario(usuario_id: int, db: Session = Depends(get_db)):
-    return service.get_materias_usuario(db, usuario_id)
+@router.get("/usuario/{usuario_id}", response_model=PaginatedResponse[MateriaUsuarioResponse])
+def get_materias_usuario(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    pagination: PaginationParams = Depends(),
+):
+    return service.get_materias_usuario(db, usuario_id, pagination)
 
 
 @router.get("/promedio/{usuario_id}", response_model=PromedioResponse)

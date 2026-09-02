@@ -195,7 +195,7 @@ def test_cursar_materia_de_mi_carrera_ok(
     assert r.json()["materia_id"] == materia["id"]
 
 
-# ---------- 3. shape de error ----------
+# ---------- 3. shape de error unificado ----------
 
 def test_error_404_tiene_shape_detail(client):
     r = client.get("/recursos/99999")
@@ -203,3 +203,19 @@ def test_error_404_tiene_shape_detail(client):
     body = r.json()
     assert set(body.keys()) == {"detail"}
     assert isinstance(body["detail"], str)
+
+
+def test_error_422_detail_es_string_y_trae_errors(client, admin_headers, carrera_test):
+    r = client.post(
+        "/materias/",
+        json=_payload_materia(carrera_test.id, cuatrimestre=5, codigo=""),
+        headers=admin_headers,
+    )
+    assert r.status_code == 422
+    body = r.json()
+    # mismo contrato que el resto de la API: detail siempre string
+    assert isinstance(body["detail"], str)
+    # + desglose campo por campo para formularios
+    assert isinstance(body["errors"], list)
+    campos = {e["campo"] for e in body["errors"]}
+    assert "cuatrimestre" in campos and "codigo" in campos

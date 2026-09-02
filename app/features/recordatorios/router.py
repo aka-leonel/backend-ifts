@@ -1,5 +1,5 @@
 from datetime import date
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.database import get_db
@@ -35,11 +35,11 @@ def create_recordatorio(
 ):
     return service.create_recordatorio(db, recordatorio, usuario_id)
 
-@router.delete("/{recordatorio_id}")
+@router.delete("/{recordatorio_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_recordatorio(
     recordatorio_id: int,
     usuario_id: int,
     db: Session = Depends(get_db)
 ):
     service.delete_recordatorio(db, recordatorio_id, usuario_id)
-    return {"ok": True}
+    return None

@@ -24,8 +24,8 @@ from app.shared.schemas.pagination import PaginatedResponse
 from app.shared.utils.pagination import PaginationParams, paginate
 
 
-def get_carreras(db: Session) -> list[Carrera]:
-    return CarreraRepository(db).get_all()
+def get_carreras(db: Session, params: PaginationParams) -> PaginatedResponse[Carrera]:
+    return paginate(CarreraRepository(db).query_all(), params)
 
 
 def create_carrera(db: Session, datos: CarreraCreate) -> Carrera:
@@ -57,8 +57,10 @@ def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
     return MateriaRepository(db).get_by_carrera(carrera_id)
 
 
-def buscar_materias(db: Session, q: str, anio: Optional[int], cuatrimestre: Optional[int]) -> list[Materia]:
-    return MateriaRepository(db).search(q, anio, cuatrimestre)
+def buscar_materias(
+    db: Session, q: str, anio: Optional[int], cuatrimestre: Optional[int], params: PaginationParams
+) -> PaginatedResponse[Materia]:
+    return paginate(MateriaRepository(db).query_search(q, anio, cuatrimestre), params)
 
 
 def get_materias_by_carrera_paginado(
@@ -99,12 +101,16 @@ def delete_materia(db: Session, materia_id: int) -> Materia:
     return repo.delete(materia_id)
 
 
-def get_correlativas(db: Session, materia_id: int) -> list[Correlativa]:
-    return CorrelativaRepository(db).get_by_materia(materia_id)
+def get_correlativas(
+    db: Session, materia_id: int, params: PaginationParams
+) -> PaginatedResponse[Correlativa]:
+    return paginate(CorrelativaRepository(db).query_by_materia(materia_id), params)
 
 
-def get_materias_usuario(db: Session, usuario_id: int) -> list[MateriaUsuario]:
-    return MateriaUsuarioRepository(db).get_by_usuario(usuario_id)
+def get_materias_usuario(
+    db: Session, usuario_id: int, params: PaginationParams
+) -> PaginatedResponse[MateriaUsuario]:
+    return paginate(MateriaUsuarioRepository(db).query_by_usuario(usuario_id), params)
 
 
 def add_materia_usuario(

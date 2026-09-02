@@ -4,7 +4,13 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.features.auth.schema import UsuarioCreate, UsuarioLogin, TokenResponse, UsuarioResponse
+from app.features.auth.schema import (
+    UsuarioCreate,
+    UsuarioLogin,
+    TokenResponse,
+    UsuarioResponse,
+    VerifyResponse,
+)
 from app.features.auth.service import AuthService
 from app.features.auth.dependencies import get_current_user  # <-- importamos desde dependencies
 
@@ -29,6 +35,6 @@ def get_me(current_user: UsuarioResponse = Depends(get_current_user)):
     """Devuelve los datos del usuario autenticado (protegido)."""
     return current_user
 
-@router.get("/verify", response_model=dict)
+@router.get("/verify", response_model=VerifyResponse)
 def verify_token(current_user: UsuarioResponse = Depends(get_current_user)):
-    return {"valid": True, "user_id": current_user.id}
+    return VerifyResponse(valid=True, user_id=current_user.id)

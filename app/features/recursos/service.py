@@ -93,6 +93,11 @@ class ConvenioService:
 
     def get_by_carrera(self, carrera_id: int) -> list[Convenio]:
         return self.repository.get_convenios_by_carrera(carrera_id)
+
+    def get_by_carrera_paginado(
+        self, carrera_id: int, params: PaginationParams
+    ) -> PaginatedResponse[Convenio]:
+        return paginate(self.repository.query_by_carrera(carrera_id), params)
     
     def create(self, convenio: ConvenioCreate) -> Convenio:
         return self.repository.create_convenio(convenio)
@@ -125,8 +130,18 @@ class TalentoTechService:
     def get_by_carrera(self, carrera_id: int) -> list[TalentoTech]:
         return self.repository.get_talentotech_by_carrera(carrera_id)
 
+    def get_by_carrera_paginado(
+        self, carrera_id: int, params: PaginationParams
+    ) -> PaginatedResponse[TalentoTech]:
+        return paginate(self.repository.query_by_carrera(carrera_id), params)
+
     def get_by_categoria(self, categoria: str) -> list[TalentoTech]:
         return self.repository.get_talentotech_by_categoria(categoria)
+
+    def get_by_categoria_paginado(
+        self, categoria: str, params: PaginationParams
+    ) -> PaginatedResponse[TalentoTech]:
+        return paginate(self.repository.query_by_categoria(categoria), params)
 
     def create(self, talentotech: TalentoTechCreate) -> TalentoTech:
         return self.repository.create_talentotech(talentotech)

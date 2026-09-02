@@ -42,36 +42,33 @@ o promoviendo un usuario en la base de datos.
 **Recursos:** `PUT` y `DELETE` verifican que `usuario_actual.id == recurso.usuario_id`.
 Si el recurso pertenece a otro usuario se responde `403`; si no existe, `404`.
 
-## Paginación
+## Estructura de respuestas
 
-Los listados largos aceptan los query params `page` (default `1`) y `per_page`
-(default `20`, máximo `100`) y devuelven un objeto envoltorio en vez de un
-array plano:
+Contrato único para el front:
+
+| Tipo de respuesta | Forma | Cuándo |
+|-------------------|-------|--------|
+| **Colección** | `{ "items": [...], "total", "page", "per_page", "total_pages" }` | **todos** los `GET` que devuelven una lista |
+| **Recurso** | objeto plano con sus campos | `GET`/`POST`/`PUT`/`PATCH` de un ítem |
+| **Sin contenido** | `204`, body vacío | **todos** los `DELETE` |
+| **Error** | `{ "detail": "<string>" }` (+ `errors` en los `422`) | ver *Validaciones y manejo de errores* |
+
+### Paginación
+
+**Todos** los listados aceptan `page` (default `1`) y `per_page` (default `20`,
+máximo `100`) y devuelven el envoltorio `PaginatedResponse`:
 
 ```json
-{
-  "items": [ ... ],
-  "total": 42,
-  "page": 1,
-  "per_page": 20,
-  "total_pages": 3
-}
+{ "items": [ ... ], "total": 42, "page": 1, "per_page": 20, "total_pages": 3 }
 ```
 
-Endpoints paginados hoy:
+Alcanza a: `/materias/carreras`, `/materias/carrera/{id}`, `/materias/buscar`,
+`/materias/correlativas/{id}`, `/materias/usuario/{id}`, `/recordatorios/`,
+`/recursos/` y `/recursos/usuario|materia/{id}`, `/convenios/` y
+`/convenios/carrera/{id}`, `/talentotech/` y `/talentotech/carrera|categoria/{x}`.
 
-- `GET /materias/carrera/{carrera_id}?page=1&per_page=10`
-- `GET /recursos/?page=1&per_page=20`
-- `GET /recursos/usuario/{usuario_id}?page=1&per_page=20`
-- `GET /recursos/materia/{materia_id}?page=1&per_page=20`
-- `GET /convenios/?page=1&per_page=20`
-- `GET /talentotech/?page=1&per_page=20`
-- `GET /recordatorios/?usuario_id=1&page=1&per_page=15`
-
-Quedaron sin paginar a propósito los listados chicos y acotados (carreras,
-correlativas de una materia, materias del usuario, y las variantes filtradas
-por carrera/categoría de convenios y talentotech) porque no crecen lo
-suficiente como para justificarlo.
+`GET /materias/correlativas/{id}` embebe además la materia correlativa completa
+en el campo `requiere` de cada item.
 
 El esquema (`PaginatedResponse`) y la dependencia (`PaginationParams`) están en
 `app/shared/schemas/pagination.py` y `app/shared/utils/pagination.py`, listos
@@ -104,9 +101,30 @@ propagan solas hasta la respuesta; los routers no hacen `try/except`):
 | `BusinessRuleError`      | 409 | Regla de negocio (ver abajo) |
 | `DomainValidationError`  | 422 | Validación de dominio fuera del schema |
 
-Formato de respuesta de error (siempre): `{"detail": "<mensaje>"}`.
-`app/main.py` registra además un handler de `IntegrityError` → 409 por si alguna
-violación de integridad se escapa de los services.
+**Formato de respuesta de error — unificado en toda la API:** `detail` es
+**siempre un string**.
+
+```json
+{ "detail": "No se encontró el recurso 99999" }
+```
+
+Los errores de validación (`422`) agregan además el desglose campo por campo,
+útil para marcar los inputs en un formulario:
+
+```json
+{
+  "detail": "El cuatrimestre debe ser 1 o 2",
+  "errors": [
+    { "campo": "cuatrimestre", "msg": "El cuatrimestre debe ser 1 o 2" },
+    { "campo": "codigo", "msg": "El código no puede estar vacío" }
+  ]
+}
+```
+
+`app/main.py` registra los handlers globales: `APIException` (nuestra jerarquía),
+`RequestValidationError` (normaliza los 422 de Pydantic al formato de arriba) e
+`IntegrityError` → 409 por si alguna violación de integridad se escapa de los
+services.
 
 ### Validadores de schema (Pydantic `field_validator`)
 

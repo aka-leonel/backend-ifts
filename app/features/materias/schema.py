@@ -189,6 +189,7 @@ class CorrelativaResponse(BaseModel):
     id: int
     materia_id: int
     requiere_id: int
+    requiere: Optional[MateriaResponse] = None
 
     class Config:
         from_attributes = True

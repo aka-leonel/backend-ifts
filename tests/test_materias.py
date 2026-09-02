@@ -158,9 +158,9 @@ def test_buscar_materia_por_nombre(client, db_session, carrera_test):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == materia.id
-    assert data[0]["nombre"] == materia.nombre
+    assert data["total"] == 1
+    assert data["items"][0]["id"] == materia.id
+    assert data["items"][0]["nombre"] == materia.nombre
 
 
 def test_buscar_materia_por_codigo(client, db_session, carrera_test):
@@ -181,9 +181,9 @@ def test_buscar_materia_por_codigo(client, db_session, carrera_test):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == materia.id
-    assert data[0]["codigo"] == materia.codigo
+    assert data["total"] == 1
+    assert data["items"][0]["id"] == materia.id
+    assert data["items"][0]["codigo"] == materia.codigo
 
 
 def test_buscar_materia_con_filtro_anio(client, db_session, carrera_test):
@@ -217,9 +217,9 @@ def test_buscar_materia_con_filtro_anio(client, db_session, carrera_test):
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == materia_matching.id
-    assert data[0]["anio"] == 1
+    assert data["total"] == 1
+    assert data["items"][0]["id"] == materia_matching.id
+    assert data["items"][0]["anio"] == 1
 
 
 def test_buscar_materia_con_filtro_cuatrimestre(client, db_session, carrera_test):
@@ -253,9 +253,9 @@ def test_buscar_materia_con_filtro_cuatrimestre(client, db_session, carrera_test
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == materia_matching.id
-    assert data[0]["cuatrimestre"] == 1
+    assert data["total"] == 1
+    assert data["items"][0]["id"] == materia_matching.id
+    assert data["items"][0]["cuatrimestre"] == 1
 
 
 def test_buscar_materia_sin_resultados(client, db_session, carrera_test):
@@ -276,4 +276,5 @@ def test_buscar_materia_sin_resultados(client, db_session, carrera_test):
 
     assert response.status_code == 200
     data = response.json()
-    assert data == []
+    assert data["total"] == 0
+    assert data["items"] == []

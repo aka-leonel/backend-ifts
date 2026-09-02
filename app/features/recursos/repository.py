@@ -104,8 +104,11 @@ class ConvenioRepository:
     def query_all(self):
         return self.db.query(Convenio)
 
+    def query_by_carrera(self, carrera_id: int):
+        return self.db.query(Convenio).filter(Convenio.carrera_id == carrera_id)
+
     def get_convenios_by_carrera(self, carrera_id: int) -> list[Convenio]:
-        return self.db.query(Convenio).filter(Convenio.carrera_id == carrera_id).all()
+        return self.query_by_carrera(carrera_id).all()
 
     def create_convenio(self, convenio: ConvenioCreate) -> Convenio:
         db_convenio = Convenio(
@@ -153,11 +156,17 @@ class TalentoTechRepository:
     def get_talentotech_by_id(self, talentotech_id: int) -> Optional[TalentoTech]:
         return self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
     
+    def query_by_carrera(self, carrera_id: int):
+        return self.db.query(TalentoTech).filter(TalentoTech.carrera_id == carrera_id)
+
+    def query_by_categoria(self, categoria: str):
+        return self.db.query(TalentoTech).filter(TalentoTech.categoria == categoria)
+
     def get_talentotech_by_carrera(self, carrera_id: int) -> list[TalentoTech]:
-        return self.db.query(TalentoTech).filter(TalentoTech.carrera_id == carrera_id).all()
+        return self.query_by_carrera(carrera_id).all()
 
     def get_talentotech_by_categoria(self, categoria: str) -> list[TalentoTech]:
-        return self.db.query(TalentoTech).filter(TalentoTech.categoria == categoria).all()
+        return self.query_by_categoria(categoria).all()
 
     def create_talentotech(self, talentotech: TalentoTechCreate) -> TalentoTech:
         db_talentotech = TalentoTech(

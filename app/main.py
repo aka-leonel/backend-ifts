@@ -2,6 +2,7 @@ import logging
 import os
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
@@ -52,6 +53,36 @@ async def api_exception_handler(request: Request, exc: APIException):
         status_code=exc.status_code,
         content={"detail": exc.detail},
         headers=exc.headers,
+    )
+
+
+def _campo_de_loc(loc) -> str:
+    """Nombre de campo legible a partir del `loc` de Pydantic
+    (descarta el prefijo body/query/path)."""
+    partes = [
+        str(p)
+        for p in loc
+        if p not in ("body", "query", "path", "header", "cookie")
+    ]
+    return ".".join(partes) or "(request)"
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    """Unifica los 422 de Pydantic al mismo formato que el resto de la API:
+    `detail` siempre string, y `errors` con el detalle campo por campo."""
+    errores = [
+        {
+            "campo": _campo_de_loc(e.get("loc", ())),
+            "msg": e.get("msg", "Dato inválido").removeprefix("Value error, "),
+        }
+        for e in exc.errors()
+    ]
+    detail = errores[0]["msg"] if errores else "Datos inválidos"
+    logger.info("ValidationError en %s: %s", request.url.path, errores)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": detail, "errors": errores},
     )
 
 
