@@ -236,3 +236,116 @@ def test_editar_recurso_sin_token(client, auth_headers, carrera_test, db_session
         },
     )
     assert response.status_code == 401
+
+
+# ========== Cursadas: identidad desde el token (Sprint 2 - Integrante 1) ==========
+#
+# `usuario_id` ya no viaja por el path en POST/PATCH/DELETE de cursadas, y en
+# `GET /materias/usuario/{id}` y `GET /materias/promedio/{id}` un alumno sólo
+# puede consultar lo suyo (403 si intenta lo de otro); un admin puede ver
+# cualquiera.
+
+
+def _id_de(client, headers) -> int:
+    """Id del usuario dueño de esos headers (vía /auth/me)."""
+    me = client.get("/auth/me", headers=headers)
+    assert me.status_code == 200, me.text
+    return me.json()["id"]
+
+
+def _crear_cursada(client, headers, carrera_id, db_session, codigo="CUR1"):
+    """Crea una materia en `carrera_id` y una cursada a nombre del dueño de `headers`."""
+    materia = _crear_materia(db_session, carrera_id, codigo=codigo)
+    resp = client.post(
+        "/materias/usuario",
+        json={"materia_id": materia.id, "cursando": True},
+        headers=headers,
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+def test_alumno_ve_sus_cursadas(client, auth_headers, usuario_registrado):
+    mi_id = usuario_registrado["response"]["id"]
+    r = client.get(f"/materias/usuario/{mi_id}", headers=auth_headers)
+    assert r.status_code == 200
+    assert "items" in r.json()
+
+
+def test_alumno_no_ve_cursadas_de_otro(
+    client, auth_headers, segundo_estudiante_headers
+):
+    otro_id = _id_de(client, segundo_estudiante_headers)
+    r = client.get(f"/materias/usuario/{otro_id}", headers=auth_headers)
+    assert r.status_code == 403
+
+
+def test_admin_ve_cursadas_de_cualquier_alumno(
+    client, admin_headers, auth_headers, usuario_registrado
+):
+    alumno_id = usuario_registrado["response"]["id"]
+    r = client.get(f"/materias/usuario/{alumno_id}", headers=admin_headers)
+    assert r.status_code == 200
+
+
+def test_ver_cursadas_sin_token(client, usuario_registrado):
+    mi_id = usuario_registrado["response"]["id"]
+    r = client.get(f"/materias/usuario/{mi_id}")
+    assert r.status_code == 401
+
+
+def test_alumno_ve_su_promedio(client, auth_headers, usuario_registrado):
+    mi_id = usuario_registrado["response"]["id"]
+    r = client.get(f"/materias/promedio/{mi_id}", headers=auth_headers)
+    assert r.status_code == 200
+
+
+def test_alumno_no_ve_promedio_de_otro(
+    client, auth_headers, segundo_estudiante_headers
+):
+    otro_id = _id_de(client, segundo_estudiante_headers)
+    r = client.get(f"/materias/promedio/{otro_id}", headers=auth_headers)
+    assert r.status_code == 403
+
+
+def test_alumno_agrega_cursada_a_su_propio_nombre(
+    client, auth_headers, usuario_registrado, carrera_test, db_session
+):
+    mi_id = usuario_registrado["response"]["id"]
+    cursada = _crear_cursada(client, auth_headers, carrera_test.id, db_session)
+    # el dueño sale del token, no del body ni del path
+    assert cursada["usuario_id"] == mi_id
+
+
+def test_agregar_cursada_sin_token(client, carrera_test, db_session):
+    materia = _crear_materia(db_session, carrera_test.id, codigo="ANONCUR")
+    r = client.post("/materias/usuario", json={"materia_id": materia.id})
+    assert r.status_code == 401
+
+
+def test_alumno_no_puede_editar_cursada_de_otro(
+    client, auth_headers, segundo_estudiante_headers, carrera_test, db_session
+):
+    # María crea su cursada
+    cursada = _crear_cursada(
+        client, segundo_estudiante_headers, carrera_test.id, db_session, codigo="MARIA1"
+    )
+    # Juan intenta modificarla: 404 (no se revela que existe)
+    r = client.patch(
+        f"/materias/cursada/{cursada['id']}",
+        json={"nota_final": 2},
+        headers=auth_headers,
+    )
+    assert r.status_code == 404
+
+
+def test_alumno_no_puede_borrar_cursada_de_otro(
+    client, auth_headers, segundo_estudiante_headers, carrera_test, db_session
+):
+    cursada = _crear_cursada(
+        client, segundo_estudiante_headers, carrera_test.id, db_session, codigo="MARIA2"
+    )
+    r = client.delete(
+        f"/materias/cursada/{cursada['id']}", headers=auth_headers
+    )
+    assert r.status_code == 404

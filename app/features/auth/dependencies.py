@@ -34,3 +34,17 @@ def require_admin(
     if usuario_actual.rol != RolUsuario.ADMIN:
         raise ForbiddenError("Se requieren permisos de administrador")
     return usuario_actual
+
+
+def solo_propio_o_admin(
+    usuario_id: int,
+    usuario_actual: UsuarioResponse = Depends(get_current_user),
+) -> UsuarioResponse:
+    """
+    Dependencia para endpoints con `usuario_id` en el path: permite el acceso
+    sólo si el usuario autenticado es el dueño de esos datos o es admin.
+    Devuelve 403 en cualquier otro caso.
+    """
+    if usuario_actual.id != usuario_id and usuario_actual.rol != RolUsuario.ADMIN:
+        raise ForbiddenError("Sólo podés acceder a tus propios datos")
+    return usuario_actual

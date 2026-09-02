@@ -86,11 +86,11 @@ def test_carrera_duracion_invalida(client, admin_headers, db_session):
     assert r.status_code == 422
 
 
-def test_cursada_nota_fuera_de_rango(client, usuario_registrado, carrera_test):
-    user_id = usuario_registrado["response"]["id"]
+def test_cursada_nota_fuera_de_rango(client, auth_headers, usuario_registrado, carrera_test):
     r = client.post(
-        f"/materias/usuario/{user_id}",
+        "/materias/usuario",
         json={"materia_id": 1, "nota_final": 11},
+        headers=auth_headers,
     )
     assert r.status_code == 422
 
@@ -137,9 +137,8 @@ def test_eliminar_carrera_sin_materias_ok(client, admin_headers, carrera_test):
 
 
 def test_no_eliminar_materia_con_cursadas(
-    client, admin_headers, usuario_registrado, carrera_test
+    client, admin_headers, auth_headers, usuario_registrado, carrera_test
 ):
-    user_id = usuario_registrado["response"]["id"]
     materia = client.post(
         "/materias/",
         json=_payload_materia(carrera_test.id, codigo="PROG9"),
@@ -147,8 +146,9 @@ def test_no_eliminar_materia_con_cursadas(
     ).json()
 
     cursada = client.post(
-        f"/materias/usuario/{user_id}",
+        "/materias/usuario",
         json={"materia_id": materia["id"], "cursando": True},
+        headers=auth_headers,
     )
     assert cursada.status_code == 201, cursada.text
 
@@ -158,9 +158,8 @@ def test_no_eliminar_materia_con_cursadas(
 
 
 def test_cursar_materia_de_otra_carrera_falla(
-    client, admin_headers, usuario_registrado, db_session
+    client, admin_headers, auth_headers, usuario_registrado, db_session
 ):
-    user_id = usuario_registrado["response"]["id"]
     otra_carrera = _crear_ifts_y_carrera(db_session, nombre="Enfermería")
 
     materia = client.post(
@@ -170,17 +169,17 @@ def test_cursar_materia_de_otra_carrera_falla(
     ).json()
 
     r = client.post(
-        f"/materias/usuario/{user_id}",
+        "/materias/usuario",
         json={"materia_id": materia["id"]},
+        headers=auth_headers,
     )
     assert r.status_code == 409
     assert "carrera del alumno" in r.json()["detail"].lower()
 
 
 def test_cursar_materia_de_mi_carrera_ok(
-    client, admin_headers, usuario_registrado, carrera_test
+    client, admin_headers, auth_headers, usuario_registrado, carrera_test
 ):
-    user_id = usuario_registrado["response"]["id"]
     materia = client.post(
         "/materias/",
         json=_payload_materia(carrera_test.id, codigo="PROG2"),
@@ -188,8 +187,9 @@ def test_cursar_materia_de_mi_carrera_ok(
     ).json()
 
     r = client.post(
-        f"/materias/usuario/{user_id}",
+        "/materias/usuario",
         json={"materia_id": materia["id"]},
+        headers=auth_headers,
     )
     assert r.status_code == 201, r.text
     assert r.json()["materia_id"] == materia["id"]

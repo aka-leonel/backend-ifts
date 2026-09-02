@@ -123,11 +123,13 @@ GET {{baseUrl}}/materias/correlativas/1
 ### MATERIAS USUARIO - Cursadas
 ### ============================================
 
-### 14. Ver materias del usuario
+### 14. Ver materias del usuario (sólo las propias, o cualquiera si sos admin)
 GET {{baseUrl}}/materias/usuario/1
+Authorization: Bearer {{token}}
 
-### 15. Agregar materia al usuario
-POST {{baseUrl}}/materias/usuario/1
+### 15. Agregar materia al usuario (el dueño sale del token)
+POST {{baseUrl}}/materias/usuario
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -138,8 +140,9 @@ Content-Type: application/json
   "nota_final": null
 }
 
-### 16. Actualizar cursada (notas)
+### 16. Actualizar cursada (notas) - sólo cursadas propias
 PATCH {{baseUrl}}/materias/cursada/1
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -147,11 +150,13 @@ Content-Type: application/json
   "nota_final": 8
 }
 
-### 17. Eliminar cursada
+### 17. Eliminar cursada - sólo cursadas propias
 DELETE {{baseUrl}}/materias/cursada/1
+Authorization: Bearer {{token}}
 
-### 18. Ver promedio del usuario
+### 18. Ver promedio del usuario (sólo el propio, o cualquiera si sos admin)
 GET {{baseUrl}}/materias/promedio/1
+Authorization: Bearer {{token}}
 
 
 ### ============================================
