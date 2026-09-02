@@ -142,16 +142,18 @@ Validaciones de catálogo (todas devuelven `422` con `errors[]`):
 
 ### 3.2 Cursadas y promedio
 
-> ⚠️ Ver *§5 Gaps conocidos*: hoy el `usuario_id` va en la URL y **no** se valida
-> contra el token. En Sprint 2 pasa a salir del token y estos paths cambian.
+> ✅ Sprint 2 (Integrante 1): la identidad sale del **token**. En `POST/PATCH/DELETE`
+> el `usuario_id` ya **no** viaja en la URL (se toma del JWT). En los `GET` con
+> `{usuario_id}` un alumno sólo puede consultar lo suyo (`403` si pide lo de otro);
+> un admin puede consultar cualquiera. Todos requieren `Authorization: Bearer`.
 
-| Método | Path | Acceso hoy | Notas |
-|--------|------|------------|-------|
-| `GET` | `/materias/usuario/{usuario_id}` | Pub (hoy) | cursadas del alumno, paginado → `MateriaUsuarioResponse` |
-| `POST` | `/materias/usuario/{usuario_id}` | Pub (hoy) | `MateriaUsuarioCreate`. `409` si ya está cargada o si la materia no es de la carrera del alumno |
-| `PATCH` | `/materias/cursada/{materia_usuario_id}` | Pub (hoy) | `MateriaUsuarioUpdate` (parcial) |
-| `DELETE` | `/materias/cursada/{materia_usuario_id}` | Pub (hoy) | `204` |
-| `GET` | `/materias/promedio/{usuario_id}` | Pub (hoy) | `{ promedio: number\|null, materias_computadas: number }` |
+| Método | Path | Acceso | Notas |
+|--------|------|--------|-------|
+| `GET` | `/materias/usuario/{usuario_id}` | Auth (propio o admin) | cursadas del alumno, paginado → `MateriaUsuarioResponse`. `403` si `usuario_id` no es el del token y no sos admin |
+| `POST` | `/materias/usuario` | Auth | `MateriaUsuarioCreate`. El dueño sale del token. `409` si ya está cargada o si la materia no es de la carrera del alumno |
+| `PATCH` | `/materias/cursada/{materia_usuario_id}` | Auth (dueño) | `MateriaUsuarioUpdate` (parcial). `404` si la cursada es de otro alumno |
+| `DELETE` | `/materias/cursada/{materia_usuario_id}` | Auth (dueño) | `204`. `404` si la cursada es de otro alumno |
+| `GET` | `/materias/promedio/{usuario_id}` | Auth (propio o admin) | `{ promedio: number\|null, materias_computadas: number }`. `403` igual que el `GET` de cursadas |
 
 Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado:
 `"cursando"` si `cursando=true`, si no `"aprobada"` cuando hay `nota_final`, si no
@@ -289,11 +291,15 @@ export interface RecordatorioCreate {
 El front tiene que asumir estos comportamientos **hoy** y estar preparado para el
 cambio:
 
-1. **Identidad no sale del token en cursadas y recordatorios.**
-   Hoy el `usuario_id` viaja en la URL/query y el backend no lo valida.
-   → **Encapsulá el `usuario_id` en el cliente API** (una sola función que lo
-   agrega desde el `usuario` logueado). Cuando el backend lo tome del token,
-   cambiás solo esa función y las URLs, no cada pantalla.
+1. **Identidad desde el token: cursadas ✅ / recordatorios ⏳.**
+   **Cursadas (resuelto en Sprint 2):** `POST /materias/usuario` ya no lleva
+   `usuario_id` y `PATCH`/`DELETE /materias/cursada/{id}` lo toman del JWT
+   (`404` si la cursada es de otro). Los `GET /materias/usuario/{id}` y
+   `/materias/promedio/{id}` sólo permiten el `id` propio o un token admin (`403`).
+   **Recordatorios (pendiente):** todavía reciben `usuario_id` por query sin
+   validar. → **Encapsulá el `usuario_id` en el cliente API** (una sola función
+   que lo agrega desde el `usuario` logueado); cuando el backend lo tome del
+   token, cambiás sólo esa función y las URLs, no cada pantalla.
 
 2. **`/convenios` y `/talentotech` escritura sin protección de rol.**
    El front del estudiante los trata como **solo lectura**.

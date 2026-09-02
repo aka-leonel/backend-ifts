@@ -27,7 +27,9 @@ def _materia(db_session, carrera, codigo="PROG1", nombre="Programación I", anio
 
 # ---------- todos los listados son PaginatedResponse ----------
 
-def test_listados_devuelven_envoltorio_paginado(client, db_session, carrera_test, usuario_registrado):
+def test_listados_devuelven_envoltorio_paginado(
+    client, db_session, carrera_test, usuario_registrado, auth_headers
+):
     user_id = usuario_registrado["response"]["id"]
     _materia(db_session, carrera_test)
 
@@ -47,7 +49,7 @@ def test_listados_devuelven_envoltorio_paginado(client, db_session, carrera_test
         "/talentotech/categoria/programacion",
     ]
     for ruta in rutas:
-        r = client.get(ruta)
+        r = client.get(ruta, headers=auth_headers)
         assert r.status_code == 200, f"{ruta} -> {r.status_code} {r.text}"
         body = r.json()
         assert set(body.keys()) == PAGINADO_KEYS, f"{ruta} devolvió {list(body.keys())}"

@@ -3,7 +3,11 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.database import get_db
-from app.features.auth.dependencies import require_admin
+from app.features.auth.dependencies import (
+    get_current_user,
+    require_admin,
+    solo_propio_o_admin,
+)
 from app.features.auth.schema import UsuarioResponse
 from app.features.materias import service
 from app.features.materias.schema import (
@@ -27,10 +31,6 @@ router = APIRouter(
     prefix="/materias",
     tags=["materias"],
 )
-
-
-def get_usuario_actual() -> int:
-    return 1
 
 
 @router.get("/carreras", response_model=PaginatedResponse[CarreraResponse])
@@ -104,26 +104,31 @@ def get_materias_usuario(
     usuario_id: int,
     db: Session = Depends(get_db),
     pagination: PaginationParams = Depends(),
+    usuario_actual: UsuarioResponse = Depends(solo_propio_o_admin),
 ):
     return service.get_materias_usuario(db, usuario_id, pagination)
 
 
 @router.get("/promedio/{usuario_id}", response_model=PromedioResponse)
-def get_promedio(usuario_id: int, db: Session = Depends(get_db)):
+def get_promedio(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: UsuarioResponse = Depends(solo_propio_o_admin),
+):
     return service.calcular_promedio(db, usuario_id)
 
 
 @router.post(
-    "/usuario/{usuario_id}",
+    "/usuario",
     response_model=MateriaUsuarioResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def add_materia_usuario(
-    usuario_id: int,
     datos: MateriaUsuarioCreate,
     db: Session = Depends(get_db),
+    usuario_actual: UsuarioResponse = Depends(get_current_user),
 ):
-    return service.add_materia_usuario(db, datos, usuario_id)
+    return service.add_materia_usuario(db, datos, usuario_actual.id)
 
 
 @router.patch("/cursada/{materia_usuario_id}", response_model=MateriaUsuarioResponse)
@@ -131,18 +136,20 @@ def update_materia_usuario(
     materia_usuario_id: int,
     datos: MateriaUsuarioUpdate,
     db: Session = Depends(get_db),
-    usuario_id: int = Depends(get_usuario_actual),
+    usuario_actual: UsuarioResponse = Depends(get_current_user),
 ):
-    return service.update_materia_usuario(db, materia_usuario_id, usuario_id, datos)
+    return service.update_materia_usuario(
+        db, materia_usuario_id, usuario_actual.id, datos
+    )
 
 
 @router.delete("/cursada/{materia_usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_materia_usuario(
     materia_usuario_id: int,
     db: Session = Depends(get_db),
-    usuario_id: int = Depends(get_usuario_actual),
+    usuario_actual: UsuarioResponse = Depends(get_current_user),
 ):
-    service.delete_materia_usuario(db, materia_usuario_id, usuario_id)
+    service.delete_materia_usuario(db, materia_usuario_id, usuario_actual.id)
     return None
 
 
