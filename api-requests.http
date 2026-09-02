@@ -2,23 +2,54 @@
 ### miIFTS API - Colección de Requests
 ### ============================================
 ###
-### INSTRUCCIONES:
-### 1. Asegúrate de que el servidor esté corriendo: uvicorn app.main:app --reload
-### 2. Ejecuta primero el Login para obtener el token
-### 3. Copia el access_token de la respuesta
-### 4. Reemplaza {{token}} con tu token en las requests que lo necesiten
+### REQUISITOS
+### 1. Extensión "REST Client" de VS Code (humao.rest-client).
+### 2. Datos base + usuarios (admin@miifts.ar / test@miifts.ar):
+###        python seed.py
+### 3. Servidor:
+###        uvicorn app.main:app --reload
+### 4. Ejecutar "Login ADMIN" y "Login ESTUDIANTE". Los tokens y los ids de
+###    usuario se capturan solos ({{adminToken}}, {{estToken}}, {{adminId}},
+###    {{estId}}) gracias a los `# @name` — no hace falta copiar/pegar.
 ###
+### Alternativa: http://localhost:8000/docs  (botón "Authorize")
 ### ============================================
 
-### Variables
 @baseUrl = http://localhost:8000
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJ0ZXN0QG1paWZ0cy5hciIsImV4cCI6MTc4ODA0ODA0NX0.SodWzS3smlJJfQ48S_gWVUXNwP9F34C2fcfzEcGfh-Q
 
 ### ============================================
-### AUTH - Autenticación
+### AUTH
 ### ============================================
 
-### 1. Registro de usuario nuevo
+### Login ADMIN  (ejecutar primero)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@miifts.ar",
+  "password": "admin1234"
+}
+
+###
+@adminToken = {{loginAdmin.response.body.access_token}}
+@adminId = {{loginAdmin.response.body.usuario.id}}
+
+### Login ESTUDIANTE  (ejecutar primero)
+# @name loginEst
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@miifts.ar",
+  "password": "test1234"
+}
+
+###
+@estToken = {{loginEst.response.body.access_token}}
+@estId = {{loginEst.response.body.usuario.id}}
+
+### Registro de usuario nuevo (siempre queda rol "estudiante")
 POST {{baseUrl}}/auth/registro
 Content-Type: application/json
 
@@ -29,35 +60,41 @@ Content-Type: application/json
   "carrera_id": 1
 }
 
-### 2. Login (EJECUTAR PRIMERO - Copia el access_token)
-POST {{baseUrl}}/auth/login
+### [SEGURIDAD] Registro pidiendo rol admin -> 201 pero "rol": "estudiante"
+POST {{baseUrl}}/auth/registro
 Content-Type: application/json
 
 {
-  "email": "test@miifts.ar",
-  "password": "test1234"
+  "nombre": "Intruso",
+  "email": "intruso@test.com",
+  "password": "password123",
+  "carrera_id": 1,
+  "rol": "admin"
 }
 
-### 3. Ver perfil del usuario autenticado (requiere token)
+### Perfil del usuario autenticado
 GET {{baseUrl}}/auth/me
-Authorization: Bearer {{token}}
+Authorization: Bearer {{estToken}}
 
-### 4. Verificar token
+### Verificar token
 GET {{baseUrl}}/auth/verify
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
+
+### [AUTZ] /auth/me sin token -> 401
+GET {{baseUrl}}/auth/me
 
 
 ### ============================================
-### CARRERAS - CRUD (NUEVOS ENDPOINTS)
+### CARRERAS  (lectura pública · escritura solo ADMIN)
 ### ============================================
 
-### 5. Listar todas las carreras (público)
+### Listar carreras (público)
 GET {{baseUrl}}/materias/carreras
 
-### 6. Crear una carrera nueva ⭐ NUEVO
+### Crear carrera - ADMIN -> 201
 POST {{baseUrl}}/materias/carreras
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
   "nombre": "Tecnicatura en Desarrollo Web",
@@ -65,29 +102,61 @@ Authorization: Bearer {{token}}
   "ifts_id": 1
 }
 
-### 7. Actualizar una carrera ⭐ NUEVO
+### [AUTZ] Crear carrera - ESTUDIANTE -> 403
+POST {{baseUrl}}/materias/carreras
+Content-Type: application/json
+Authorization: Bearer {{estToken}}
+
+{
+  "nombre": "Carrera prohibida",
+  "duracion_cuatrimestres": 4,
+  "ifts_id": 1
+}
+
+### [AUTZ] Crear carrera - SIN TOKEN -> 401
+POST {{baseUrl}}/materias/carreras
+Content-Type: application/json
+
+{
+  "nombre": "Carrera anónima",
+  "duracion_cuatrimestres": 4,
+  "ifts_id": 1
+}
+
+### [VALIDACIÓN] duracion fuera de rango -> 422
+POST {{baseUrl}}/materias/carreras
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "nombre": "Tec X",
+  "duracion_cuatrimestres": 99,
+  "ifts_id": 1
+}
+
+### Actualizar carrera - ADMIN
 PUT {{baseUrl}}/materias/carreras/1
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
   "nombre": "Tecnicatura Superior en Desarrollo de Software",
   "duracion_cuatrimestres": 6
 }
 
-### 8. Eliminar una carrera ⭐ NUEVO
+### Eliminar carrera - ADMIN  (409 si tiene materias asociadas)
 DELETE {{baseUrl}}/materias/carreras/3
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 
 ### ============================================
-### MATERIAS - CRUD (NUEVOS ENDPOINTS)
+### MATERIAS  (lectura pública · escritura solo ADMIN)
 ### ============================================
 
-### 9. Crear una materia nueva ⭐ NUEVO
+### Crear materia - ADMIN -> 201
 POST {{baseUrl}}/materias/
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
   "carrera_id": 1,
@@ -97,10 +166,49 @@ Authorization: Bearer {{token}}
   "cuatrimestre": 1
 }
 
-### 10. Actualizar una materia ⭐ NUEVO
+### [AUTZ] Crear materia - ESTUDIANTE -> 403
+POST {{baseUrl}}/materias/
+Content-Type: application/json
+Authorization: Bearer {{estToken}}
+
+{
+  "carrera_id": 1,
+  "nombre": "Materia prohibida",
+  "codigo": "NOPE",
+  "anio": 1,
+  "cuatrimestre": 1
+}
+
+### [VALIDACIÓN] cuatrimestre inválido -> 422
+POST {{baseUrl}}/materias/
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "carrera_id": 1,
+  "nombre": "Rara",
+  "codigo": "RARA1",
+  "anio": 1,
+  "cuatrimestre": 3
+}
+
+### [CONFLICTO] código duplicado -> 409  (ejecutar dos veces)
+POST {{baseUrl}}/materias/
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "carrera_id": 1,
+  "nombre": "Inglés Técnico dup",
+  "codigo": "ING",
+  "anio": 1,
+  "cuatrimestre": 1
+}
+
+### Actualizar materia - ADMIN
 PUT {{baseUrl}}/materias/20
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
   "nombre": "Inglés Técnico I",
@@ -108,89 +216,169 @@ Authorization: Bearer {{token}}
   "cuatrimestre": 2
 }
 
-### 11. Eliminar una materia ⭐ NUEVO
+### Eliminar materia - ADMIN  (409 si tiene cursadas asociadas)
 DELETE {{baseUrl}}/materias/20
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
-### 12. Listar materias de una carrera (paginado)
+### Listar materias de una carrera (paginado, público)
 GET {{baseUrl}}/materias/carrera/1?page=1&per_page=10
 
-### 13. Ver correlativas de una materia
+### Buscar materias por nombre/código (público)
+GET {{baseUrl}}/materias/buscar?q=ingles&anio=1&cuatrimestre=1
+
+### Ver correlativas de una materia (público)
 GET {{baseUrl}}/materias/correlativas/1
 
 
 ### ============================================
-### MATERIAS USUARIO - Cursadas
+### CURSADAS  (identidad del token; {id} debe ser el propio, o sos admin)
 ### ============================================
 
-### 14. Ver materias del usuario
-GET {{baseUrl}}/materias/usuario/1
+### Ver mis cursadas -> 200
+GET {{baseUrl}}/materias/usuario/{{estId}}
+Authorization: Bearer {{estToken}}
 
-### 15. Agregar materia al usuario
-POST {{baseUrl}}/materias/usuario/1
+### [AUTZ] Ver cursadas de otro usuario (estudiante) -> 403
+GET {{baseUrl}}/materias/usuario/{{adminId}}
+Authorization: Bearer {{estToken}}
+
+### Admin puede ver las cursadas de cualquier alumno -> 200
+GET {{baseUrl}}/materias/usuario/{{estId}}
+Authorization: Bearer {{adminToken}}
+
+### [AUTZ] Sin token -> 401
+GET {{baseUrl}}/materias/usuario/{{estId}}
+
+### Agregar cursada propia -> 201
+# @name cursadaEst
+POST {{baseUrl}}/materias/usuario/{{estId}}
 Content-Type: application/json
+Authorization: Bearer {{estToken}}
 
 {
   "materia_id": 1,
   "cursando": true,
   "nota_parcial_1": 8,
-  "nota_parcial_2": 7,
-  "nota_final": null
+  "nota_parcial_2": 7
 }
 
-### 16. Actualizar cursada (notas)
-PATCH {{baseUrl}}/materias/cursada/1
+###
+@cursadaId = {{cursadaEst.response.body.id}}
+
+### [VALIDACIÓN] nota fuera de rango -> 422
+POST {{baseUrl}}/materias/usuario/{{estId}}
 Content-Type: application/json
+Authorization: Bearer {{estToken}}
+
+{
+  "materia_id": 1,
+  "nota_final": 15
+}
+
+### Actualizar mi cursada (notas / estado)
+PATCH {{baseUrl}}/materias/cursada/{{cursadaId}}
+Content-Type: application/json
+Authorization: Bearer {{estToken}}
 
 {
   "cursando": false,
   "nota_final": 8
 }
 
-### 17. Eliminar cursada
-DELETE {{baseUrl}}/materias/cursada/1
+### Eliminar mi cursada
+DELETE {{baseUrl}}/materias/cursada/{{cursadaId}}
+Authorization: Bearer {{estToken}}
 
-### 18. Ver promedio del usuario
-GET {{baseUrl}}/materias/promedio/1
+### Mi promedio
+GET {{baseUrl}}/materias/promedio/{{estId}}
+Authorization: Bearer {{estToken}}
 
 
 ### ============================================
-### RECURSOS
+### RECURSOS  (lectura pública · escritura con token · editar solo el dueño)
 ### ============================================
 
-### 19. Listar todos los recursos (paginado)
-GET {{baseUrl}}/recursos/?page=1&per_page=20
+### Listar recursos (paginado + filtros, público)
+GET {{baseUrl}}/recursos/?materia_id=1&tipo=link&page=1&per_page=20
 
-### 20. Crear un recurso
+### Crear recurso - ESTUDIANTE (queda a su nombre) -> 201
+# @name recursoEst
 POST {{baseUrl}}/recursos/
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{estToken}}
 
 {
   "titulo": "Documentación de FastAPI",
   "url": "https://fastapi.tiangolo.com",
-  "descripcion": "Guía oficial de FastAPI",
+  "descripcion": "Guía oficial",
+  "tipo": "link",
   "materia_id": 1
 }
 
-### 21. Recursos de una materia (paginado)
+###
+@recursoId = {{recursoEst.response.body.id}}
+
+### [AUTZ] Crear recurso - SIN TOKEN -> 401
+POST {{baseUrl}}/recursos/
+Content-Type: application/json
+
+{
+  "titulo": "Anónimo",
+  "url": "https://example.com/x",
+  "descripcion": "x",
+  "materia_id": 1
+}
+
+### Editar recurso propio - mismo ESTUDIANTE -> 200
+PUT {{baseUrl}}/recursos/{{recursoId}}
+Content-Type: application/json
+Authorization: Bearer {{estToken}}
+
+{
+  "titulo": "Documentación de FastAPI (v2)",
+  "url": "https://fastapi.tiangolo.com",
+  "descripcion": "Guía oficial",
+  "tipo": "link",
+  "materia_id": 1
+}
+
+### [AUTZ] Editar recurso ajeno - otro usuario (ADMIN) -> 403
+PUT {{baseUrl}}/recursos/{{recursoId}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "titulo": "Editado por otro",
+  "url": "https://example.com/hack",
+  "descripcion": "no",
+  "materia_id": 1
+}
+
+### Eliminar recurso propio -> 204
+DELETE {{baseUrl}}/recursos/{{recursoId}}
+Authorization: Bearer {{estToken}}
+
+### Recursos de una materia (paginado)
 GET {{baseUrl}}/recursos/materia/1?page=1&per_page=10
 
-### 22. Recursos del usuario (paginado)
-GET {{baseUrl}}/recursos/usuario/1?page=1&per_page=10
+### Recursos de un usuario (paginado)
+GET {{baseUrl}}/recursos/usuario/{{estId}}?page=1&per_page=10
 
 
 ### ============================================
-### CONVENIOS
+### CONVENIOS  (lectura pública · escritura solo ADMIN)
 ### ============================================
 
-### 23. Listar convenios (paginado)
+### Listar convenios (paginado, público)
 GET {{baseUrl}}/convenios/?page=1&per_page=10
 
-### 24. Crear convenio
+### Convenios de una carrera (público)
+GET {{baseUrl}}/convenios/carrera/1
+
+### Crear convenio - ADMIN -> 201
 POST {{baseUrl}}/convenios/
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
   "institucion": "Universidad Nacional",
@@ -200,21 +388,49 @@ Authorization: Bearer {{token}}
   "carrera_id": 1
 }
 
-### 25. Convenios de una carrera
-GET {{baseUrl}}/convenios/carrera/1
+### [AUTZ] Crear convenio - ESTUDIANTE -> 403
+POST {{baseUrl}}/convenios/
+Content-Type: application/json
+Authorization: Bearer {{estToken}}
+
+{
+  "institucion": "X",
+  "carrera_destino": "Y",
+  "descripcion": "z",
+  "link_info": "https://ejemplo.com/x",
+  "carrera_id": 1
+}
+
+### [AUTZ] Crear convenio - SIN TOKEN -> 401
+POST {{baseUrl}}/convenios/
+Content-Type: application/json
+
+{
+  "institucion": "X",
+  "carrera_destino": "Y",
+  "descripcion": "z",
+  "link_info": "https://ejemplo.com/x",
+  "carrera_id": 1
+}
 
 
 ### ============================================
-### TALENTO TECH
+### TALENTO TECH  (lectura pública · escritura solo ADMIN)
 ### ============================================
 
-### 26. Listar cursos Talento Tech (paginado)
+### Listar cursos (paginado, público)
 GET {{baseUrl}}/talentotech/?page=1&per_page=10
 
-### 27. Crear curso Talento Tech
+### Cursos por categoría (público)
+GET {{baseUrl}}/talentotech/categoria/Backend
+
+### Cursos de una carrera (público)
+GET {{baseUrl}}/talentotech/carrera/1
+
+### Crear curso - ADMIN -> 201
 POST {{baseUrl}}/talentotech/
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
   "carrera_id": 1,
@@ -225,41 +441,66 @@ Authorization: Bearer {{token}}
   "link_inscripcion": "https://ejemplo.com/inscripcion"
 }
 
-### 28. Cursos por categoría
-GET {{baseUrl}}/talentotech/categoria/Backend
-
-### 29. Cursos de una carrera
-GET {{baseUrl}}/talentotech/carrera/1
-
-
-### ============================================
-### RECORDATORIOS
-### ============================================
-
-### 30. Listar recordatorios (paginado)
-GET {{baseUrl}}/recordatorios/?usuario_id=1&page=1&per_page=15
-
-### 31. Crear recordatorio
-POST {{baseUrl}}/recordatorios/?usuario_id=1
+### [AUTZ] Crear curso - ESTUDIANTE -> 403
+POST {{baseUrl}}/talentotech/
 Content-Type: application/json
+Authorization: Bearer {{estToken}}
+
+{
+  "carrera_id": 1,
+  "nombre_curso": "X",
+  "categoria": "Backend",
+  "descripcion": "x",
+  "duracion": "1 mes",
+  "link_inscripcion": "https://ejemplo.com/x"
+}
+
+
+### ============================================
+### RECORDATORIOS  (identidad del token; sin ?usuario_id)
+### ============================================
+
+### Listar mis recordatorios (paginado + filtros)
+GET {{baseUrl}}/recordatorios/?tipo=examen&page=1&per_page=15
+Authorization: Bearer {{estToken}}
+
+### [AUTZ] Listar sin token -> 401
+GET {{baseUrl}}/recordatorios/
+
+### Crear recordatorio -> 201
+POST {{baseUrl}}/recordatorios/
+Content-Type: application/json
+Authorization: Bearer {{estToken}}
 
 {
   "titulo": "Parcial Programación",
-  "fecha": "2024-12-15T10:00:00",
+  "fecha": "2030-12-15T10:00:00",
   "tipo": "examen",
   "materia_id": 1
 }
 
-### 32. Eliminar recordatorio
-DELETE {{baseUrl}}/recordatorios/1?usuario_id=1
+### [VALIDACIÓN] fecha pasada -> 422
+POST {{baseUrl}}/recordatorios/
+Content-Type: application/json
+Authorization: Bearer {{estToken}}
+
+{
+  "titulo": "Final viejo",
+  "fecha": "2020-01-01T10:00:00",
+  "tipo": "final"
+}
+
+### Eliminar recordatorio propio -> 204
+DELETE {{baseUrl}}/recordatorios/1
+Authorization: Bearer {{estToken}}
 
 
 ### ============================================
-### HEALTH CHECK
+### HEALTH
 ### ============================================
 
-### 33. Root
+### Root
 GET {{baseUrl}}/
 
-### 34. Health check
+### Health check
 GET {{baseUrl}}/health

@@ -13,8 +13,8 @@ El modelo `Usuario` tiene un campo `rol` con dos valores posibles:
 
 | Rol          | Valor         | Descripción                                              |
 |--------------|---------------|---------------------------------------------------------|
-| Estudiante   | `estudiante`  | Rol por defecto al registrarse. Gestiona sus propios datos (cursadas, recursos). |
-| Administrador| `admin`       | Además de lo anterior, gestiona el catálogo académico (carreras y materias). |
+| Estudiante   | `estudiante`  | Rol por defecto al registrarse. Gestiona **sus propios** datos (cursadas, recursos, recordatorios). |
+| Administrador| `admin`       | Además de lo anterior, gestiona el catálogo (carreras, materias, convenios, TalentoTech) y puede consultar las cursadas de cualquier alumno. |
 
 **Alta de usuarios:** `POST /auth/registro` **siempre** crea usuarios con rol
 `estudiante`. El campo `rol` del body se ignora (evita escalada de privilegios).
@@ -30,17 +30,25 @@ o promoviendo un usuario en la base de datos.
 
 ### Matriz de permisos
 
-| Endpoint                                | Público | Estudiante | Admin |
-|-----------------------------------------|:-------:|:----------:|:-----:|
-| `GET /materias/**` (lecturas)           |   ✅    |     ✅     |  ✅   |
-| `POST/PUT/DELETE /materias/carreras/**` |   ❌    |  ❌ (403)  |  ✅   |
-| `POST/PUT/DELETE /materias/**` (materias)|  ❌    |  ❌ (403)  |  ✅   |
-| `POST /recursos/`                       |   ❌    |     ✅     |  ✅   |
-| `PUT /recursos/{id}`                    |   ❌    | ✅ solo dueño |  ✅ solo dueño |
-| `DELETE /recursos/{id}`                 |   ❌    | ✅ solo dueño |  ✅ solo dueño |
+| Endpoint                                             | Público | Estudiante | Admin |
+|------------------------------------------------------|:-------:|:----------:|:-----:|
+| `GET /materias/**` (carreras, materias, búsqueda, correlativas) |   ✅    |     ✅     |  ✅   |
+| `POST/PUT/DELETE /materias/carreras/**`              |   ❌    |  ❌ (403)  |  ✅   |
+| `POST/PUT/DELETE /materias/**` (materias)            |   ❌    |  ❌ (403)  |  ✅   |
+| `GET/POST /materias/usuario/{id}`, `GET /materias/promedio/{id}` |   ❌    | ✅ solo propio | ✅ cualquiera |
+| `PATCH/DELETE /materias/cursada/{id}`                |   ❌    | ✅ solo propio | ✅ solo propio |
+| `GET /recursos/**`, `GET /convenios/**`, `GET /talentotech/**` |   ✅    |     ✅     |  ✅   |
+| `POST /recursos/`                                    |   ❌    |     ✅     |  ✅   |
+| `PUT/DELETE /recursos/{id}`                          |   ❌    | ✅ solo dueño | ✅ solo dueño |
+| `POST/PUT/DELETE /convenios/**`, `.../talentotech/**`|   ❌    |  ❌ (403)  |  ✅   |
+| `GET/POST /recordatorios/`, `DELETE /recordatorios/{id}` |   ❌    | ✅ solo propio | ✅ solo propio |
 
-**Recursos:** `PUT` y `DELETE` verifican que `usuario_actual.id == recurso.usuario_id`.
-Si el recurso pertenece a otro usuario se responde `403`; si no existe, `404`.
+**Identidad:** los endpoints "propios" (cursadas, recordatorios) toman el
+`usuario_id` **del token JWT**, no de la URL. En cursadas la URL todavía lleva
+`{usuario_id}` y se valida contra el token: si no coincide y no sos admin → `403`.
+
+**Ownership de recursos:** `PUT`/`DELETE` verifican `usuario_actual.id ==
+recurso.usuario_id` → `403` si es de otro, `404` si no existe.
 
 ## Paginación
 
@@ -66,7 +74,7 @@ Endpoints paginados hoy:
 - `GET /recursos/materia/{materia_id}?page=1&per_page=20`
 - `GET /convenios/?page=1&per_page=20`
 - `GET /talentotech/?page=1&per_page=20`
-- `GET /recordatorios/?usuario_id=1&page=1&per_page=15`
+- `GET /recordatorios/?page=1&per_page=15` (del usuario del token)
 
 Quedaron sin paginar a propósito los listados chicos y acotados (carreras,
 correlativas de una materia, materias del usuario, y las variantes filtradas

@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 from typing import Optional
 from datetime import date, datetime
-from app.features.auth.dependencies import get_current_user
 
 class RecursoBase(BaseModel):
     titulo: str = Field(..., min_length=1, max_length=150)

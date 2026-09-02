@@ -2,6 +2,9 @@
 tests/test_recordatorios.py
 
 Tests de integración para el filtrado de recordatorios en GET /recordatorios/.
+
+Todos los endpoints de recordatorios requieren JWT: la identidad sale del token
+(`auth_headers` loguea al `usuario_registrado`), ya no viaja como query param.
 """
 
 from datetime import datetime, date
@@ -11,7 +14,7 @@ from datetime import datetime, date
 
 
 def test_recordatorio_filtrado_por_tipo(
-    client, db_session, usuario_registrado, carrera_test
+    client, db_session, usuario_registrado, auth_headers, carrera_test
 ):
     materia = _crear_materia(db_session, carrera_test)
     user_id = usuario_registrado["response"]["id"]
@@ -33,7 +36,7 @@ def test_recordatorio_filtrado_por_tipo(
         tipo="tp",
     )
 
-    response = client.get(f"/recordatorios/?usuario_id={user_id}&tipo=examen")
+    response = client.get("/recordatorios/?tipo=examen", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -44,7 +47,7 @@ def test_recordatorio_filtrado_por_tipo(
 
 
 def test_recordatorio_filtrado_por_rango_fechas(
-    client, db_session, usuario_registrado, carrera_test
+    client, db_session, usuario_registrado, auth_headers, carrera_test
 ):
     materia = _crear_materia(db_session, carrera_test)
     user_id = usuario_registrado["response"]["id"]
@@ -67,7 +70,7 @@ def test_recordatorio_filtrado_por_rango_fechas(
     )
 
     response = client.get(
-        f"/recordatorios/?usuario_id={user_id}&desde=2024-12-01&hasta=2024-12-31"
+        "/recordatorios/?desde=2024-12-01&hasta=2024-12-31", headers=auth_headers
     )
 
     assert response.status_code == 200
@@ -78,7 +81,7 @@ def test_recordatorio_filtrado_por_rango_fechas(
 
 
 def test_recordatorio_filtrado_por_materia(
-    client, db_session, usuario_registrado, carrera_test
+    client, db_session, usuario_registrado, auth_headers, carrera_test
 ):
     materia1 = _crear_materia(db_session, carrera_test)
     materia2 = _crear_materia(db_session, carrera_test, codigo="MATH1", nombre="Matemática")
@@ -101,7 +104,9 @@ def test_recordatorio_filtrado_por_materia(
         tipo="examen",
     )
 
-    response = client.get(f"/recordatorios/?usuario_id={user_id}&materia_id={materia1.id}")
+    response = client.get(
+        f"/recordatorios/?materia_id={materia1.id}", headers=auth_headers
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -112,7 +117,7 @@ def test_recordatorio_filtrado_por_materia(
 
 
 def test_recordatorio_filtrado_sin_resultados(
-    client, db_session, usuario_registrado, carrera_test
+    client, db_session, usuario_registrado, auth_headers, carrera_test
 ):
     materia = _crear_materia(db_session, carrera_test)
     user_id = usuario_registrado["response"]["id"]
@@ -127,7 +132,7 @@ def test_recordatorio_filtrado_sin_resultados(
     )
 
     response = client.get(
-        f"/recordatorios/?usuario_id={user_id}&tipo=final&materia_id=99999"
+        "/recordatorios/?tipo=final&materia_id=99999", headers=auth_headers
     )
 
     assert response.status_code == 200
@@ -137,7 +142,7 @@ def test_recordatorio_filtrado_sin_resultados(
 
 
 def test_recordatorio_ordenado_por_fecha_descendente(
-    client, db_session, usuario_registrado, carrera_test
+    client, db_session, usuario_registrado, auth_headers, carrera_test
 ):
     materia = _crear_materia(db_session, carrera_test)
     user_id = usuario_registrado["response"]["id"]
@@ -167,7 +172,7 @@ def test_recordatorio_ordenado_por_fecha_descendente(
         tipo="examen",
     )
 
-    response = client.get(f"/recordatorios/?usuario_id={user_id}&tipo=examen")
+    response = client.get("/recordatorios/?tipo=examen", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -179,10 +184,42 @@ def test_recordatorio_ordenado_por_fecha_descendente(
     assert data["items"][2]["id"] == rec_antiguo.id
 
 
-def test_recordatorio_usuario_id_requerido(client, db_session):
+def test_recordatorio_solo_devuelve_los_del_usuario_autenticado(
+    client, db_session, usuario_registrado, auth_headers, carrera_test
+):
+    """Un recordatorio de otro usuario no aparece en el listado propio."""
+    materia = _crear_materia(db_session, carrera_test)
+    user_id = usuario_registrado["response"]["id"]
+
+    _crear_recordatorio(
+        db_session,
+        usuario_id=user_id,
+        materia_id=materia.id,
+        titulo="Mío",
+        fecha=datetime(2024, 12, 15),
+        tipo="examen",
+    )
+    _crear_recordatorio(
+        db_session,
+        usuario_id=user_id + 999,
+        materia_id=materia.id,
+        titulo="De otro",
+        fecha=datetime(2024, 12, 16),
+        tipo="examen",
+    )
+
+    response = client.get("/recordatorios/", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["titulo"] == "Mío"
+
+
+def test_recordatorio_sin_token(client):
     response = client.get("/recordatorios/")
 
-    assert response.status_code == 422
+    assert response.status_code == 401
 
 
 # ========== Helpers ==========

@@ -4,10 +4,13 @@ tests/test_authorization.py
 Tests de autorización (Integrante 1 - Seguridad y Autenticación).
 
 Cubre:
-  - Roles: solo un usuario admin puede crear/editar/eliminar carreras y materias.
-    Un estudiante autenticado recibe 403; sin token se recibe 401.
+  - Roles: solo un usuario admin puede crear/editar/eliminar carreras, materias,
+    convenios y cursos de TalentoTech. Un estudiante autenticado recibe 403;
+    sin token se recibe 401.
   - Ownership de Recursos: un usuario solo puede editar/eliminar sus propios
     recursos (403 si el recurso es de otro; 401 sin token).
+  - Ownership de Cursadas: un usuario solo ve/gestiona sus propias cursadas
+    (403 si son de otro; el admin puede ver las de cualquiera).
 """
 
 import pytest
@@ -236,3 +239,73 @@ def test_editar_recurso_sin_token(client, auth_headers, carrera_test, db_session
         },
     )
     assert response.status_code == 401
+
+
+# ========== Ownership de Cursadas (materias del usuario) ==========
+
+
+def test_cursadas_sin_token(client):
+    assert client.get("/materias/usuario/1").status_code == 401
+    assert client.get("/materias/promedio/1").status_code == 401
+
+
+def test_estudiante_no_ve_cursadas_de_otro(
+    client, auth_headers, usuario_registrado
+):
+    mi_id = usuario_registrado["response"]["id"]
+    otro_id = mi_id + 999
+    assert client.get(f"/materias/usuario/{mi_id}", headers=auth_headers).status_code == 200
+    assert client.get(f"/materias/usuario/{otro_id}", headers=auth_headers).status_code == 403
+    assert client.get(f"/materias/promedio/{otro_id}", headers=auth_headers).status_code == 403
+
+
+def test_admin_ve_cursadas_de_cualquier_usuario(
+    client, admin_headers, auth_headers, usuario_registrado
+):
+    estudiante_id = usuario_registrado["response"]["id"]
+    r = client.get(f"/materias/usuario/{estudiante_id}", headers=admin_headers)
+    assert r.status_code == 200
+
+
+# ========== Roles: convenios y TalentoTech son solo-admin ==========
+
+
+def _convenio_payload(carrera_id):
+    return {
+        "institucion": "UNGS",
+        "carrera_destino": "Lic. en Sistemas",
+        "descripcion": "Articulación",
+        "link_info": "https://ungs.edu.ar/convenio",
+        "carrera_id": carrera_id,
+    }
+
+
+def test_estudiante_no_puede_crear_convenio(client, auth_headers, carrera_test):
+    r = client.post("/convenios/", json=_convenio_payload(carrera_test.id), headers=auth_headers)
+    assert r.status_code == 403
+
+
+def test_crear_convenio_sin_token(client, carrera_test):
+    r = client.post("/convenios/", json=_convenio_payload(carrera_test.id))
+    assert r.status_code == 401
+
+
+def test_admin_puede_crear_convenio(client, admin_headers, carrera_test):
+    r = client.post("/convenios/", json=_convenio_payload(carrera_test.id), headers=admin_headers)
+    assert r.status_code == 201
+
+
+def test_estudiante_no_puede_crear_talentotech(client, auth_headers, carrera_test):
+    r = client.post(
+        "/talentotech/",
+        json={
+            "carrera_id": carrera_test.id,
+            "nombre_curso": "QA Automation",
+            "categoria": "Backend",
+            "descripcion": "Curso",
+            "duracion": "3 meses",
+            "link_inscripcion": "https://talentotech.ar/qa",
+        },
+        headers=auth_headers,
+    )
+    assert r.status_code == 403

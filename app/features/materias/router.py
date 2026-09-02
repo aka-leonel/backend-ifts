@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.database import get_db
-from app.features.auth.dependencies import require_admin
-from app.features.auth.schema import UsuarioResponse
+from app.features.auth.dependencies import get_current_user, require_admin
+from app.features.auth.schema import RolUsuario, UsuarioResponse
 from app.features.materias import service
+from app.shared.exceptions import ForbiddenError
 from app.features.materias.schema import (
     CarreraCreate,
     CarreraResponse,
@@ -13,7 +14,6 @@ from app.features.materias.schema import (
     CorrelativaResponse,
     MateriaCreate,
     MateriaResponse,
-    MateriaSearchQuery,
     MateriaUpdate,
     MateriaUsuarioCreate,
     MateriaUsuarioResponse,
@@ -29,8 +29,10 @@ router = APIRouter(
 )
 
 
-def get_usuario_actual() -> int:
-    return 1
+def _verificar_acceso_a_usuario(usuario_id: int, current_user: UsuarioResponse) -> None:
+    """Un usuario solo accede a sus propios datos; un admin, a los de cualquiera."""
+    if current_user.id != usuario_id and current_user.rol != RolUsuario.ADMIN:
+        raise ForbiddenError("No podés acceder a datos de otro usuario")
 
 
 @router.get("/carreras", response_model=List[CarreraResponse])
@@ -92,12 +94,22 @@ def get_correlativas(materia_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/usuario/{usuario_id}", response_model=List[MateriaUsuarioResponse])
-def get_materias_usuario(usuario_id: int, db: Session = Depends(get_db)):
+def get_materias_usuario(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
+    _verificar_acceso_a_usuario(usuario_id, current_user)
     return service.get_materias_usuario(db, usuario_id)
 
 
 @router.get("/promedio/{usuario_id}", response_model=PromedioResponse)
-def get_promedio(usuario_id: int, db: Session = Depends(get_db)):
+def get_promedio(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
+    _verificar_acceso_a_usuario(usuario_id, current_user)
     return service.calcular_promedio(db, usuario_id)
 
 
@@ -110,7 +122,9 @@ def add_materia_usuario(
     usuario_id: int,
     datos: MateriaUsuarioCreate,
     db: Session = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
 ):
+    _verificar_acceso_a_usuario(usuario_id, current_user)
     return service.add_materia_usuario(db, datos, usuario_id)
 
 
@@ -119,18 +133,18 @@ def update_materia_usuario(
     materia_usuario_id: int,
     datos: MateriaUsuarioUpdate,
     db: Session = Depends(get_db),
-    usuario_id: int = Depends(get_usuario_actual),
+    current_user: UsuarioResponse = Depends(get_current_user),
 ):
-    return service.update_materia_usuario(db, materia_usuario_id, usuario_id, datos)
+    return service.update_materia_usuario(db, materia_usuario_id, current_user.id, datos)
 
 
 @router.delete("/cursada/{materia_usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_materia_usuario(
     materia_usuario_id: int,
     db: Session = Depends(get_db),
-    usuario_id: int = Depends(get_usuario_actual),
+    current_user: UsuarioResponse = Depends(get_current_user),
 ):
-    service.delete_materia_usuario(db, materia_usuario_id, usuario_id)
+    service.delete_materia_usuario(db, materia_usuario_id, current_user.id)
     return None
 
 
