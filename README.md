@@ -4,8 +4,12 @@ Backend para el proyecto integrador miIFTS.
 
 ## Autenticación y roles
 
-La API usa JWT (Bearer token). Se obtiene con `POST /auth/login` y se envía en
-el header `Authorization: Bearer <token>` en los endpoints protegidos.
+La API usa JWT (Bearer token). Se obtiene con `POST /auth/login` (body JSON
+`{email, password}`, lo usa el frontend) y se envía en el header
+`Authorization: Bearer <token>` en los endpoints protegidos.
+
+Para el botón **Authorize** de Swagger (`/docs`) hay un endpoint equivalente
+`POST /auth/token` que acepta el formulario OAuth2 (campo *username* = email).
 
 ### Roles de usuario
 
