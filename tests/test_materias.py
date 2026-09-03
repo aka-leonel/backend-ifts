@@ -278,3 +278,63 @@ def test_buscar_materia_sin_resultados(client, db_session, carrera_test):
     data = response.json()
     assert data["total"] == 0
     assert data["items"] == []
+
+
+# ========== Detalle individual (Sprint 2 - contrato para el front) ==========
+
+
+def _crear_materia(db_session, carrera_id, codigo="PROG1", nombre="Programación I"):
+    from app.features.materias.model import Materia
+
+    materia = Materia(
+        carrera_id=carrera_id, nombre=nombre, codigo=codigo, anio=1, cuatrimestre=1
+    )
+    db_session.add(materia)
+    db_session.commit()
+    db_session.refresh(materia)
+    return materia
+
+
+def test_get_carrera_detalle(client, carrera_test):
+    r = client.get(f"/materias/carreras/{carrera_test.id}")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["id"] == carrera_test.id
+    assert data["nombre"] == carrera_test.nombre
+    assert data["ifts_id"] == carrera_test.ifts_id
+
+
+def test_get_carrera_detalle_inexistente(client):
+    r = client.get("/materias/carreras/99999")
+    assert r.status_code == 404
+    assert set(r.json().keys()) == {"detail"}
+
+
+def test_get_materia_detalle(client, db_session, carrera_test):
+    materia = _crear_materia(db_session, carrera_test.id, codigo="PROG1")
+    r = client.get(f"/materias/{materia.id}")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["id"] == materia.id
+    assert data["codigo"] == "PROG1"
+    assert data["carrera_id"] == carrera_test.id
+
+
+def test_get_materia_detalle_inexistente(client):
+    r = client.get("/materias/99999")
+    assert r.status_code == 404
+    assert set(r.json().keys()) == {"detail"}
+
+
+def test_detalle_es_lectura_publica(client, db_session, carrera_test):
+    """Sin token → 200 (no 401)."""
+    materia = _crear_materia(db_session, carrera_test.id, codigo="BD1", nombre="Base de Datos")
+    assert client.get(f"/materias/{materia.id}").status_code == 200
+    assert client.get(f"/materias/carreras/{carrera_test.id}").status_code == 200
+
+
+def test_get_materia_no_colisiona_con_rutas_especificas(client, carrera_test):
+    """El comodín GET /{materia_id} no debe tapar /carreras, /buscar, /carrera/{id}."""
+    assert client.get("/materias/carreras").status_code == 200
+    assert client.get("/materias/buscar?q=x").status_code == 200
+    assert client.get(f"/materias/carrera/{carrera_test.id}").status_code == 200

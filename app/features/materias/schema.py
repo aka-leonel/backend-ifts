@@ -196,11 +196,11 @@ class CorrelativaResponse(BaseModel):
 
 
 class MateriaUsuarioCreate(BaseModel):
-    materia_id: int
-    cursando: bool = False
-    nota_parcial_1: NotaOpcional = Field(default=None, ge=1, le=10)
-    nota_parcial_2: NotaOpcional = Field(default=None, ge=1, le=10)
-    nota_final: NotaOpcional = Field(default=None, ge=1, le=10)
+    materia_id: int = Field(..., examples=[1])
+    cursando: bool = Field(default=False, examples=[True])
+    nota_parcial_1: NotaOpcional = Field(default=None, ge=1, le=10, examples=[8])
+    nota_parcial_2: NotaOpcional = Field(default=None, ge=1, le=10, examples=[7])
+    nota_final: NotaOpcional = Field(default=None, ge=1, le=10, examples=[None])
 
     @field_validator("nota_parcial_1", "nota_parcial_2", "nota_final")
     @classmethod

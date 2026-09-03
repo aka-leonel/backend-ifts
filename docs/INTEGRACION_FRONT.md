@@ -1,7 +1,9 @@
 # Integración Front ↔ Backend miIFTS
 
 Cómo consumir la API tal como está construida hoy. Fuente de verdad viva:
-`GET /openapi.json` y Swagger en `/docs`.
+`GET /openapi.json` y Swagger en `/docs`. Copia versionada del contrato en
+`docs/openapi.json` (regenerar con `python scripts/export_openapi.py` cuando
+cambie la API).
 
 - **Base URL (dev):** `http://localhost:8000` (uvicorn). Configurable por
   `VITE_API_URL`.
@@ -126,15 +128,21 @@ Convención: **Pub** = sin token · **Auth** = Bearer · **Admin** = Bearer + ro
 | Método | Path | Acceso | Notas |
 |--------|------|--------|-------|
 | `GET` | `/materias/carreras` | Pub | paginado → `CarreraResponse` |
+| `GET` | `/materias/carreras/{carrera_id}` | Pub | detalle de una carrera → `CarreraResponse`. `404` si no existe |
 | `POST` | `/materias/carreras` | Admin | `CarreraCreate` |
 | `PUT` | `/materias/carreras/{id}` | Admin | `CarreraUpdate` (parcial) |
 | `DELETE` | `/materias/carreras/{id}` | Admin | `409` si la carrera tiene materias |
 | `GET` | `/materias/carrera/{carrera_id}` | Pub | materias de una carrera, paginado → `MateriaResponse` |
 | `GET` | `/materias/buscar?q=` | Pub | `q` **requerido**; opcionales `anio`, `cuatrimestre`. Paginado → `MateriaResponse` |
 | `GET` | `/materias/correlativas/{materia_id}` | Pub | paginado → `CorrelativaResponse` (trae la materia correlativa embebida en `requiere`) |
+| `GET` | `/materias/{materia_id}` | Pub | detalle de una materia → `MateriaResponse`. `404` si no existe |
 | `POST` | `/materias/` | Admin | `MateriaCreate`. `409` si el `codigo` ya existe en esa carrera |
 | `PUT` | `/materias/{id}` | Admin | `MateriaUpdate` (parcial) |
 | `DELETE` | `/materias/{id}` | Admin | `409` si la materia tiene cursadas |
+
+> Nota de ruteo: `GET /materias/{materia_id}` y `GET /materias/carreras/{carrera_id}`
+> son comodines: `materia_id`/`carrera_id` deben ser enteros. `/materias/carreras`,
+> `/materias/buscar`, `/materias/carrera/{id}`, etc. tienen prioridad por orden.
 
 Validaciones de catálogo (todas devuelven `422` con `errors[]`):
 `anio` 1–6 · `cuatrimestre` 1 o 2 · `duracion_cuatrimestres` 1–12 ·
@@ -207,7 +215,64 @@ Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado:
 
 ---
 
-## 4. Tipos (TypeScript)
+## 4. Endpoints por pantalla del MVP
+
+Las 5 pantallas del MVP y qué llama cada una. `T` = token en `Authorization`.
+
+### 4.1 Registro / Login
+
+| Acción | Request |
+|--------|---------|
+| Cargar `<select>` de carreras | `GET /materias/carreras` |
+| Registrarse | `POST /auth/registro` → después `POST /auth/login` |
+| Iniciar sesión | `POST /auth/login` → guardar `access_token` + `usuario` |
+| Rehidratar sesión al recargar | `GET /auth/me` (T) — o confiar en el `usuario` guardado |
+
+### 4.2 Plan de estudios (carreras → materias → correlativas)
+
+| Acción | Request |
+|--------|---------|
+| Lista de carreras | `GET /materias/carreras` |
+| Detalle de una carrera | `GET /materias/carreras/{id}` |
+| Materias de la carrera | `GET /materias/carrera/{carrera_id}` (paginado) |
+| Buscar materia | `GET /materias/buscar?q=...&anio=&cuatrimestre=` |
+| Detalle de una materia | `GET /materias/{id}` |
+| Correlativas de una materia | `GET /materias/correlativas/{materia_id}` (trae `requiere` embebido) |
+
+### 4.3 Mis cursadas + promedio
+
+| Acción | Request |
+|--------|---------|
+| Mis cursadas | `GET /materias/usuario/{miId}` (T) |
+| Mi promedio | `GET /materias/promedio/{miId}` (T) |
+| Agregar una cursada | `POST /materias/usuario` (T) — sin `usuario_id` en el body |
+| Editar notas / estado | `PATCH /materias/cursada/{id}` (T) |
+| Quitar una cursada | `DELETE /materias/cursada/{id}` (T) |
+
+`{miId}` = `usuario.id` del login. Pedir el de otro → `403`.
+
+### 4.4 Recursos (lista con filtros + alta)
+
+| Acción | Request |
+|--------|---------|
+| Lista con filtros | `GET /recursos/?materia_id=&tipo=&desde=&hasta=` (paginado) |
+| Recursos de una materia | `GET /recursos/materia/{materia_id}` |
+| Detalle | `GET /recursos/{id}` |
+| Subir un recurso | `POST /recursos/` (T) — sin `usuario_id` |
+| Editar / borrar (solo dueño) | `PUT` / `DELETE /recursos/{id}` (T) → `403` si es de otro |
+| Convenios / TalentoTech (solo lectura) | `GET /convenios/…`, `GET /talentotech/…` |
+
+### 4.5 Recordatorios (agenda)
+
+| Acción | Request |
+|--------|---------|
+| Mi agenda | `GET /recordatorios/?tipo=&desde=&hasta=&materia_id=` (T, paginado) |
+| Crear recordatorio | `POST /recordatorios/` (T) — `fecha` futura, sin `usuario_id` |
+| Borrar recordatorio | `DELETE /recordatorios/{id}` (T) → `404` si es de otro |
+
+---
+
+## 5. Tipos (TypeScript)
 
 ```ts
 // ---- envoltorios ----
@@ -287,10 +352,10 @@ export interface RecordatorioCreate {
 
 ---
 
-## 5. Gaps conocidos (a resolver en Sprint 2 del backend)
+## 6. Cambios del Sprint 2 y gaps abiertos
 
-El front tiene que asumir estos comportamientos **hoy** y estar preparado para el
-cambio:
+Puntos 1–3: **resueltos** en Sprint 2 (changelog para el front). Punto 4: único
+caveat vigente.
 
 1. **Identidad desde el token: cursadas ✅ / recordatorios ✅ (resuelto en Sprint 2).**
    **Cursadas:** `POST /materias/usuario` ya no lleva `usuario_id` y
@@ -307,19 +372,20 @@ cambio:
    `POST`/`PUT`/`DELETE` exigen token admin (`403` estudiante, `401` sin token).
    El front del estudiante los sigue tratando como **solo lectura**.
 
-3. **No hay `GET /materias/{id}` ni `GET /materias/carreras/{id}`** (detalle
-   individual). Para una vista de detalle: traer de la lista y cachear, o esperar
-   los endpoints (Sprint 2, Integrante 4 del back).
+3. **Endpoints de detalle disponibles (resuelto en Sprint 2).**
+   `GET /materias/{id}` y `GET /materias/carreras/{id}` devuelven el ítem
+   individual (`404` si no existe). Lectura pública.
 
 4. **CORS**: si el front no corre en `:5173`, pedir que agreguen el origin.
 
 ---
 
-## 6. Recomendaciones de implementación
+## 7. Recomendaciones de implementación
 
-- **Cliente generado**: `npx openapi-typescript http://localhost:8000/openapi.json
-  -o src/api/schema.d.ts` para tipos; o `orval`/`openapi-generator` para cliente +
-  hooks. Regenerar cuando cambie el backend.
+- **Cliente generado**: `npx openapi-typescript ../backend-ifts/docs/openapi.json
+  -o src/api/schema.d.ts` para tipos (o contra `http://localhost:8000/openapi.json`
+  si el backend está levantado); o `orval`/`openapi-generator` para cliente +
+  hooks. El backend regenera `docs/openapi.json` con `python scripts/export_openapi.py`.
 - **Data fetching**: TanStack Query. Key por endpoint + params; invalidar en
   mutations (ej. crear cursada → invalidar `["cursadas", userId]` y
   `["promedio", userId]`).

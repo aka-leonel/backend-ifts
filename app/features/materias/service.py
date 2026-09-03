@@ -30,6 +30,13 @@ def get_carreras(db: Session, params: PaginationParams) -> PaginatedResponse[Car
     return paginate(CarreraRepository(db).query_all(), params)
 
 
+def get_carrera(db: Session, carrera_id: int) -> Carrera:
+    carrera = CarreraRepository(db).get_by_id(carrera_id)
+    if carrera is None:
+        raise NotFoundError("Carrera no encontrada")
+    return carrera
+
+
 def create_carrera(db: Session, datos: CarreraCreate) -> Carrera:
     return CarreraRepository(db).create(datos)
 
@@ -57,6 +64,13 @@ def delete_carrera(db: Session, carrera_id: int) -> Carrera:
 
 def get_materias_by_carrera(db: Session, carrera_id: int) -> list[Materia]:
     return MateriaRepository(db).get_by_carrera(carrera_id)
+
+
+def get_materia(db: Session, materia_id: int) -> Materia:
+    materia = MateriaRepository(db).get_by_id(materia_id)
+    if materia is None:
+        raise NotFoundError("Materia no encontrada")
+    return materia
 
 
 def buscar_materias(

@@ -70,6 +70,12 @@ def eliminar_carrera(
     return None
 
 
+@router.get("/carreras/{carrera_id}", response_model=CarreraResponse)
+def get_carrera(carrera_id: int, db: Session = Depends(get_db)):
+    """Detalle de una carrera. `404` si no existe. Lectura pública."""
+    return service.get_carrera(db, carrera_id)
+
+
 @router.get("/carrera/{carrera_id}", response_model=PaginatedResponse[MateriaResponse])
 def get_materias_by_carrera(
     carrera_id: int,
@@ -160,6 +166,12 @@ def crear_materia(
     usuario_actual: UsuarioResponse = Depends(require_admin),
 ):
     return service.create_materia(db, datos)
+
+
+@router.get("/{materia_id}", response_model=MateriaResponse)
+def get_materia(materia_id: int, db: Session = Depends(get_db)):
+    """Detalle de una materia. `404` si no existe. Lectura pública."""
+    return service.get_materia(db, materia_id)
 
 
 @router.put("/{materia_id}", response_model=MateriaResponse)
