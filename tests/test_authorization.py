@@ -349,3 +349,124 @@ def test_alumno_no_puede_borrar_cursada_de_otro(
         f"/materias/cursada/{cursada['id']}", headers=auth_headers
     )
     assert r.status_code == 404
+
+
+# ========== Roles: convenios y TalentoTech son solo-admin en escritura ==========
+#
+# Lectura (`GET`) es pública; `POST`/`PUT`/`DELETE` exigen token admin (`403`
+# estudiante, `401` sin token). Cierra el gap "escritura sin protección de rol".
+
+
+def _convenio_payload(carrera_id):
+    return {
+        "institucion": "UNGS",
+        "carrera_destino": "Lic. en Sistemas",
+        "descripcion": "Articulación de la tecnicatura con la licenciatura",
+        "link_info": "https://www.ungs.edu.ar/convenio",
+        "carrera_id": carrera_id,
+    }
+
+
+def _talentotech_payload(carrera_id):
+    return {
+        "carrera_id": carrera_id,
+        "nombre_curso": "QA Automation",
+        "categoria": "testing",
+        "descripcion": "Curso intensivo de automatización de pruebas",
+        "duracion": "3 meses",
+        "link_inscripcion": "https://talentotech.ar/qa",
+    }
+
+
+def _crear_convenio_admin(client, admin_headers, carrera_id):
+    r = client.post("/convenios/", json=_convenio_payload(carrera_id), headers=admin_headers)
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def _crear_talentotech_admin(client, admin_headers, carrera_id):
+    r = client.post("/talentotech/", json=_talentotech_payload(carrera_id), headers=admin_headers)
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def test_estudiante_no_puede_crear_convenio(client, auth_headers, carrera_test):
+    r = client.post("/convenios/", json=_convenio_payload(carrera_test.id), headers=auth_headers)
+    assert r.status_code == 403
+
+
+def test_crear_convenio_sin_token(client, carrera_test):
+    r = client.post("/convenios/", json=_convenio_payload(carrera_test.id))
+    assert r.status_code == 401
+
+
+def test_admin_crea_edita_y_borra_convenio(client, admin_headers, carrera_test):
+    creado = _crear_convenio_admin(client, admin_headers, carrera_test.id)
+
+    payload = _convenio_payload(carrera_test.id)
+    payload["institucion"] = "UNGS - actualizado"
+    r_upd = client.put(
+        f"/convenios/{creado['id']}", json=payload, headers=admin_headers
+    )
+    assert r_upd.status_code == 200
+    assert r_upd.json()["institucion"] == "UNGS - actualizado"
+
+    r_del = client.delete(f"/convenios/{creado['id']}", headers=admin_headers)
+    assert r_del.status_code == 204
+
+
+def test_estudiante_no_puede_editar_convenio(
+    client, admin_headers, auth_headers, carrera_test
+):
+    creado = _crear_convenio_admin(client, admin_headers, carrera_test.id)
+    r = client.put(
+        f"/convenios/{creado['id']}",
+        json=_convenio_payload(carrera_test.id),
+        headers=auth_headers,
+    )
+    assert r.status_code == 403
+
+
+def test_estudiante_no_puede_borrar_convenio(
+    client, admin_headers, auth_headers, carrera_test
+):
+    creado = _crear_convenio_admin(client, admin_headers, carrera_test.id)
+    r = client.delete(f"/convenios/{creado['id']}", headers=auth_headers)
+    assert r.status_code == 403
+
+
+def test_estudiante_no_puede_crear_talentotech(client, auth_headers, carrera_test):
+    r = client.post(
+        "/talentotech/", json=_talentotech_payload(carrera_test.id), headers=auth_headers
+    )
+    assert r.status_code == 403
+
+
+def test_crear_talentotech_sin_token(client, carrera_test):
+    r = client.post("/talentotech/", json=_talentotech_payload(carrera_test.id))
+    assert r.status_code == 401
+
+
+def test_admin_puede_crear_talentotech(client, admin_headers, carrera_test):
+    creado = _crear_talentotech_admin(client, admin_headers, carrera_test.id)
+    assert creado["nombre_curso"] == "QA Automation"
+
+
+def test_estudiante_no_puede_editar_talentotech(
+    client, admin_headers, auth_headers, carrera_test
+):
+    creado = _crear_talentotech_admin(client, admin_headers, carrera_test.id)
+    r = client.put(
+        f"/talentotech/{creado['id']}",
+        json=_talentotech_payload(carrera_test.id),
+        headers=auth_headers,
+    )
+    assert r.status_code == 403
+
+
+def test_estudiante_no_puede_borrar_talentotech(
+    client, admin_headers, auth_headers, carrera_test
+):
+    creado = _crear_talentotech_admin(client, admin_headers, carrera_test.id)
+    r = client.delete(f"/talentotech/{creado['id']}", headers=auth_headers)
+    assert r.status_code == 403

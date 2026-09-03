@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, status
 from app.features.recursos.service import TalentoTechService
 from app.features.recursos import TalentoTechCreate, TalentoTechResponse
 from app.features.recursos.dependencies import get_talentotech_service
+from app.features.auth.dependencies import require_admin
+from app.features.auth.schema import UsuarioResponse
 from app.shared.schemas.pagination import PaginatedResponse
 from app.shared.utils.pagination import PaginationParams
 
@@ -28,11 +30,20 @@ def get_by_categoria(
     return service_talentotech.get_by_categoria_paginado(categoria, pagination)
 
 @router.put("/{talentotech_id}", response_model=TalentoTechResponse)
-def update(talentotech_id: int, talentotech: TalentoTechCreate, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
+def update(
+    talentotech_id: int,
+    talentotech: TalentoTechCreate,
+    service_talentotech: TalentoTechService = Depends(get_talentotech_service),
+    usuario_actual: UsuarioResponse = Depends(require_admin),
+):
     return service_talentotech.update(talentotech_id, talentotech)
 
 @router.delete("/{talentotech_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete(talentotech_id: int, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
+def delete(
+    talentotech_id: int,
+    service_talentotech: TalentoTechService = Depends(get_talentotech_service),
+    usuario_actual: UsuarioResponse = Depends(require_admin),
+):
     service_talentotech.delete(talentotech_id)
     return None
 
@@ -48,5 +59,9 @@ def get_by_id(talentotech_id: int, service_talentotech: TalentoTechService = Dep
     return service_talentotech.get_by_id(talentotech_id)
 
 @router.post("/", response_model=TalentoTechResponse, status_code=status.HTTP_201_CREATED)
-def create(talentotech: TalentoTechCreate, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
+def create(
+    talentotech: TalentoTechCreate,
+    service_talentotech: TalentoTechService = Depends(get_talentotech_service),
+    usuario_actual: UsuarioResponse = Depends(require_admin),
+):
     return service_talentotech.create(talentotech)
