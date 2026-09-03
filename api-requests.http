@@ -54,6 +54,9 @@ Authorization: Bearer {{token}}
 ### 5. Listar todas las carreras (público)
 GET {{baseUrl}}/materias/carreras
 
+### 5b. Detalle de una carrera (público, 404 si no existe) ⭐ NUEVO
+GET {{baseUrl}}/materias/carreras/1
+
 ### 6. Crear una carrera nueva ⭐ NUEVO
 POST {{baseUrl}}/materias/carreras
 Content-Type: application/json
@@ -117,6 +120,9 @@ GET {{baseUrl}}/materias/carrera/1?page=1&per_page=10
 
 ### 13. Ver correlativas de una materia
 GET {{baseUrl}}/materias/correlativas/1
+
+### 13b. Detalle de una materia (público, 404 si no existe) ⭐ NUEVO
+GET {{baseUrl}}/materias/1
 
 
 ### ============================================

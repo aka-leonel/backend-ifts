@@ -1,12 +1,15 @@
 from datetime import datetime, date
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 class RecordatorioCreate(BaseModel):
-    titulo: str
-    fecha: datetime
-    tipo: str
-    materia_id: Optional[int] = None
+    titulo: str = Field(..., examples=["Parcial de Programación I"])
+    fecha: datetime = Field(
+        ..., description="Datetime ISO 8601, tiene que ser futura",
+        examples=["2026-12-15T10:00:00"],
+    )
+    tipo: str = Field(..., examples=["parcial"], description='Libre; convención: "parcial", "tp", "final", "otro"')
+    materia_id: Optional[int] = Field(default=None, examples=[1])
 
     @field_validator("titulo", "tipo")
     @classmethod

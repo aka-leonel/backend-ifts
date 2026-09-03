@@ -18,10 +18,21 @@ class UsuarioCreate(BaseModel):
     público siempre crea usuarios con rol `estudiante`; los administradores
     se crean por seed o promoción manual en la base de datos.
     """
-    nombre: str = Field(..., min_length=2, max_length=100, description="Nombre completo")
-    email: EmailStr = Field(..., description="Correo electrónico único")
-    password: str = Field(..., min_length=8, description="Contraseña en texto plano (mínimo 8 caracteres)")
-    carrera_id: int = Field(..., description="ID de la carrera a la que pertenece")
+    nombre: str = Field(
+        ..., min_length=2, max_length=100, description="Nombre completo",
+        examples=["Ada Lovelace"],
+    )
+    email: EmailStr = Field(
+        ..., description="Correo electrónico único", examples=["ada@ifts.edu.ar"]
+    )
+    password: str = Field(
+        ..., min_length=8,
+        description="Contraseña en texto plano (mínimo 8 caracteres, al menos una letra y un número)",
+        examples=["secreta123"],
+    )
+    carrera_id: int = Field(
+        ..., description="ID de la carrera a la que pertenece", examples=[1]
+    )
 
     @field_validator("password")
     @classmethod
@@ -41,8 +52,8 @@ class UsuarioCreate(BaseModel):
 
 class UsuarioLogin(BaseModel):
     """Datos necesarios para iniciar sesión."""
-    email: EmailStr
-    password: str
+    email: EmailStr = Field(..., examples=["ada@ifts.edu.ar"])
+    password: str = Field(..., examples=["secreta123"])
 
 
 # ========== Schemas de salida (responses) ==========
