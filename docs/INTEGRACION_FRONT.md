@@ -176,8 +176,8 @@ Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado:
 
 ### 3.4 Convenios y TalentoTech
 
-> ⚠️ Ver *§5*: la escritura **debería** ser solo admin pero hoy no está protegida.
-> Tratarlos como **solo lectura** desde el front del estudiante.
+> Lectura pública. Escritura **solo admin** (`403` estudiante, `401` sin token).
+> Desde el front del alumno son **solo lectura**.
 
 | Método | Path | Acceso | Notas |
 |--------|------|--------|-------|
@@ -188,7 +188,7 @@ Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado:
 | `GET` | `/talentotech/carrera/{carrera_id}` | Pub | paginado |
 | `GET` | `/talentotech/categoria/{categoria}` | Pub | paginado |
 | `GET` | `/talentotech/{id}` | Pub | `TalentoTechResponse` |
-| `POST/PUT/DELETE` | `/convenios/*`, `/talentotech/*` | (admin, aún sin enforcement) | no usar desde el front del alumno |
+| `POST/PUT/DELETE` | `/convenios/*`, `/talentotech/*` | Admin | `require_admin`: `403` estudiante, `401` sin token |
 
 ### 3.5 Recordatorios
 
@@ -303,8 +303,9 @@ cambio:
    → En el cliente API alcanza con mandar el header `Authorization`; no armes
    URLs con `usuario_id`.
 
-2. **`/convenios` y `/talentotech` escritura sin protección de rol.**
-   El front del estudiante los trata como **solo lectura**.
+2. **`/convenios` y `/talentotech`: escritura protegida (resuelto en Sprint 2).**
+   `POST`/`PUT`/`DELETE` exigen token admin (`403` estudiante, `401` sin token).
+   El front del estudiante los sigue tratando como **solo lectura**.
 
 3. **No hay `GET /materias/{id}` ni `GET /materias/carreras/{id}`** (detalle
    individual). Para una vista de detalle: traer de la lista y cachear, o esperar

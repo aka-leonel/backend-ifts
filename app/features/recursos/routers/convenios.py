@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, status
 from app.features.recursos.service import ConvenioService
 from app.features.recursos import ConvenioCreate, ConvenioResponse
 from app.features.recursos.dependencies import get_convenio_service
+from app.features.auth.dependencies import require_admin
+from app.features.auth.schema import UsuarioResponse
 from app.shared.schemas.pagination import PaginatedResponse
 from app.shared.utils.pagination import PaginationParams
 
@@ -21,11 +23,20 @@ def get_by_carrera(
 
 
 @router.put("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_200_OK)
-def update(convenio_id: int, convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
+def update(
+    convenio_id: int,
+    convenio: ConvenioCreate,
+    service_convenio: ConvenioService = Depends(get_convenio_service),
+    usuario_actual: UsuarioResponse = Depends(require_admin),
+):
     return service_convenio.update(convenio_id, convenio)
 
 @router.delete("/{convenio_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete(convenio_id: int, service_convenio: ConvenioService = Depends(get_convenio_service)):
+def delete(
+    convenio_id: int,
+    service_convenio: ConvenioService = Depends(get_convenio_service),
+    usuario_actual: UsuarioResponse = Depends(require_admin),
+):
     service_convenio.delete(convenio_id)
     return None
 
@@ -42,5 +53,9 @@ def get_all(
 
 
 @router.post("/", response_model=ConvenioResponse, status_code=status.HTTP_201_CREATED)
-def create(convenio: ConvenioCreate, service_convenio: ConvenioService = Depends(get_convenio_service)):
+def create(
+    convenio: ConvenioCreate,
+    service_convenio: ConvenioService = Depends(get_convenio_service),
+    usuario_actual: UsuarioResponse = Depends(require_admin),
+):
     return service_convenio.create(convenio)
