@@ -38,7 +38,7 @@ def test_listados_devuelven_envoltorio_paginado(
         f"/materias/carrera/{carrera_test.id}",
         "/materias/buscar?q=Prog",
         f"/materias/usuario/{user_id}",
-        f"/recordatorios/?usuario_id={user_id}",
+        "/recordatorios/",
         "/recursos/",
         f"/recursos/usuario/{user_id}",
         f"/recursos/materia/1",
@@ -100,17 +100,19 @@ def test_correlativas_embebe_la_materia_requerida(client, db_session, carrera_te
 
 # ---------- DELETE devuelve 204 sin body ----------
 
-def test_delete_recordatorio_devuelve_204(client, db_session, usuario_registrado, carrera_test):
-    user_id = usuario_registrado["response"]["id"]
+def test_delete_recordatorio_devuelve_204(
+    client, db_session, usuario_registrado, auth_headers, carrera_test
+):
     materia = _materia(db_session, carrera_test)
     futura = (datetime.now() + timedelta(days=10)).replace(microsecond=0).isoformat()
     creado = client.post(
-        f"/recordatorios/?usuario_id={user_id}",
+        "/recordatorios/",
         json={"titulo": "Parcial", "fecha": futura, "tipo": "parcial", "materia_id": materia.id},
+        headers=auth_headers,
     )
     rec_id = creado.json()["id"]
 
-    r = client.delete(f"/recordatorios/{rec_id}?usuario_id={user_id}")
+    r = client.delete(f"/recordatorios/{rec_id}", headers=auth_headers)
     assert r.status_code == 204
     assert r.content == b""
 

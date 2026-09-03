@@ -192,14 +192,15 @@ Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado:
 
 ### 3.5 Recordatorios
 
-> ⚠️ Ver *§5*: hoy `usuario_id` va como **query param** y no se valida contra el
-> token. En Sprint 2 sale del token.
+> ✅ Sprint 2 (Integrante 1): la identidad sale del **token**. Ya **no** se manda
+> `usuario_id`. Un alumno sólo ve/borra los suyos; borrar uno ajeno da `404` (no
+> se revela que existe). Todos requieren `Authorization: Bearer`.
 
-| Método | Path | Acceso hoy | Notas |
-|--------|------|------------|-------|
-| `GET` | `/recordatorios/?usuario_id=1` | Pub (hoy) | `usuario_id` **requerido**. Filtros `tipo`, `desde`, `hasta`, `materia_id`. Paginado → `RecordatorioResponse` (ordenado por fecha desc) |
-| `POST` | `/recordatorios/?usuario_id=1` | Pub (hoy) | `RecordatorioCreate`. `usuario_id` como query. `422` si `fecha` no es futura |
-| `DELETE` | `/recordatorios/{id}?usuario_id=1` | Pub (hoy) | `204` |
+| Método | Path | Acceso | Notas |
+|--------|------|--------|-------|
+| `GET` | `/recordatorios/` | Auth | Filtros `tipo`, `desde`, `hasta`, `materia_id` + paginación → `RecordatorioResponse` (ordenado por fecha desc). Sólo los del usuario del token |
+| `POST` | `/recordatorios/` | Auth | `RecordatorioCreate`. El dueño sale del token. `201`. `422` si `fecha` no es futura |
+| `DELETE` | `/recordatorios/{id}` | Auth (dueño) | `204`. `404` si el recordatorio es de otro |
 
 `fecha` es datetime ISO y **tiene que ser futura**. `tipo` libre (convención
 `"parcial"`, `"tp"`, `"final"`, `"otro"`).
@@ -291,15 +292,16 @@ export interface RecordatorioCreate {
 El front tiene que asumir estos comportamientos **hoy** y estar preparado para el
 cambio:
 
-1. **Identidad desde el token: cursadas ✅ / recordatorios ⏳.**
-   **Cursadas (resuelto en Sprint 2):** `POST /materias/usuario` ya no lleva
-   `usuario_id` y `PATCH`/`DELETE /materias/cursada/{id}` lo toman del JWT
-   (`404` si la cursada es de otro). Los `GET /materias/usuario/{id}` y
-   `/materias/promedio/{id}` sólo permiten el `id` propio o un token admin (`403`).
-   **Recordatorios (pendiente):** todavía reciben `usuario_id` por query sin
-   validar. → **Encapsulá el `usuario_id` en el cliente API** (una sola función
-   que lo agrega desde el `usuario` logueado); cuando el backend lo tome del
-   token, cambiás sólo esa función y las URLs, no cada pantalla.
+1. **Identidad desde el token: cursadas ✅ / recordatorios ✅ (resuelto en Sprint 2).**
+   **Cursadas:** `POST /materias/usuario` ya no lleva `usuario_id` y
+   `PATCH`/`DELETE /materias/cursada/{id}` lo toman del JWT (`404` si la cursada
+   es de otro). Los `GET /materias/usuario/{id}` y `/materias/promedio/{id}` sólo
+   permiten el `id` propio o un token admin (`403`).
+   **Recordatorios:** `GET`/`POST /recordatorios/` y `DELETE /recordatorios/{id}`
+   toman el `usuario_id` del token; ya **no** se manda por query. Borrar uno
+   ajeno → `404`.
+   → En el cliente API alcanza con mandar el header `Authorization`; no armes
+   URLs con `usuario_id`.
 
 2. **`/convenios` y `/talentotech` escritura sin protección de rol.**
    El front del estudiante los trata como **solo lectura**.
