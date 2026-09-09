@@ -1,400 +1,542 @@
 # Integración Front ↔ Backend miIFTS
 
-Cómo consumir la API tal como está construida hoy. Fuente de verdad viva:
-`GET /openapi.json` y Swagger en `/docs`. Copia versionada del contrato en
-`docs/openapi.json` (regenerar con `python scripts/export_openapi.py` cuando
-cambie la API).
+Documento único para el equipo de front: **contexto del proyecto**, **contrato de la API**
+y **arquitectura del frontend** (pantallas, componentes, stack, tareas).
 
-- **Base URL (dev):** `http://localhost:8000` (uvicorn). Configurable por
-  `VITE_API_URL`.
-- **CORS:** por defecto acepta `http://localhost:5173` y `http://127.0.0.1:5173`
-  (puerto default de Vite). Para otro origen hay que agregarlo a `CORS_ORIGINS`
-  en el backend.
-- **Formato:** todo JSON. Fechas ISO 8601.
+> Fuente de verdad viva: `GET /openapi.json` y Swagger en `/docs`.
+> Copia versionada del contrato: `docs/openapi.json` (regenerar con
+> `python scripts/export_openapi.py` cuando cambie la API).
 
 ---
 
-## 1. Convenciones globales
+# PARTE 0 · Contexto del proyecto
 
-### 1.1 Shape de respuestas
+## 0.1 Qué es
+
+**miIFTS** es una PWA para estudiantes de los IFTS de CABA (Institutos de Formación
+Técnica Superior). El alumno lleva el seguimiento de su carrera: qué materias cursa o
+aprobó y con qué notas, recordatorios de parciales y finales, links de material de
+estudio, e información de convenios universitarios y cursos TalentoTech. Un rol **admin**
+administra el catálogo académico.
+
+## 0.2 Stack backend
+
+FastAPI 0.115 + SQLAlchemy 2.0 + Pydantic v2. Auth JWT HS256 (24 h). Passwords con bcrypt.
+Arquitectura por capas y por feature: `router → service → repository → model`, con
+`app/shared/` para paginación y jerarquía de errores. SQLite en local y tests,
+PostgreSQL gestionado en la nube.
+
+## 0.3 Modelo de datos
+
+```
+IFTS
+ └─ Carrera (ifts_id)
+     ├─ Materia (carrera_id · codigo único por carrera, ej "1.1.3")
+     │   └─ Correlativa (materia_id → requiere_id)
+     └─ Usuario (carrera_id · rol)
+         ├─ MateriaUsuario  → "cursada": cursando + notas parciales + final
+         ├─ Recordatorio    → fecha futura + tipo
+         └─ Recurso         → link de material + tipo
+Convenio (carrera_id) · TalentoTech (carrera_id)   ← catálogo, solo lectura para el alumno
+```
+
+## 0.4 Estado del backend (Sprint 2, al 2026-09-08)
+
+En `dev`: identidad desde el token en cursadas y recordatorios (PR #11 / #12), roles +
+pins en convenios/talentotech (#13), endpoints de detalle + `openapi.json` + este doc (#14).
+Suite: 90 tests. Pendiente de infra (no cambia el contrato): Postgres gestionado, Alembic,
+deploy, CI bloqueante. **Gaps que sí tocan al front:** ver §1.7.
+
+## 0.5 Roles
+
+| Rol | Qué puede |
+|-----|-----------|
+| `estudiante` | default. Gestiona lo suyo: cursadas, recordatorios, recursos propios. |
+| `admin` | además, ABM del catálogo (carreras, materias, convenios, TalentoTech). |
+
+El backend autoriza (`403`). El front solo muestra u oculta UI según `usuario.rol`.
+
+---
+
+# PARTE 1 · Contrato de la API
+
+## 1.1 Configuración
+
+| Item | Valor |
+|------|-------|
+| Base URL dev | `http://localhost:8000` — configurable con `VITE_API_URL` |
+| CORS | `http://localhost:5173`, `http://127.0.0.1:5173`. Otro origen → pedir a backend agregarlo a `CORS_ORIGINS` |
+| Formato | JSON. Fechas ISO 8601 |
+
+## 1.2 Shapes de respuesta
 
 | Caso | Forma |
 |------|-------|
-| **Colección** (todo `GET` que lista) | `{ items: T[], total, page, per_page, total_pages }` |
+| **Colección** (todo `GET` de lista) | `{ items: T[], total, page, per_page, total_pages }` |
 | **Recurso** (`GET`/`POST`/`PUT`/`PATCH` de un ítem) | objeto plano `T` |
 | **DELETE** | `204` sin body |
 | **Error** | `{ detail: string }` |
-| **Error de validación (`422`)** | `{ detail: string, errors: { campo: string, msg: string }[] }` |
+| **Validación `422`** | `{ detail: string, errors: { campo: string, msg: string }[] }` |
 
 `detail` es **siempre** un string → mostrarlo tal cual en un toast.
-En formularios, usar `errors[]` para marcar cada campo (`campo` es el nombre del
-field; en anidados viene con punto, ej. `"requiere.codigo"`).
+`errors[].campo` es el nombre del field (con punto si es anidado, ej. `"requiere.codigo"`)
+→ marcar ese input en el formulario.
 
-### 1.2 Paginación
+## 1.3 Paginación
 
-**Todos** los listados aceptan:
+Todos los listados aceptan `?page=1&per_page=20` (`per_page` rango 1–100). Página fuera de
+rango → `items: []` con el `total` real. `total_pages` dice cuántas hay.
 
-| Query param | Default | Rango |
-|-------------|---------|-------|
-| `page` | `1` | ≥ 1 |
-| `per_page` | `20` | 1–100 |
+## 1.4 Códigos HTTP
 
-Pedir una página fuera de rango devuelve `items: []` con el `total` real.
-Para paginar en el front: `total_pages` te dice cuántas hay.
+`200` OK · `201` creado · `204` borrado (no parsear body) · `401` token ausente/inválido
+→ limpiar sesión + ir a login · `403` sin permiso · `404` no existe · `409` duplicado o
+regla de negocio · `422` validación (pintar `errors[]` en el form).
 
-### 1.3 Códigos de estado
+## 1.5 Autenticación (JWT)
 
-| Código | Cuándo | Qué hace el front |
-|--------|--------|-------------------|
-| `200` | OK (GET/PUT/PATCH) | — |
-| `201` | Creado (POST) | — |
-| `204` | Borrado (DELETE) | no parsear body |
-| `401` | Sin token o token inválido/expirado | limpiar sesión → ir a login |
-| `403` | Rol insuficiente / recurso de otro usuario | “no tenés permiso” |
-| `404` | No existe | pantalla/estado “no encontrado” |
-| `409` | Duplicado o regla de negocio (ej. borrar carrera con materias) | mostrar `detail` |
-| `422` | Validación | pintar `errors[]` en el form |
+HS256, expira a las **24 h**. No hay refresh token ni logout de servidor → "cerrar sesión"
+= borrar el token del cliente. Header `Authorization: Bearer <access_token>` en cada request
+autenticado. Interceptor: `401` → borrar token + `usuario` → `/login`.
 
----
+| Método | Path | Auth | Request → Response |
+|--------|------|------|-------------------|
+| `POST` | `/auth/registro` | Pub | `{ nombre, email, password, carrera_id }` → `201` `UsuarioResponse` (**sin token**) |
+| `POST` | `/auth/login` | Pub | `{ email, password }` → `{ access_token, token_type:"bearer", usuario }` |
+| `GET` | `/auth/me` | Bearer | → `UsuarioResponse` |
+| `GET` | `/auth/verify` | Bearer | → `{ valid: true, user_id }` |
 
-## 2. Autenticación
+Validaciones: `password` ≥ 8 con al menos una letra y un número · `nombre` 2–100 ·
+`carrera_id` debe existir (traer con `GET /materias/carreras`) · `email` único ·
+`rol` se ignora (siempre `estudiante`). El login ya trae `usuario` → no hace falta `/auth/me`
+después.
 
-JWT Bearer, HS256, expira a las **24 h**. No hay refresh token ni logout de
-servidor: “cerrar sesión” = borrar el token del cliente.
+## 1.6 Endpoints por dominio
 
-### 2.1 Registro
+Convención: **Pub** sin token · **Auth** Bearer · **Admin** Bearer + rol admin.
 
-`POST /auth/registro` — **público**
-
-```jsonc
-// request
-{ "nombre": "Ada Lovelace", "email": "ada@ifts.edu.ar",
-  "password": "secreta123", "carrera_id": 1 }
-// 201 -> UsuarioResponse (NO devuelve token)
-```
-
-- `password`: mínimo 8, **al menos una letra y un número**.
-- `nombre`: 2–100 caracteres.
-- `carrera_id`: tiene que existir → conseguí la lista con
-  `GET /materias/carreras` (público) para armar el `<select>`.
-- El campo `rol` se ignora: siempre se crea `estudiante`.
-- Después del registro → hacer login (o auto-login reusando las credenciales).
-
-### 2.2 Login
-
-`POST /auth/login` — **público**
-
-```jsonc
-// request
-{ "email": "ada@ifts.edu.ar", "password": "secreta123" }
-// 200 -> TokenResponse
-{ "access_token": "eyJ...", "token_type": "bearer",
-  "usuario": { "id": 1, "nombre": "...", "email": "...", "carrera_id": 1,
-               "fecha_registro": "2026-09-02T12:00:00", "rol": "estudiante" } }
-```
-
-El login ya trae el `usuario` → no hace falta llamar a `/auth/me` después.
-Credenciales inválidas → `401` `{ "detail": "Email o contraseña incorrectos" }`.
-
-### 2.3 Usar el token
-
-- Guardarlo (memoria + `localStorage`, o cookie). Guardar también `usuario`.
-- Header en cada request autenticado: `Authorization: Bearer <access_token>`.
-- Interceptor: si una respuesta es `401` → borrar token + `usuario` y redirigir a
-  login (el token venció o es inválido).
-
-### 2.4 Endpoints de sesión
-
-| Método | Path | Auth | Respuesta |
-|--------|------|------|-----------|
-| `GET` | `/auth/me` | Bearer | `UsuarioResponse` |
-| `GET` | `/auth/verify` | Bearer | `{ valid: true, user_id: number }` |
-
-### 2.5 Roles
-
-- `estudiante`: default. Gestiona lo suyo (cursadas, recursos, recordatorios).
-- `admin`: además administra el catálogo (carreras y materias).
-- El front puede usar `usuario.rol` para mostrar/ocultar el ABM de catálogo,
-  pero la autorización real la hace el backend (`403` si corresponde).
-
----
-
-## 3. Referencia de endpoints
-
-Convención: **Pub** = sin token · **Auth** = Bearer · **Admin** = Bearer + rol admin.
-
-### 3.1 Catálogo académico
+### Catálogo académico
 
 | Método | Path | Acceso | Notas |
 |--------|------|--------|-------|
-| `GET` | `/materias/carreras` | Pub | paginado → `CarreraResponse` |
-| `GET` | `/materias/carreras/{carrera_id}` | Pub | detalle de una carrera → `CarreraResponse`. `404` si no existe |
-| `POST` | `/materias/carreras` | Admin | `CarreraCreate` |
-| `PUT` | `/materias/carreras/{id}` | Admin | `CarreraUpdate` (parcial) |
-| `DELETE` | `/materias/carreras/{id}` | Admin | `409` si la carrera tiene materias |
-| `GET` | `/materias/carrera/{carrera_id}` | Pub | materias de una carrera, paginado → `MateriaResponse` |
-| `GET` | `/materias/buscar?q=` | Pub | `q` **requerido**; opcionales `anio`, `cuatrimestre`. Paginado → `MateriaResponse` |
-| `GET` | `/materias/correlativas/{materia_id}` | Pub | paginado → `CorrelativaResponse` (trae la materia correlativa embebida en `requiere`) |
-| `GET` | `/materias/{materia_id}` | Pub | detalle de una materia → `MateriaResponse`. `404` si no existe |
-| `POST` | `/materias/` | Admin | `MateriaCreate`. `409` si el `codigo` ya existe en esa carrera |
-| `PUT` | `/materias/{id}` | Admin | `MateriaUpdate` (parcial) |
-| `DELETE` | `/materias/{id}` | Admin | `409` si la materia tiene cursadas |
+| `GET` | `/materias/carreras` | Pub | paginado `Carrera` |
+| `GET` | `/materias/carreras/{id}` | Pub | `Carrera` · `404` |
+| `GET` | `/materias/carrera/{carrera_id}` | Pub | materias de la carrera, paginado `Materia` |
+| `GET` | `/materias/buscar?q=&anio=&cuatrimestre=` | Pub | `q` requerido (nombre/código) |
+| `GET` | `/materias/correlativas/{materia_id}` | Pub | paginado `Correlativa` (con `requiere: Materia` embebido) |
+| `GET` | `/materias/{materia_id}` | Pub | `Materia` · `404` |
+| `POST` / `PUT` / `DELETE` | `/materias/carreras/*`, `/materias/*` | Admin | ABM |
 
-> Nota de ruteo: `GET /materias/{materia_id}` y `GET /materias/carreras/{carrera_id}`
-> son comodines: `materia_id`/`carrera_id` deben ser enteros. `/materias/carreras`,
-> `/materias/buscar`, `/materias/carrera/{id}`, etc. tienen prioridad por orden.
+Validaciones: `anio` 1–6 · `cuatrimestre` 1 o 2 · `duracion_cuatrimestres` 1–12 ·
+`nombre` ≥ 2 · `codigo` no vacío (se guarda en mayúsculas). ABM: `409` si el código está
+duplicado en la carrera, si se borra una carrera con materias, o una materia con cursadas.
 
-Validaciones de catálogo (todas devuelven `422` con `errors[]`):
-`anio` 1–6 · `cuatrimestre` 1 o 2 · `duracion_cuatrimestres` 1–12 ·
-`nombre` ≥ 2 · `codigo` no vacío.
+### Cursadas y promedio
 
-### 3.2 Cursadas y promedio
-
-> ✅ Sprint 2 (Integrante 1): la identidad sale del **token**. En `POST/PATCH/DELETE`
-> el `usuario_id` ya **no** viaja en la URL (se toma del JWT). En los `GET` con
-> `{usuario_id}` un alumno sólo puede consultar lo suyo (`403` si pide lo de otro);
-> un admin puede consultar cualquiera. Todos requieren `Authorization: Bearer`.
+> Identidad desde el **token**. `POST`/`PATCH`/`DELETE` **no** llevan `usuario_id`.
+> En los `GET` con `{usuario_id}` un alumno solo consulta lo suyo (`403` si no); admin cualquiera.
 
 | Método | Path | Acceso | Notas |
 |--------|------|--------|-------|
-| `GET` | `/materias/usuario/{usuario_id}` | Auth (propio o admin) | cursadas del alumno, paginado → `MateriaUsuarioResponse`. `403` si `usuario_id` no es el del token y no sos admin |
-| `POST` | `/materias/usuario` | Auth | `MateriaUsuarioCreate`. El dueño sale del token. `409` si ya está cargada o si la materia no es de la carrera del alumno |
-| `PATCH` | `/materias/cursada/{materia_usuario_id}` | Auth (dueño) | `MateriaUsuarioUpdate` (parcial). `404` si la cursada es de otro alumno |
-| `DELETE` | `/materias/cursada/{materia_usuario_id}` | Auth (dueño) | `204`. `404` si la cursada es de otro alumno |
-| `GET` | `/materias/promedio/{usuario_id}` | Auth (propio o admin) | `{ promedio: number\|null, materias_computadas: number }`. `403` igual que el `GET` de cursadas |
+| `GET` | `/materias/usuario/{usuario_id}` | Auth (propio/admin) | paginado `Cursada` |
+| `POST` | `/materias/usuario` | Auth | `{ materia_id, cursando?, nota_parcial_1?, nota_parcial_2?, nota_final? }` · `409` si ya está cargada o la materia no es de tu carrera |
+| `PATCH` | `/materias/cursada/{id}` | Auth (dueño) | parcial · `404` si es de otro |
+| `DELETE` | `/materias/cursada/{id}` | Auth (dueño) | `204` · `404` si es de otro |
+| `GET` | `/materias/promedio/{usuario_id}` | Auth (propio/admin) | `{ promedio: number\|null, materias_computadas }` |
 
-Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado:
-`"cursando"` si `cursando=true`, si no `"aprobada"` cuando hay `nota_final`, si no
-`"pendiente"`.
+Notas 1–10 (`422`). **`estado` es derivado**, no un campo que se manda:
+`"cursando"` si `cursando=true`; si no `"aprobada"` cuando hay `nota_final`; si no `"pendiente"`.
 
-### 3.3 Recursos de estudio
+### Recursos de estudio
 
 | Método | Path | Acceso | Notas |
 |--------|------|--------|-------|
-| `GET` | `/recursos/` | Pub | filtros `materia_id`, `tipo`, `desde`, `hasta` (fechas `YYYY-MM-DD`) + paginación → `RecursoResponse` |
+| `GET` | `/recursos/?materia_id=&tipo=&desde=&hasta=` | Pub | filtros (`desde`/`hasta` = `YYYY-MM-DD`) + paginado |
 | `GET` | `/recursos/materia/{materia_id}` | Pub | paginado |
-| `GET` | `/recursos/usuario/{usuario_id}` | Pub | paginado |
-| `GET` | `/recursos/{id}` | Pub | `RecursoResponse` |
-| `POST` | `/recursos/` | Auth | `RecursoCreate`. El dueño sale del token → **no** mandes `usuario_id` |
-| `PUT` | `/recursos/{id}` | Auth (**solo dueño**) | `403` si el recurso es de otro |
-| `DELETE` | `/recursos/{id}` | Auth (**solo dueño**) | `403` si es de otro, `204` si OK |
+| `GET` | `/recursos/{id}` | Pub | `Recurso` |
+| `POST` | `/recursos/` | Auth | `RecursoCreate` (**sin** `usuario_id`) |
+| `PUT` / `DELETE` | `/recursos/{id}` | Auth (**solo dueño**) | `403` si es de otro |
 
-`url` tiene que ser una URL válida (`http/https`). `titulo` 1–150.
-`tipo` es libre (convención: `"pdf"`, `"video"`, `"link"`).
+`url` HttpUrl (`http/https`) · `titulo` 1–150 · `descripcion` requerida · `tipo` libre
+(convención `pdf` / `video` / `link`) · `fecha_creacion` la pone el servidor.
 
-### 3.4 Convenios y TalentoTech
+### Convenios y TalentoTech
 
-> Lectura pública. Escritura **solo admin** (`403` estudiante, `401` sin token).
-> Desde el front del alumno son **solo lectura**.
+Lectura pública, escritura solo admin. Desde el front del alumno son **solo lectura**.
+`GET /convenios/` · `/convenios/carrera/{id}` · `/convenios/{id}` ·
+`GET /talentotech/` · `/talentotech/carrera/{id}` · `/talentotech/categoria/{cat}` · `/talentotech/{id}`.
 
-| Método | Path | Acceso | Notas |
-|--------|------|--------|-------|
-| `GET` | `/convenios/` | Pub | paginado → `ConvenioResponse` |
-| `GET` | `/convenios/carrera/{carrera_id}` | Pub | paginado |
-| `GET` | `/convenios/{id}` | Pub | `ConvenioResponse` |
-| `GET` | `/talentotech/` | Pub | paginado → `TalentoTechResponse` |
-| `GET` | `/talentotech/carrera/{carrera_id}` | Pub | paginado |
-| `GET` | `/talentotech/categoria/{categoria}` | Pub | paginado |
-| `GET` | `/talentotech/{id}` | Pub | `TalentoTechResponse` |
-| `POST/PUT/DELETE` | `/convenios/*`, `/talentotech/*` | Admin | `require_admin`: `403` estudiante, `401` sin token |
+### Recordatorios
 
-### 3.5 Recordatorios
-
-> ✅ Sprint 2 (Integrante 1): la identidad sale del **token**. Ya **no** se manda
-> `usuario_id`. Un alumno sólo ve/borra los suyos; borrar uno ajeno da `404` (no
-> se revela que existe). Todos requieren `Authorization: Bearer`.
+> Identidad desde el **token** — no mandar `usuario_id`. Un alumno solo ve/borra los suyos;
+> borrar uno ajeno da `404` (no se revela que existe).
 
 | Método | Path | Acceso | Notas |
 |--------|------|--------|-------|
-| `GET` | `/recordatorios/` | Auth | Filtros `tipo`, `desde`, `hasta`, `materia_id` + paginación → `RecordatorioResponse` (ordenado por fecha desc). Sólo los del usuario del token |
-| `POST` | `/recordatorios/` | Auth | `RecordatorioCreate`. El dueño sale del token. `201`. `422` si `fecha` no es futura |
-| `DELETE` | `/recordatorios/{id}` | Auth (dueño) | `204`. `404` si el recordatorio es de otro |
+| `GET` | `/recordatorios/?tipo=&desde=&hasta=&materia_id=` | Auth | solo los del token, orden fecha desc, paginado |
+| `POST` | `/recordatorios/` | Auth | `{ titulo, fecha: ISO futura, tipo, materia_id? }` · `201` · `422` si `fecha` no es futura |
+| `DELETE` | `/recordatorios/{id}` | Auth (dueño) | `204` · `404` si es de otro |
 
-`fecha` es datetime ISO y **tiene que ser futura**. `tipo` libre (convención
-`"parcial"`, `"tp"`, `"final"`, `"otro"`).
+`tipo` libre (convención `parcial` / `tp` / `final` / `otro`).
 
----
+## 1.7 Gaps abiertos (el front los necesita, faltan en el backend)
 
-## 4. Endpoints por pantalla del MVP
+| Falta | Para qué | Estado / workaround |
+|-------|----------|---------------------|
+| `PATCH /recordatorios/{id}` + schema `RecordatorioUpdate` | Botón **editar** en la card de recordatorio | **Sprint 2 · Integrante 1.** Mientras tanto el front hace `DELETE` + `POST` (cambia el `id`). |
+| `PATCH /auth/me` con `{ nombre?, carrera_id? }` | Pantalla **Mi perfil**: editar nombre / cambiar carrera | **Sprint 2 · Integrante 4.** Mientras tanto los campos de perfil son solo visuales. |
 
-Las 5 pantallas del MVP y qué llama cada una. `T` = token en `Authorization`.
+## 1.8 Modelos TypeScript
 
-### 4.1 Registro / Login
+**Generar desde el OpenAPI** (fuente de verdad, no tipear a mano las respuestas):
 
-| Acción | Request |
-|--------|---------|
-| Cargar `<select>` de carreras | `GET /materias/carreras` |
-| Registrarse | `POST /auth/registro` → después `POST /auth/login` |
-| Iniciar sesión | `POST /auth/login` → guardar `access_token` + `usuario` |
-| Rehidratar sesión al recargar | `GET /auth/me` (T) — o confiar en el `usuario` guardado |
+```bash
+npx openapi-typescript http://localhost:8000/openapi.json -o src/api/schema.d.ts
+# package.json → "scripts": { "gen:api": "openapi-typescript http://localhost:8000/openapi.json -o src/api/schema.d.ts" }
+```
 
-### 4.2 Plan de estudios (carreras → materias → correlativas)
-
-| Acción | Request |
-|--------|---------|
-| Lista de carreras | `GET /materias/carreras` |
-| Detalle de una carrera | `GET /materias/carreras/{id}` |
-| Materias de la carrera | `GET /materias/carrera/{carrera_id}` (paginado) |
-| Buscar materia | `GET /materias/buscar?q=...&anio=&cuatrimestre=` |
-| Detalle de una materia | `GET /materias/{id}` |
-| Correlativas de una materia | `GET /materias/correlativas/{materia_id}` (trae `requiere` embebido) |
-
-### 4.3 Mis cursadas + promedio
-
-| Acción | Request |
-|--------|---------|
-| Mis cursadas | `GET /materias/usuario/{miId}` (T) |
-| Mi promedio | `GET /materias/promedio/{miId}` (T) |
-| Agregar una cursada | `POST /materias/usuario` (T) — sin `usuario_id` en el body |
-| Editar notas / estado | `PATCH /materias/cursada/{id}` (T) |
-| Quitar una cursada | `DELETE /materias/cursada/{id}` (T) |
-
-`{miId}` = `usuario.id` del login. Pedir el de otro → `403`.
-
-### 4.4 Recursos (lista con filtros + alta)
-
-| Acción | Request |
-|--------|---------|
-| Lista con filtros | `GET /recursos/?materia_id=&tipo=&desde=&hasta=` (paginado) |
-| Recursos de una materia | `GET /recursos/materia/{materia_id}` |
-| Detalle | `GET /recursos/{id}` |
-| Subir un recurso | `POST /recursos/` (T) — sin `usuario_id` |
-| Editar / borrar (solo dueño) | `PUT` / `DELETE /recursos/{id}` (T) → `403` si es de otro |
-| Convenios / TalentoTech (solo lectura) | `GET /convenios/…`, `GET /talentotech/…` |
-
-### 4.5 Recordatorios (agenda)
-
-| Acción | Request |
-|--------|---------|
-| Mi agenda | `GET /recordatorios/?tipo=&desde=&hasta=&materia_id=` (T, paginado) |
-| Crear recordatorio | `POST /recordatorios/` (T) — `fecha` futura, sin `usuario_id` |
-| Borrar recordatorio | `DELETE /recordatorios/{id}` (T) → `404` si es de otro |
-
----
-
-## 5. Tipos (TypeScript)
+Alias legibles en `src/api/types.ts`:
 
 ```ts
-// ---- envoltorios ----
-export interface Paginated<T> {
-  items: T[]; total: number; page: number; per_page: number; total_pages: number;
-}
-export interface ApiError { detail: string; errors?: { campo: string; msg: string }[]; }
+import type { components } from './schema';
+type S = components['schemas'];
 
-// ---- auth ----
-export type Rol = "estudiante" | "admin";
-export interface Usuario {
-  id: number; nombre: string; email: string; carrera_id: number;
-  fecha_registro: string; rol: Rol;
-}
-export interface LoginRequest { email: string; password: string; }
-export interface RegistroRequest {
-  nombre: string; email: string; password: string; carrera_id: number;
-}
-export interface TokenResponse {
-  access_token: string; token_type: "bearer"; usuario: Usuario | null;
-}
+export type Usuario            = S['UsuarioResponse'];
+export type Carrera            = S['CarreraResponse'];
+export type Materia            = S['MateriaResponse'];
+export type Correlativa        = S['CorrelativaResponse'];
+export type Cursada            = S['MateriaUsuarioResponse'];   // leer
+export type CursadaCreate      = S['MateriaUsuarioCreate'];     // FormModal materia (POST)
+export type CursadaUpdate      = S['MateriaUsuarioUpdate'];     // FormModal materia (PATCH)
+export type Promedio           = S['PromedioResponse'];
+export type Recordatorio       = S['RecordatorioResponse'];
+export type RecordatorioCreate = S['RecordatorioCreate'];
+export type Recurso            = S['RecursoResponse'];
+export type RecursoCreate      = S['RecursoCreate'];
+export type Token              = S['TokenResponse'];
 
-// ---- catálogo ----
-export interface Carrera {
-  id: number; nombre: string; duracion_cuatrimestres: number; ifts_id: number;
-}
-export interface Materia {
-  id: number; nombre: string; codigo: string; carrera_id: number;
-  anio: number; cuatrimestre: 1 | 2;
-}
-export interface Correlativa {
-  id: number; materia_id: number; requiere_id: number; requiere: Materia | null;
-}
-export interface MateriaCreate {
-  carrera_id: number; nombre: string; codigo: string; anio: number; cuatrimestre: 1 | 2;
-}
-
-// ---- cursadas ----
-export type EstadoCursada = "cursando" | "aprobada" | "pendiente";
-export interface Cursada {
-  id: number; usuario_id: number; materia_id: number; cursando: boolean;
-  estado: EstadoCursada;
-  nota_parcial_1: number | null; nota_parcial_2: number | null; nota_final: number | null;
-}
-export interface CursadaCreate {
-  materia_id: number; cursando?: boolean;
-  nota_parcial_1?: number | null; nota_parcial_2?: number | null; nota_final?: number | null;
-}
-export interface Promedio { promedio: number | null; materias_computadas: number; }
-
-// ---- recursos ----
-export interface Recurso {
-  id: number; usuario_id: number; fecha_creacion: string;
-  titulo: string; url: string; descripcion: string; tipo: string | null; materia_id: number;
-}
-export interface RecursoCreate {
-  titulo: string; url: string; descripcion: string; tipo?: string | null; materia_id: number;
-}
-export interface Convenio {
-  id: number; institucion: string; carrera_destino: string; descripcion: string;
-  link_info: string; carrera_id: number;
-}
-export interface TalentoTech {
-  id: number; carrera_id: number; nombre_curso: string; categoria: string;
-  descripcion: string; duracion: string; link_inscripcion: string;
-}
-
-// ---- recordatorios ----
-export interface Recordatorio {
-  id: number; titulo: string; fecha: string; tipo: string;
-  usuario_id: number; materia_id: number | null;
-}
-export interface RecordatorioCreate {
-  titulo: string; fecha: string; tipo: string; materia_id?: number | null;
-}
+export type Paginated<T> = { items: T[]; total: number; page: number; per_page: number; total_pages: number };
+export type ApiError = { detail: string; errors?: { campo: string; msg: string }[] };
 ```
 
----
-
-## 6. Cambios del Sprint 2 y gaps abiertos
-
-Puntos 1–3: **resueltos** en Sprint 2 (changelog para el front). Punto 4: único
-caveat vigente.
-
-1. **Identidad desde el token: cursadas ✅ / recordatorios ✅ (resuelto en Sprint 2).**
-   **Cursadas:** `POST /materias/usuario` ya no lleva `usuario_id` y
-   `PATCH`/`DELETE /materias/cursada/{id}` lo toman del JWT (`404` si la cursada
-   es de otro). Los `GET /materias/usuario/{id}` y `/materias/promedio/{id}` sólo
-   permiten el `id` propio o un token admin (`403`).
-   **Recordatorios:** `GET`/`POST /recordatorios/` y `DELETE /recordatorios/{id}`
-   toman el `usuario_id` del token; ya **no** se manda por query. Borrar uno
-   ajeno → `404`.
-   → En el cliente API alcanza con mandar el header `Authorization`; no armes
-   URLs con `usuario_id`.
-
-2. **`/convenios` y `/talentotech`: escritura protegida (resuelto en Sprint 2).**
-   `POST`/`PUT`/`DELETE` exigen token admin (`403` estudiante, `401` sin token).
-   El front del estudiante los sigue tratando como **solo lectura**.
-
-3. **Endpoints de detalle disponibles (resuelto en Sprint 2).**
-   `GET /materias/{id}` y `GET /materias/carreras/{id}` devuelven el ítem
-   individual (`404` si no existe). Lectura pública.
-
-4. **CORS**: si el front no corre en `:5173`, pedir que agreguen el origin.
+**Leer y escribir tienen tipos distintos.** `Cursada` (respuesta: `id`, `usuario_id`,
+`materia_id`, `cursando`, `estado` derivado, `nota_parcial_1/2`, `nota_final`) ≠
+`CursadaCreate` (solo `materia_id` + notas opcionales) ≠ `CursadaUpdate` (parcial).
+`openapi-typescript` genera los tres.
 
 ---
 
-## 7. Recomendaciones de implementación
+# PARTE 2 · Arquitectura del front
 
-- **Cliente generado**: `npx openapi-typescript ../backend-ifts/docs/openapi.json
-  -o src/api/schema.d.ts` para tipos (o contra `http://localhost:8000/openapi.json`
-  si el backend está levantado); o `orval`/`openapi-generator` para cliente +
-  hooks. El backend regenera `docs/openapi.json` con `python scripts/export_openapi.py`.
-- **Data fetching**: TanStack Query. Key por endpoint + params; invalidar en
-  mutations (ej. crear cursada → invalidar `["cursadas", userId]` y
-  `["promedio", userId]`).
-- **Wrapper HTTP** único con: base URL, header `Authorization`, parseo de error a
-  `ApiError`, side-effect en `401`.
-- **Formularios**: al recibir `422`, recorrer `errors[]` y setear el error por
-  `campo`. Para el resto de los códigos, toast con `detail`.
-- **Ownership**: en recursos, comparar `recurso.usuario_id === usuario.id` para
-  mostrar/ocultar Editar/Borrar; igual manejar el `403` por si acaso.
-- **Paginación**: componente reutilizable que recibe `Paginated<T>` y setea
-  `page`.
-- **`.env`**: `VITE_API_URL=http://localhost:8000`.
+## 2.1 Principios
+
+1. **Cuatro arquetipos, no una pantalla por caso de uso:** Auth · Panel · Lista · Detalle.
+2. **Los formularios no son pantallas:** un único `<FormModal>` + `fieldSpec` (§2.9).
+3. **El estado de la materia es derivado** (§1.6), no un dropdown que se elige.
+4. **Los recursos y recordatorios de una materia viven en su detalle.**
+5. **La identidad sale del token:** nunca `usuario_id` en la URL de cursadas/recordatorios.
+6. **Una lista = query hook + render de ítem,** dentro de `<ListScreen>`.
+7. **Mobile-first:** tab bar inferior, una columna, formularios en modal/sheet.
+
+## 2.2 Stack
+
+Vite + React + TypeScript + React Router + TanStack Query + **Tailwind**.
+
+- **Tailwind, no Bootstrap.** El diseño (`miIFTS_design_system.pdf`) es a medida (paleta,
+  radios, espaciado propios, dark-first). Bootstrap trae componentes ya estilados que hay
+  que pelear; Tailwind son utilidades sobre *tus* tokens, sin CSS que sobreescribir. El
+  export de Figma Make ya viene en React + Tailwind.
+- **Estado de servidor = TanStack Query.** Estado de UI (modal abierto, chip activo) =
+  `useState`. Sin Redux/Zustand para este MVP.
+- **shadcn/ui** opcional para `Modal` / `Select` / `Switch` accesibles (Tailwind + Radix,
+  se re-estila con los tokens). No es obligatorio.
+
+## 2.3 Tokens (de `miIFTS_design_system.pdf` a `tailwind.config.js`)
+
+Dark mode fijo (`<html class="dark">`, sin toggle).
+
+```
+colors:  bg #111218 · card #1A1B23 · surface2 #2A2B36 · primary #8C7DFF ·
+         secondary #B87EED · accent #CFFF5E · ok #3FB950 · text #E8E8F0 / #9A9AB0
+radius:  card 14 · btn 10 · pill 20
+font:    Inter
+```
+
+Nada de color / radio / espaciado sueltos en las pantallas: solo vía token o vía primitivo
+(`<Button variant="primary">`, no `class="bg-[#8C7DFF]…"` copiado).
+
+## 2.4 Modelo de navegación
+
+Tab bar inferior fija, **5 destinos** (activo violeta). Onboarding sin tabs.
+
+```
+/login                 · pública
+/registro              · pública
+/onboarding/carrera    · elegí tu carrera (GET /materias/carreras)
+AppShell (RutaProtegida + BottomTabs)
+├─ /                 · Inicio         (Panel)
+├─ /materias         · Materias       (Lista · Byte/PromedioCard arriba · FAB +)
+│   └─ /materias/:id · Detalle materia (correlativas + Recursos + Recordatorios de la materia)
+├─ /recordatorios    · Agenda global  (Lista · agrupada por semana)
+├─ /convenios        · Convenios      (Lista con Tabs Universidades / TalentoTech · solo lectura)
+└─ /perfil           · Mi perfil      (Panel · editar nombre / carrera · cerrar sesión)
+/admin/catalogo      · opcional · solo admin
+```
+
+`Recursos` **dejó de ser pantalla propia**: se accede desde el detalle de la materia.
+
+## 2.5 Arquetipos de pantalla
+
+| | Arquetipo | Lo usan | Anatomía |
+|-|-----------|---------|----------|
+| **A** | Auth | Login, Registro, Elegí carrera | AuthLayout › logo › Form(Field…) › Button primary › switch link |
+| **B** | Panel | Inicio, Perfil | AppHeader › Card × N › (acciones) |
+| **C** | Lista | Materias, Recordatorios, Convenios | AppHeader (+ acción) › FilterChips › ListState(Skeleton/Empty/Error/items) |
+| **D** | Detalle | Materia | DetailScreen › meta(chips, notas) › Section(correlativas) › Section(recursos + FormModal) › Section(recordatorios + FormModal) |
+
+## 2.6 Inventario de pantallas
+
+| Ruta | Arquetipo | Qué es |
+|------|-----------|--------|
+| `/login` | A | email + contraseña |
+| `/registro` | A | nombre + email + contraseña → sigue a elegí carrera |
+| `/onboarding/carrera` | C | carreras listadas; al elegir → `POST /auth/registro` + auto-login |
+| `/` | B | Byte con progreso, próximos recordatorios (solo lectura), accesos |
+| `/materias` | C | cards de materia con badge y nota · chips de filtro · FAB + → FormModal |
+| `/materias/:id` | D | badge + notas + "editar notas"; **Sección Recursos** (cards con editar + "agregar recurso"); **Sección Recordatorios** de la materia (cards con editar + "agregar recordatorio") |
+| `/recordatorios` | C | agenda global agrupada por semana · dot por tipo · swipe para borrar · FAB + |
+| `/convenios` | C | Tabs Universidades / TalentoTech · cards con "más info" |
+| `/perfil` | B | nombre editable · carrera (select) · guardar · progreso · cerrar sesión |
+| `/admin/catalogo` | C | **opcional** · solo admin · ABM carreras/materias |
+
+`*` (404), `403` y offline **no** son rutas: se renderizan como estado dentro de la pantalla
+que falló.
+
+## 2.7 Librería de componentes
+
+Lista **cerrada**. Nada se dibuja fuera de acá sin agregarlo primero. Los frames de Figma se
+nombran 1:1 con estos.
+
+**Tier 0 · primitivos** (salen de los tokens de §2.3):
+`Button` (primary/secondary/ghost/danger) · `Field` (label + control + error) · `TextInput` ·
+`Select` · `NumberInput` (1–10) · `DateTimeField` · `Switch` · `Chip` · `Card` · `Modal` ·
+`Sheet` · `Tabs` · `Toaster` · `Skeleton` · `IconButton`.
+
+**Tier 1 · shell:**
+`AppShell` (AppHeader + Outlet + BottomTabs) · `AuthLayout` · `BottomTabs` (5) · `AppHeader` ·
+`RutaProtegida` · `AdminOnly`.
+
+**Tier 2 · patrones de datos** (los que evitan pantallas):
+`ListScreen` · `ListState` (loading/error/vacío/ok) · `FormModal` (§2.9) · `EntityForm` ·
+`ConfirmDialog` · `DetailScreen` · `Section` (con slot de acción) · `EmptyState` ·
+`ErrorState` · `Paginador`.
+
+**Tier 3 · entidades** (presentacionales, sin fetch):
+`ByteWidget` (`{ aprobadas, total }` → 1 de 4 estados: Dormido/Despierto/Entusiasta/Graduado) ·
+`PromedioCard` · `MateriaCard` · `CarreraCard` · `CorrelativaItem` ·
+`RecursoCard` (editar/borrar si `recurso.usuario_id === usuario.id`) ·
+`RecordatorioCard` (en la materia: editar/borrar; en Inicio: solo lectura) · `PerfilHeader`.
+
+## 2.8 Infraestructura y hooks (los entrega Integrante 1)
+
+- **`apiClient(path, { method, body, auth })`** — base `VITE_API_URL`; agrega
+  `Authorization: Bearer` si `auth`; parsea todo error a `ApiError`; no lee body en `204`;
+  efecto global `401 → logout() + /login`.
+- **`AuthProvider` / `useAuth()`** — `{ usuario, token, login, register, logout }` en
+  `localStorage`. `login` guarda `access_token` + `usuario`. `register` recibe también
+  `carrera_id` (del onboarding).
+- **`useApiForm()`** — de `ApiError.errors[]` arma `fieldErrors`; el resto de códigos →
+  toast con `detail`.
+- **`useToast()`**.
+
+**Capas por feature** (igual que el back `repository → service → router`):
+
+```
+src/features/<x>/
+  service.ts   funciones puras tipadas, 1 por endpoint (sin React): getMisMaterias(), createCursada()...
+  hooks.ts     TanStack Query encima de service.ts: useMisMaterias(), useCrearCursada()...
+  *.tsx        componentes — usan hooks, nunca service.ts ni apiClient directo
+```
+
+Los `fieldSpec` (§2.9) llaman a funciones de `service.ts` (`submit.create/update`), no a
+`apiClient`. Los tipos de dominio ya están generados (§1.8); cada feature agrega solo sus
+tipos chicos de vista/formulario. Keys e invalidación de los hooks en §2.10.
+
+> **No armar URLs con `usuario_id`.** Para "lo mío" alcanza el header `Authorization`.
+> `GET /materias/usuario/{miId}` y `/materias/promedio/{miId}` usan `usuario.id` del login
+> solo porque el path lo pide; pedir el de otro → `403`.
+
+## 2.9 El pop-up: un solo `<FormModal>`
+
+El modal que abre el FAB `+` y el que abre el botón **editar** de una card **son el mismo
+componente**. Cambia solo el `fieldSpec`: qué campos muestra, qué valida, qué endpoint pega.
+Si mañana hay otro formulario, es un `fieldSpec` nuevo, no un modal nuevo.
+
+```ts
+// specs/materiaUsuario.ts — FAB + de /materias y "editar notas" del detalle
+export const materiaUsuarioSpec = {
+  titulo: (m) => (m ? 'Editar materia' : 'Agregar materia'),
+  fields: [
+    { name: 'materia_id', label: 'Materia', type: 'select', options: materiasDeMiCarrera, required: true, lockOnEdit: true },
+    { name: 'cursando', label: '¿La estás cursando?', type: 'switch' },
+    { name: 'nota_parcial_1', label: '1er parcial', type: 'number', min: 1, max: 10 },
+    { name: 'nota_parcial_2', label: '2do parcial', type: 'number', min: 1, max: 10 },
+    { name: 'nota_final', label: 'Final', type: 'number', min: 1, max: 10 },
+  ],
+  submit: {
+    create: (v) => api.post('/materias/usuario', v),          // 201
+    update: (id, v) => api.patch(`/materias/cursada/${id}`, v), // 200, parcial
+  },
+  onError: { 409: 'toast', 422: 'fields' },
+  invalidates: (uid) => [['mis-materias', uid], ['promedio', uid]],
+};
+
+// specs/recurso.ts — "agregar recurso" y "editar" de una RecursoCard
+export const recursoSpec = (materiaId) => ({
+  titulo: (r) => (r ? 'Editar recurso' : 'Agregar recurso'),
+  fields: [
+    { name: 'titulo', label: 'Título', type: 'text', required: true, max: 150 },
+    { name: 'url', label: 'Link', type: 'url', required: true },
+    { name: 'descripcion', label: 'Descripción', type: 'text', required: true },
+    { name: 'tipo', label: 'Tipo', type: 'select', options: ['pdf', 'video', 'link'] },
+  ],
+  submit: {
+    create: (v) => api.post('/recursos/', { ...v, materia_id: materiaId }),
+    update: (id, v) => api.put(`/recursos/${id}`, { ...v, materia_id: materiaId }),
+  },
+  onError: { 403: 'toast', 422: 'fields' },
+  invalidates: () => [['recursos-materia', materiaId]],
+});
+
+// specs/recordatorio.ts — "agregar recordatorio" y "editar" de una RecordatorioCard
+export const recordatorioSpec = (materiaId) => ({
+  titulo: (r) => (r ? 'Editar recordatorio' : 'Nuevo recordatorio'),
+  fields: [
+    { name: 'titulo', label: 'Título', type: 'text', required: true, max: 150 },
+    { name: 'fecha', label: 'Fecha y hora', type: 'datetime', required: true, rule: 'futura' },
+    { name: 'tipo', label: 'Tipo', type: 'select', options: ['parcial', 'tp', 'final', 'otro'], required: true },
+  ],
+  submit: {
+    create: (v) => api.post('/recordatorios/', { ...v, materia_id: materiaId }),
+    // no hay PATCH todavía (§1.7) → borrar + recrear
+    update: (id, v) => api.del(`/recordatorios/${id}`).then(() => api.post('/recordatorios/', { ...v, materia_id: materiaId })),
+  },
+  onError: { 422: 'fields' },
+  invalidates: () => [['recordatorios']],
+});
+```
+
+Al éxito `FormModal` cierra, muestra toast e invalida las queries de `invalidates`.
+En `422` mapea `errors[]` → campos (`onError: 'fields'`); en `409`/`403` → toast (`'toast'`).
+
+## 2.10 Datos: query keys e invalidación
+
+```
+['carreras', { page }]                 // onboarding
+['mis-materias', usuarioId, { page }]
+['promedio', usuarioId]
+['materia', id]
+['materias-carrera', carreraId]        // select del FormModal de materia
+['correlativas', materiaId]
+['recursos-materia', materiaId]
+['recordatorios', filtros]             // sin filtro = agenda global; con materia_id = los de esa materia
+['convenios', { page }] · ['talentotech', { page }]
+['auth-me']
+```
+
+Invalidar tras mutación: materia → `['mis-materias', uid]` + `['promedio', uid]` ·
+recurso → `['recursos-materia', materiaId]` · recordatorio → `['recordatorios']` ·
+perfil → `['auth-me']`.
+
+## 2.11 Pantalla → endpoints
+
+| Pantalla | Endpoints |
+|----------|-----------|
+| `/login` | `POST /auth/login` |
+| `/registro` | — (junta nombre / email / password) |
+| `/onboarding/carrera` | `GET /materias/carreras` · `POST /auth/registro` · `POST /auth/login` |
+| `/` | `GET /materias/promedio/{miId}` · `GET /materias/usuario/{miId}` · `GET /recordatorios/?desde=hoy` |
+| `/materias` | `GET /materias/usuario/{miId}` · `GET /materias/promedio/{miId}` · `GET /materias/carrera/{miCarrera}` · `POST /materias/usuario` |
+| `/materias/:id` | `GET /materias/{id}` · `GET /materias/correlativas/{id}` · `GET /recursos/materia/{id}` · `GET /recordatorios/?materia_id={id}` · `PATCH`·`DELETE /materias/cursada/{id}` · `POST`·`PUT`·`DELETE /recursos/{id}` · `POST`·`DELETE /recordatorios/{id}` |
+| `/recordatorios` | `GET /recordatorios/?…` · `POST /recordatorios/` · `DELETE /recordatorios/{id}` |
+| `/convenios` | `GET /convenios/…` · `GET /talentotech/…` |
+| `/perfil` | `GET /auth/me` · `PATCH /auth/me` *(pendiente, §1.7)* |
+| `/admin/catalogo` | `POST`·`PUT`·`DELETE /materias/carreras` · `POST`·`PUT`·`DELETE /materias/` |
+
+Sin usar en este MVP: `/materias/buscar`, `/recursos/usuario/{id}`.
+
+## 2.12 Estados transversales (ninguno es una pantalla)
+
+| Estado | Dónde se resuelve | UI |
+|--------|-------------------|-----|
+| Cargando | ListState / DetailScreen | `<Skeleton>` con la forma del contenido |
+| Vacío | ListState | `<EmptyState>` con acción ("Todavía no cargaste materias — Agregar") |
+| Red / 5xx | ListState / DetailScreen | `<ErrorState onRetry>` |
+| `401` | apiClient (global) | limpia sesión → `/login` |
+| `403` | por request | `<EmptyState>` "No tenés permiso" |
+| `404` | por request | `<EmptyState>` "No encontramos esto" |
+| `409` | FormModal | toast con `detail` |
+| `422` | useApiForm | `errors[]` → `fieldErrors` (nunca pantalla ni toast) |
+| Offline (PWA) | AppShell | banner + cache de TanStack Query |
+
+## 2.13 Del mock de Figma al código
+
+1. El export de **Figma Make** es un **cascarón visual**: arrays hardcodeados, tipos
+   inventados, sin API, sin routing, sin auth. Se conserva el JSX/CSS; el resto se tira.
+2. Scaffold nuevo con Vite y la estructura de §2.7–§2.8; se pegan adentro los componentes
+   visuales de Figma.
+3. Por pantalla: `const materias = [...]` → `const { data } = useMisMaterias()`. Tipar cada
+   componente con el modelo real (`{ materia: Cursada }`, no `{ nombre, nota }`).
+4. Campos que Figma inventó y no existen (ej. los 4 estados de materia) → derivarlos en el
+   front:
+   ```ts
+   export function estadoLabel(c: Cursada) {
+     if (c.cursando) return 'En curso';
+     if (c.nota_final != null) return 'Aprobada';
+     if (c.nota_parcial_1 != null || c.nota_parcial_2 != null) return 'Regular';
+     return 'Pendiente';
+   }
+   ```
+5. Los pop-ups de Figma (frames/overlays) **no son rutas**: son `<FormModal>` con `useState`.
+   Su layout se copia **una vez** dentro de `<EntityForm>`.
+6. Después del primer import, el **código es la fuente de verdad**; no se sigue sincronizando
+   con Figma.
+7. Cuando el backend cambia el contrato: `python scripts/export_openapi.py` → commit de
+   `docs/openapi.json` → front `npm run gen:api` → el compilador de TS marca cada lugar que
+   se rompió.
+
+## 2.14 Reparto de tareas (front · 4 integrantes)
+
+| Quién | Entrega | Bloquea a |
+|-------|---------|-----------|
+| **Int. 1 — Fundaciones** | Vite + Tailwind con tokens · `apiClient` · `useAuth` · `RutaProtegida` · `AppShell` + `BottomTabs` (5) · pantallas Login / Registro / Elegí carrera | todos (día 1–2) |
+| **Int. 2 — Materias** | `/materias` (lista + chips + `MateriaCard`) · `ByteWidget` / `PromedioCard` · **`FormModal` + `EntityForm` genéricos** + `materiaUsuarioSpec` | Int. 3 (FormModal, día 2) |
+| **Int. 3 — Detalle de materia** | `/materias/:id` (meta + correlativas + Sección Recursos + Sección Recordatorios) · `RecursoCard` / `RecordatorioCard` con editar · `recursoSpec` + `recordatorioSpec`. Coordina el `PATCH /recordatorios/{id}` con backend | — |
+| **Int. 4 — Inicio + Agenda + Convenios + Perfil + kit UX** | `/`, `/recordatorios` (agenda global), `/convenios`, `/perfil` · kit: `Toaster` / `useToast`, `useApiForm`, `EmptyState` / `ErrorState` / `Skeleton`, `ConfirmDialog` | Int. 2 y 3 (kit, día 2) |
+
+Cada uno en `feature/<nombre>`, PR a `main` con 1 review. Cada dev levanta el backend local
+(SQLite + `python seed.py`, `VITE_API_URL=http://localhost:8000`).
+
+---
+
+## Anexo · ejemplos de payload
+
+```jsonc
+// POST /auth/registro
+{ "nombre": "Martina Ríos", "email": "martina@ifts.edu.ar", "password": "secreta123", "carrera_id": 1 }
+
+// POST /auth/login  → 200
+{ "access_token": "eyJ...", "token_type": "bearer",
+  "usuario": { "id": 1, "nombre": "Martina Ríos", "email": "martina@ifts.edu.ar",
+               "carrera_id": 1, "fecha_registro": "2026-09-08T12:00:00", "rol": "estudiante" } }
+
+// POST /materias/usuario  (sin usuario_id)
+{ "materia_id": 12, "cursando": true, "nota_parcial_1": 7 }
+
+// POST /recordatorios/  (sin usuario_id, fecha futura)
+{ "titulo": "Parcial 1er llamado", "fecha": "2026-10-05T18:00:00", "tipo": "parcial", "materia_id": 12 }
+
+// error 422
+{ "detail": "El cuatrimestre debe ser 1 o 2",
+  "errors": [ { "campo": "cuatrimestre", "msg": "El cuatrimestre debe ser 1 o 2" } ] }
+```
