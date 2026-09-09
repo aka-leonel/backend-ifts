@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.features.auth.schema import (
+    PerfilUpdate,
     UsuarioCreate,
     UsuarioLogin,
     TokenResponse,
@@ -34,6 +35,16 @@ def login(credenciales: UsuarioLogin, db: Session = Depends(get_db)):
 def get_me(current_user: UsuarioResponse = Depends(get_current_user)):
     """Devuelve los datos del usuario autenticado (protegido)."""
     return current_user
+
+@router.patch("/me", response_model=UsuarioResponse)
+def update_me(
+    cambios: PerfilUpdate,
+    current_user: UsuarioResponse = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Actualiza el nombre y/o la carrera del usuario autenticado."""
+    service = AuthService(db)
+    return service.actualizar_perfil(current_user.id, cambios)
 
 @router.get("/verify", response_model=VerifyResponse)
 def verify_token(current_user: UsuarioResponse = Depends(get_current_user)):

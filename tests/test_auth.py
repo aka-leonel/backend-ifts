@@ -92,3 +92,47 @@ def test_get_current_user_sin_token(client):
     response = client.get("/auth/me")
 
     assert response.status_code == 401
+
+
+# ========== Edición de perfil (PATCH /auth/me) ==========
+
+
+def test_patch_me_actualiza_nombre(client, auth_headers):
+    r = client.patch("/auth/me", json={"nombre": "Nombre Nuevo"}, headers=auth_headers)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["nombre"] == "Nombre Nuevo"
+
+
+def test_patch_me_sin_token_401(client):
+    assert client.patch("/auth/me", json={"nombre": "X"}).status_code == 401
+
+
+def test_patch_me_nombre_invalido_422(client, auth_headers):
+    r = client.patch("/auth/me", json={"nombre": "A"}, headers=auth_headers)
+
+    assert r.status_code == 422
+
+
+def test_patch_me_no_cambia_carrera_email_ni_rol(client, auth_headers, usuario_registrado):
+    """El contrato de `PATCH /auth/me` es `{ nombre? }`: la carrera se muestra pero
+    no se edita desde el perfil, y email/rol nunca se aceptan del body."""
+    carrera_original = usuario_registrado["response"]["carrera_id"]
+
+    r = client.patch(
+        "/auth/me",
+        json={
+            "nombre": "Otro",
+            "carrera_id": carrera_original + 999,
+            "email": "hacker@example.com",
+            "rol": "admin",
+        },
+        headers=auth_headers,
+    )
+
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["nombre"] == "Otro"
+    assert data["carrera_id"] == carrera_original
+    assert data["email"] == usuario_registrado["payload"]["email"]
+    assert data["rol"] == "estudiante"

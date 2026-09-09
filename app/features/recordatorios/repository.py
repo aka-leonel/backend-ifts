@@ -24,11 +24,24 @@ class RecordatorioRepository:
         self.db.refresh(recordatorio)
         return recordatorio
     
-    def delete(self, recordatorio_id: int, usuario_id: int):
-        recordatorio = self.db.query(Recordatorio).filter(
+    def get_propio(self, recordatorio_id: int, usuario_id: int):
+        return self.db.query(Recordatorio).filter(
             Recordatorio.id == recordatorio_id,
             Recordatorio.usuario_id == usuario_id
         ).first()
+
+    def update(self, recordatorio_id: int, usuario_id: int, cambios: dict):
+        recordatorio = self.get_propio(recordatorio_id, usuario_id)
+        if recordatorio is None:
+            return None
+        for campo, valor in cambios.items():
+            setattr(recordatorio, campo, valor)
+        self.db.commit()
+        self.db.refresh(recordatorio)
+        return recordatorio
+
+    def delete(self, recordatorio_id: int, usuario_id: int):
+        recordatorio = self.get_propio(recordatorio_id, usuario_id)
         if recordatorio:
             self.db.delete(recordatorio)
             self.db.commit()

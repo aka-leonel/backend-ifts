@@ -6,7 +6,11 @@ from app.database import get_db
 from app.features.auth.dependencies import get_current_user
 from app.features.auth.schema import UsuarioResponse
 from app.features.recordatorios import service
-from app.features.recordatorios.schema import RecordatorioCreate, RecordatorioResponse
+from app.features.recordatorios.schema import (
+    RecordatorioCreate,
+    RecordatorioResponse,
+    RecordatorioUpdate,
+)
 from app.shared.schemas.pagination import PaginatedResponse
 from app.shared.utils.pagination import PaginationParams
 
@@ -36,6 +40,15 @@ def create_recordatorio(
     current_user: UsuarioResponse = Depends(get_current_user),
 ):
     return service.create_recordatorio(db, recordatorio, current_user.id)
+
+@router.patch("/{recordatorio_id}", response_model=RecordatorioResponse)
+def update_recordatorio(
+    recordatorio_id: int,
+    cambios: RecordatorioUpdate,
+    db: Session = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
+    return service.update_recordatorio(db, recordatorio_id, cambios, current_user.id)
 
 @router.delete("/{recordatorio_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_recordatorio(
