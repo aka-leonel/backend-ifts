@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from datetime import datetime
 from typing import Optional
 from enum import Enum
@@ -67,8 +67,7 @@ class UsuarioResponse(BaseModel):
     fecha_registro: datetime
     rol: RolUsuario
 
-    class Config:
-        from_attributes = True  # Pydantic v2 (antes `orm_mode = True`)
+    model_config = ConfigDict(from_attributes=True)  # antes `class Config: orm_mode`
 
 
 class TokenResponse(BaseModel):
@@ -94,3 +93,25 @@ class UsuarioUpdate(BaseModel):
     email: Optional[EmailStr] = None
     carrera_id: Optional[int] = None
     # No incluimos password aquí, eso iría en un endpoint aparte de cambio de contraseña
+
+
+class PerfilUpdate(BaseModel):
+    """`PATCH /auth/me` — el alumno sólo edita su propio nombre.
+
+    La carrera se muestra en el perfil pero no se cambia desde acá. El email
+    identifica la cuenta y el rol nunca se acepta desde el request. Cualquier
+    otro campo del body se ignora.
+    """
+    nombre: Optional[str] = Field(
+        default=None, min_length=2, max_length=100, examples=["Ada Lovelace"]
+    )
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("El nombre debe tener al menos 2 caracteres")
+        return v

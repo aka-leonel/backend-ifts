@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 from typing import Optional
 from datetime import date, datetime
 
@@ -9,8 +9,7 @@ class RecursoBase(BaseModel):
     tipo: Optional[str] = None
     materia_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @field_validator("titulo")
     @classmethod
@@ -27,8 +26,7 @@ class RecursoFilter(BaseModel):
     desde: Optional[date] = None
     hasta: Optional[date] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RecursoCreate(RecursoBase):
     pass    
@@ -39,8 +37,7 @@ class RecursoResponse(RecursoBase):
     usuario_id: int
     fecha_creacion: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ConvenioCreate(BaseModel):
     institucion: str
@@ -52,8 +49,7 @@ class ConvenioCreate(BaseModel):
 class ConvenioResponse(ConvenioCreate):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class TalentoTechCreate(BaseModel):
     carrera_id: int
@@ -66,5 +62,4 @@ class TalentoTechCreate(BaseModel):
 class TalentoTechResponse(TalentoTechCreate):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -282,6 +282,109 @@ def test_borrar_recordatorio_propio_devuelve_204(
     assert r.content == b""
 
 
+# ========== Edición (PATCH /recordatorios/{id}) ==========
+
+
+def test_editar_recordatorio_propio(
+    client, db_session, usuario_registrado, auth_headers, carrera_test
+):
+    materia = _crear_materia(db_session, carrera_test)
+    propio = _crear_recordatorio(
+        db_session,
+        usuario_id=usuario_registrado["response"]["id"],
+        materia_id=materia.id,
+        titulo="Parcial",
+        fecha=datetime(2024, 12, 15),
+        tipo="parcial",
+    )
+    futura = (datetime.now() + timedelta(days=60)).replace(microsecond=0).isoformat()
+
+    r = client.patch(
+        f"/recordatorios/{propio.id}",
+        json={"titulo": "Parcial reprogramado", "fecha": futura, "tipo": "final"},
+        headers=auth_headers,
+    )
+
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["id"] == propio.id
+    assert data["titulo"] == "Parcial reprogramado"
+    assert data["tipo"] == "final"
+
+
+def test_editar_recordatorio_es_parcial(
+    client, db_session, usuario_registrado, auth_headers, carrera_test
+):
+    """Mandar sólo `titulo` no pisa `tipo` ni `materia_id`."""
+    materia = _crear_materia(db_session, carrera_test)
+    propio = _crear_recordatorio(
+        db_session,
+        usuario_id=usuario_registrado["response"]["id"],
+        materia_id=materia.id,
+        titulo="Original",
+        fecha=datetime(2024, 12, 15),
+        tipo="tp",
+    )
+
+    r = client.patch(
+        f"/recordatorios/{propio.id}",
+        json={"titulo": "Sólo cambió el título"},
+        headers=auth_headers,
+    )
+
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["titulo"] == "Sólo cambió el título"
+    assert data["tipo"] == "tp"
+    assert data["materia_id"] == materia.id
+
+
+def test_editar_recordatorio_de_otro_devuelve_404(
+    client, db_session, usuario_registrado, auth_headers, carrera_test
+):
+    materia = _crear_materia(db_session, carrera_test)
+    ajeno = _crear_recordatorio(
+        db_session,
+        usuario_id=usuario_registrado["response"]["id"] + 999,
+        materia_id=materia.id,
+        titulo="De otro",
+        fecha=datetime(2024, 12, 16),
+        tipo="examen",
+    )
+
+    r = client.patch(
+        f"/recordatorios/{ajeno.id}",
+        json={"titulo": "hackeado"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 404
+
+
+def test_editar_recordatorio_sin_token(client):
+    assert client.patch("/recordatorios/1", json={"titulo": "x"}).status_code == 401
+
+
+def test_editar_recordatorio_con_fecha_pasada_devuelve_422(
+    client, db_session, usuario_registrado, auth_headers, carrera_test
+):
+    materia = _crear_materia(db_session, carrera_test)
+    propio = _crear_recordatorio(
+        db_session,
+        usuario_id=usuario_registrado["response"]["id"],
+        materia_id=materia.id,
+        titulo="Parcial",
+        fecha=datetime(2024, 12, 15),
+        tipo="parcial",
+    )
+
+    r = client.patch(
+        f"/recordatorios/{propio.id}",
+        json={"fecha": "2020-01-01T10:00:00"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
 # ========== Helpers ==========
 
 

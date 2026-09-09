@@ -1,12 +1,18 @@
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import os
 
 from app.features.auth.repository import AuthRepository
-from app.features.auth.schema import UsuarioCreate, UsuarioLogin, UsuarioResponse, TokenResponse
+from app.features.auth.schema import (
+    PerfilUpdate,
+    UsuarioCreate,
+    UsuarioLogin,
+    UsuarioResponse,
+    TokenResponse,
+)
 from app.features.auth.model import Usuario
 from app.shared.exceptions import (
     BadRequestError,
@@ -55,9 +61,9 @@ class AuthService:
         """
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.utcnow() + expires_delta
+            expire = datetime.now(timezone.utc) + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         return encoded_jwt
@@ -134,6 +140,23 @@ class AuthService:
         # 4. Devolver token + datos del usuario (opcional)
         user_response = UsuarioResponse.model_validate(user)
         return TokenResponse(access_token=access_token, token_type="bearer", usuario=user_response)
+
+    # ========== Actualización de perfil ==========
+
+    def actualizar_perfil(self, user_id: int, datos: PerfilUpdate) -> UsuarioResponse:
+        """Actualiza el nombre del usuario autenticado (único campo editable).
+
+        La carrera se muestra en el perfil pero no se cambia desde acá.
+        """
+        cambios = datos.model_dump(exclude_unset=True)
+        if cambios:
+            user = self.repository.update(user_id, **cambios)
+        else:
+            user = self.repository.get_by_id(user_id)
+
+        if user is None:
+            raise NotFoundError("Usuario no encontrado")
+        return UsuarioResponse.model_validate(user)
 
     # ========== Obtener usuario actual (para dependencias) ==========
 

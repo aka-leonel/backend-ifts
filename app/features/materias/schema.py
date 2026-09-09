@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
 
 
@@ -23,8 +23,7 @@ class IFTSResponse(BaseModel):
     nombre: str
     ubicacion: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ─── Carrera ─────────────────────────────────────────────────────────────────
@@ -78,8 +77,7 @@ class CarreraResponse(BaseModel):
     duracion_cuatrimestres: int
     ifts_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MateriaResponse(BaseModel):
@@ -90,8 +88,7 @@ class MateriaResponse(BaseModel):
     anio: int
     cuatrimestre: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MateriaSearchQuery(BaseModel):
@@ -99,8 +96,7 @@ class MateriaSearchQuery(BaseModel):
     anio: Optional[int] = None
     cuatrimestre: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MateriaCreate(BaseModel):
@@ -110,8 +106,7 @@ class MateriaCreate(BaseModel):
     anio: int
     cuatrimestre: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @field_validator("nombre")
     @classmethod
@@ -191,8 +186,7 @@ class CorrelativaResponse(BaseModel):
     requiere_id: int
     requiere: Optional[MateriaResponse] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MateriaUsuarioCreate(BaseModel):
@@ -230,8 +224,7 @@ class MateriaUsuarioResponse(BaseModel):
     nota_parcial_2: NotaOpcional
     nota_final: NotaOpcional
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PromedioResponse(BaseModel):
