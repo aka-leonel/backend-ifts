@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-from jose import JWTError, jwt
+import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import os
@@ -75,7 +75,7 @@ class AuthService:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             return payload
-        except JWTError:
+        except jwt.PyJWTError:
             raise UnauthorizedError("Token inválido o expirado", headers=_BEARER)
 
     def get_user_from_token(self, token: str) -> Usuario:
