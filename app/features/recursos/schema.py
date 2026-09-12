@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 from typing import Optional
-from datetime import date, datetime
+from datetime import datetime
 
 class RecursoBase(BaseModel):
     titulo: str = Field(..., min_length=1, max_length=150)
@@ -19,14 +19,6 @@ class RecursoBase(BaseModel):
             raise ValueError("El título no puede estar vacío")
         return v
 
-
-class RecursoFilter(BaseModel):
-    materia_id: Optional[int] = None
-    tipo: Optional[str] = None
-    desde: Optional[date] = None
-    hasta: Optional[date] = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 class RecursoCreate(RecursoBase):
     pass    

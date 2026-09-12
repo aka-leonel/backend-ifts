@@ -17,7 +17,6 @@ from app.features.materias.schema import (
     CorrelativaResponse,
     MateriaCreate,
     MateriaResponse,
-    MateriaSearchQuery,
     MateriaUpdate,
     MateriaUsuarioCreate,
     MateriaUsuarioResponse,

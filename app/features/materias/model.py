@@ -60,11 +60,3 @@ class MateriaUsuario(Base):
     nota_parcial_1 = Column(Float, nullable=True)
     nota_parcial_2 = Column(Float, nullable=True)
     nota_final = Column(Float, nullable=True)
-
-    @property
-    def estado(self) -> str:
-        if self.cursando:
-            return "cursando"
-        if self.nota_final is not None:
-            return "aprobada"
-        return "pendiente"

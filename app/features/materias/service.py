@@ -19,6 +19,7 @@ from app.features.materias.schema import (
     MateriaCreate,
     MateriaUpdate,
     MateriaUsuarioCreate,
+    MateriaUsuarioResponse,
     MateriaUsuarioUpdate,
 )
 from app.shared.exceptions import BusinessRuleError, DuplicateError, NotFoundError
@@ -123,15 +124,51 @@ def get_correlativas(
     return paginate(CorrelativaRepository(db).query_by_materia(materia_id), params)
 
 
+def derivar_estado_cursada(cursando: bool, nota_final: Optional[float]) -> str:
+    """Regla de negocio: estado de una cursada según si está en curso y su nota final.
+
+    Sistema de promoción: `nota_final < 4` desaprueba, `4 <= nota_final < 7`
+    aprueba (con final), `nota_final >= 7` promociona (exime del final).
+    `cursando=True` manda por sobre cualquier nota cargada.
+    """
+    if cursando:
+        return "cursando"
+    if nota_final is not None:
+        if nota_final >= 7:
+            return "promocionada"
+        if nota_final >= 4:
+            return "aprobada"
+        return "desaprobada"
+    return "pendiente"
+
+
+def _a_materia_usuario_response(cursada: MateriaUsuario) -> MateriaUsuarioResponse:
+    """Arma la respuesta de una cursada calculando `estado` acá (capa de negocio)."""
+    return MateriaUsuarioResponse(
+        id=cursada.id,
+        usuario_id=cursada.usuario_id,
+        materia_id=cursada.materia_id,
+        cursando=cursada.cursando,
+        nota_parcial_1=cursada.nota_parcial_1,
+        nota_parcial_2=cursada.nota_parcial_2,
+        nota_final=cursada.nota_final,
+        estado=derivar_estado_cursada(cursada.cursando, cursada.nota_final),
+    )
+
+
 def get_materias_usuario(
     db: Session, usuario_id: int, params: PaginationParams
-) -> PaginatedResponse[MateriaUsuario]:
-    return paginate(MateriaUsuarioRepository(db).query_by_usuario(usuario_id), params)
+) -> PaginatedResponse[MateriaUsuarioResponse]:
+    pagina = paginate(MateriaUsuarioRepository(db).query_by_usuario(usuario_id), params)
+    items = [_a_materia_usuario_response(c) for c in pagina.items]
+    return PaginatedResponse.build(
+        items=items, total=pagina.total, page=pagina.page, per_page=pagina.per_page
+    )
 
 
 def add_materia_usuario(
     db: Session, datos: MateriaUsuarioCreate, usuario_id: int
-) -> MateriaUsuario:
+) -> MateriaUsuarioResponse:
     usuario = AuthRepository(db).get_by_id(usuario_id)
     if usuario is None:
         raise NotFoundError("Usuario no encontrado")
@@ -150,10 +187,11 @@ def add_materia_usuario(
     nueva = MateriaUsuario(usuario_id=usuario_id, **datos.model_dump())
 
     try:
-        return repo.create(nueva)
+        creada = repo.create(nueva)
     except IntegrityError:
         db.rollback()
         raise DuplicateError("Esa materia ya está cargada")
+    return _a_materia_usuario_response(creada)
 
 
 def update_materia_usuario(
@@ -161,11 +199,11 @@ def update_materia_usuario(
     materia_usuario_id: int,
     usuario_id: int,
     datos: MateriaUsuarioUpdate,
-) -> MateriaUsuario:
+) -> MateriaUsuarioResponse:
     cursada = MateriaUsuarioRepository(db).update(materia_usuario_id, usuario_id, datos)
     if cursada is None:
         raise NotFoundError("No se encontró esa cursada")
-    return cursada
+    return _a_materia_usuario_response(cursada)
 
 
 def delete_materia_usuario(
