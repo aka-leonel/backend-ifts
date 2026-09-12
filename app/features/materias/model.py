@@ -59,4 +59,6 @@ class MateriaUsuario(Base):
     cursando = Column(Boolean, nullable=False, default=False)
     nota_parcial_1 = Column(Float, nullable=True)
     nota_parcial_2 = Column(Float, nullable=True)
-    nota_final = Column(Float, nullable=True)
+    examen_final = Column(Float, nullable=True)
+    # `nota_final` NO es columna: se calcula en el service (promedio de los
+    # parciales si promocionó, o examen_final si no) — ver derivar_nota_final().

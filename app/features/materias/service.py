@@ -124,26 +124,58 @@ def get_correlativas(
     return paginate(CorrelativaRepository(db).query_by_materia(materia_id), params)
 
 
-def derivar_estado_cursada(cursando: bool, nota_final: Optional[float]) -> str:
-    """Regla de negocio: estado de una cursada según si está en curso y su nota final.
+def promociona_por_parciales(
+    nota_parcial_1: Optional[float], nota_parcial_2: Optional[float]
+) -> bool:
+    """La promoción exime de rendir el final: se decide por los parciales."""
+    return (
+        nota_parcial_1 is not None
+        and nota_parcial_2 is not None
+        and nota_parcial_1 >= 7
+        and nota_parcial_2 >= 7
+    )
 
-    Sistema de promoción: `nota_final < 4` desaprueba, `4 <= nota_final < 7`
-    aprueba (con final), `nota_final >= 7` promociona (exime del final).
-    `cursando=True` manda por sobre cualquier nota cargada.
+
+def derivar_estado_cursada(
+    cursando: bool,
+    nota_parcial_1: Optional[float],
+    nota_parcial_2: Optional[float],
+    examen_final: Optional[float],
+) -> str:
+    """Regla de negocio: estado de una cursada.
+
+    Ambos parciales `>= 7` -> promocionada (exime del final). Si no
+    promocionó y se rindió el `examen_final`: `>= 4` aprueba, `< 4`
+    desaprueba. `cursando=True` manda por sobre cualquier nota cargada.
     """
     if cursando:
         return "cursando"
-    if nota_final is not None:
-        if nota_final >= 7:
-            return "promocionada"
-        if nota_final >= 4:
+    if promociona_por_parciales(nota_parcial_1, nota_parcial_2):
+        return "promocionada"
+    if examen_final is not None:
+        if examen_final >= 4:
             return "aprobada"
         return "desaprobada"
     return "pendiente"
 
 
+def derivar_nota_final(
+    nota_parcial_1: Optional[float],
+    nota_parcial_2: Optional[float],
+    examen_final: Optional[float],
+) -> Optional[float]:
+    """La nota que cierra la cursada: si promocionó, el promedio de los
+    parciales (nunca rindió examen final); si no, la nota del examen_final
+    rendido. No es una nota que se cargue: se calcula siempre a partir de
+    los parciales y el examen_final."""
+    if promociona_por_parciales(nota_parcial_1, nota_parcial_2):
+        return round((nota_parcial_1 + nota_parcial_2) / 2, 2)
+    return examen_final
+
+
 def _a_materia_usuario_response(cursada: MateriaUsuario) -> MateriaUsuarioResponse:
-    """Arma la respuesta de una cursada calculando `estado` acá (capa de negocio)."""
+    """Arma la respuesta de una cursada calculando `estado` y `nota_final` acá
+    (capa de negocio) — ninguno de los dos es una columna que se manda."""
     return MateriaUsuarioResponse(
         id=cursada.id,
         usuario_id=cursada.usuario_id,
@@ -151,8 +183,16 @@ def _a_materia_usuario_response(cursada: MateriaUsuario) -> MateriaUsuarioRespon
         cursando=cursada.cursando,
         nota_parcial_1=cursada.nota_parcial_1,
         nota_parcial_2=cursada.nota_parcial_2,
-        nota_final=cursada.nota_final,
-        estado=derivar_estado_cursada(cursada.cursando, cursada.nota_final),
+        examen_final=cursada.examen_final,
+        nota_final=derivar_nota_final(
+            cursada.nota_parcial_1, cursada.nota_parcial_2, cursada.examen_final
+        ),
+        estado=derivar_estado_cursada(
+            cursada.cursando,
+            cursada.nota_parcial_1,
+            cursada.nota_parcial_2,
+            cursada.examen_final,
+        ),
     )
 
 
@@ -200,7 +240,8 @@ def update_materia_usuario(
     usuario_id: int,
     datos: MateriaUsuarioUpdate,
 ) -> MateriaUsuarioResponse:
-    cursada = MateriaUsuarioRepository(db).update(materia_usuario_id, usuario_id, datos)
+    cambios = datos.model_dump(exclude_unset=True)
+    cursada = MateriaUsuarioRepository(db).update(materia_usuario_id, usuario_id, cambios)
     if cursada is None:
         raise NotFoundError("No se encontró esa cursada")
     return _a_materia_usuario_response(cursada)
@@ -216,11 +257,21 @@ def delete_materia_usuario(
 
 
 def calcular_promedio(db: Session, usuario_id: int) -> dict:
+    """Promedia la `nota_final` (calculada) de todas las cursadas que ya
+    cerraron: promocionada (promedio de parciales) o aprobada/desaprobada
+    (nota del examen_final). Las que siguen `cursando` o están `pendiente`
+    no tienen nota_final y no entran en la cuenta."""
     cursadas = MateriaUsuarioRepository(db).get_by_usuario(usuario_id)
-    computadas = [c for c in cursadas if c.nota_final is not None]
 
-    if not computadas:
+    notas = [
+        derivar_nota_final(c.nota_parcial_1, c.nota_parcial_2, c.examen_final)
+        for c in cursadas
+        if not c.cursando
+    ]
+    notas = [n for n in notas if n is not None]
+
+    if not notas:
         return {"promedio": None, "materias_computadas": 0}
 
-    promedio = sum(c.nota_final for c in computadas) / len(computadas)
-    return {"promedio": round(promedio, 2), "materias_computadas": len(computadas)}
+    promedio = sum(notas) / len(notas)
+    return {"promedio": round(promedio, 2), "materias_computadas": len(notas)}

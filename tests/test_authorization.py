@@ -333,7 +333,7 @@ def test_alumno_no_puede_editar_cursada_de_otro(
     # Juan intenta modificarla: 404 (no se revela que existe)
     r = client.patch(
         f"/materias/cursada/{cursada['id']}",
-        json={"nota_final": 2},
+        json={"examen_final": 2},
         headers=auth_headers,
     )
     assert r.status_code == 404

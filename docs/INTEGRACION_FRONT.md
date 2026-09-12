@@ -164,13 +164,21 @@ Validaciones de catálogo (todas devuelven `422` con `errors[]`):
 | `DELETE` | `/materias/cursada/{materia_usuario_id}` | Auth (dueño) | `204`. `404` si la cursada es de otro alumno |
 | `GET` | `/materias/promedio/{usuario_id}` | Auth (propio o admin) | `{ promedio: number\|null, materias_computadas: number }`. `403` igual que el `GET` de cursadas |
 
-Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado (se calcula
-en el service, no es un campo que se manda):
+Notas 1–10 (`422` fuera de rango). Los campos que se mandan en `MateriaUsuarioCreate`/
+`MateriaUsuarioUpdate` son `nota_parcial_1`, `nota_parcial_2` y **`examen_final`**
+(la nota del examen final, si lo rindió). **`nota_final` no se manda nunca** — es
+un campo calculado que solo aparece en la respuesta, junto con `estado`:
 
-- `"cursando"` si `cursando=true` (manda por sobre cualquier nota cargada).
-- si no, y hay `nota_final`: `"promocionada"` si `nota_final >= 7`, `"aprobada"` si
-  `4 <= nota_final < 7`, `"desaprobada"` si `nota_final < 4`.
-- si no hay `nota_final`: `"pendiente"`.
+- `"cursando"` si `cursando=true` (manda por sobre cualquier nota cargada). `nota_final: null`.
+- si no, y **ambos parciales `>= 7`**: `"promocionada"` (exime del final). `nota_final` =
+  promedio de los dos parciales — **no** el `examen_final` (si había uno cargado de antes, se ignora).
+- si no promocionó y rindió `examen_final`: `"aprobada"` si `>= 4`, `"desaprobada"` si `< 4`.
+  `nota_final` = `examen_final`.
+- si no promocionó y no rindió `examen_final`: `"pendiente"`. `nota_final: null`.
+
+`GET /materias/promedio/{usuario_id}` promedia el `nota_final` (calculado) de todas
+las cursadas que ya cerraron (promocionada, aprobada o desaprobada); las que siguen
+`cursando` o están `pendiente` no entran en la cuenta.
 
 ### 3.3 Recursos de estudio
 
@@ -324,11 +332,18 @@ export type EstadoCursada =
 export interface Cursada {
   id: number; usuario_id: number; materia_id: number; cursando: boolean;
   estado: EstadoCursada;
-  nota_parcial_1: number | null; nota_parcial_2: number | null; nota_final: number | null;
+  nota_parcial_1: number | null; nota_parcial_2: number | null;
+  examen_final: number | null;   // lo que se rindió (o null si promocionó / no rindió)
+  nota_final: number | null;     // CALCULADO: promedio de parciales si promocionó, si no examen_final
 }
 export interface CursadaCreate {
   materia_id: number; cursando?: boolean;
-  nota_parcial_1?: number | null; nota_parcial_2?: number | null; nota_final?: number | null;
+  nota_parcial_1?: number | null; nota_parcial_2?: number | null; examen_final?: number | null;
+  // nota_final NO se manda nunca, la calcula el backend
+}
+export interface CursadaUpdate {   // PATCH /materias/cursada/{id} — parcial
+  cursando?: boolean;
+  nota_parcial_1?: number | null; nota_parcial_2?: number | null; examen_final?: number | null;
 }
 export interface Promedio { promedio: number | null; materias_computadas: number; }
 

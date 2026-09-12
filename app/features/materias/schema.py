@@ -186,9 +186,12 @@ class MateriaUsuarioCreate(BaseModel):
     cursando: bool = Field(default=False, examples=[True])
     nota_parcial_1: NotaOpcional = Field(default=None, ge=1, le=10, examples=[8])
     nota_parcial_2: NotaOpcional = Field(default=None, ge=1, le=10, examples=[7])
-    nota_final: NotaOpcional = Field(default=None, ge=1, le=10, examples=[None])
+    examen_final: NotaOpcional = Field(
+        default=None, ge=1, le=10, examples=[None],
+        description="Nota del examen final rendido. No aplica si promocionó (parciales >= 7): en ese caso se ignora.",
+    )
 
-    @field_validator("nota_parcial_1", "nota_parcial_2", "nota_final")
+    @field_validator("nota_parcial_1", "nota_parcial_2", "examen_final")
     @classmethod
     def _notas_en_rango(cls, v: NotaOpcional) -> NotaOpcional:
         return _validar_nota(v)
@@ -198,9 +201,9 @@ class MateriaUsuarioUpdate(BaseModel):
     cursando: Optional[bool] = None
     nota_parcial_1: NotaOpcional = Field(default=None, ge=1, le=10)
     nota_parcial_2: NotaOpcional = Field(default=None, ge=1, le=10)
-    nota_final: NotaOpcional = Field(default=None, ge=1, le=10)
+    examen_final: NotaOpcional = Field(default=None, ge=1, le=10)
 
-    @field_validator("nota_parcial_1", "nota_parcial_2", "nota_final")
+    @field_validator("nota_parcial_1", "nota_parcial_2", "examen_final")
     @classmethod
     def _notas_en_rango(cls, v: NotaOpcional) -> NotaOpcional:
         return _validar_nota(v)
@@ -214,7 +217,12 @@ class MateriaUsuarioResponse(BaseModel):
     estado: str
     nota_parcial_1: NotaOpcional
     nota_parcial_2: NotaOpcional
-    nota_final: NotaOpcional
+    examen_final: NotaOpcional
+    nota_final: NotaOpcional = Field(
+        description="Nota que cierra la cursada: promedio de los parciales si "
+        "promocionó, o el examen_final rendido si no. Es un valor calculado, "
+        "no se manda en el request."
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
