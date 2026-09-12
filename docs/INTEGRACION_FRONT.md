@@ -108,6 +108,7 @@ Credenciales inválidas → `401` `{ "detail": "Email o contraseña incorrectos"
 | Método | Path | Auth | Respuesta |
 |--------|------|------|-----------|
 | `GET` | `/auth/me` | Bearer | `UsuarioResponse` |
+| `PATCH` | `/auth/me` | Bearer | `PerfilUpdate` `{ nombre? }` → `UsuarioResponse`. `422` si `nombre` < 2 caracteres. **Solo el nombre es editable**: la carrera se muestra en el perfil pero no se cambia desde acá; `carrera_id`/`email`/`rol` en el body se ignoran |
 | `GET` | `/auth/verify` | Bearer | `{ valid: true, user_id: number }` |
 
 ### 2.5 Roles
@@ -163,9 +164,13 @@ Validaciones de catálogo (todas devuelven `422` con `errors[]`):
 | `DELETE` | `/materias/cursada/{materia_usuario_id}` | Auth (dueño) | `204`. `404` si la cursada es de otro alumno |
 | `GET` | `/materias/promedio/{usuario_id}` | Auth (propio o admin) | `{ promedio: number\|null, materias_computadas: number }`. `403` igual que el `GET` de cursadas |
 
-Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado:
-`"cursando"` si `cursando=true`, si no `"aprobada"` cuando hay `nota_final`, si no
-`"pendiente"`.
+Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado (se calcula
+en el service, no es un campo que se manda):
+
+- `"cursando"` si `cursando=true` (manda por sobre cualquier nota cargada).
+- si no, y hay `nota_final`: `"promocionada"` si `nota_final >= 7`, `"aprobada"` si
+  `4 <= nota_final < 7`, `"desaprobada"` si `nota_final < 4`.
+- si no hay `nota_final`: `"pendiente"`.
 
 ### 3.3 Recursos de estudio
 
@@ -208,6 +213,7 @@ Notas 1–10 (`422` fuera de rango). `estado` en la respuesta es derivado:
 |--------|------|--------|-------|
 | `GET` | `/recordatorios/` | Auth | Filtros `tipo`, `desde`, `hasta`, `materia_id` + paginación → `RecordatorioResponse` (ordenado por fecha desc). Sólo los del usuario del token |
 | `POST` | `/recordatorios/` | Auth | `RecordatorioCreate`. El dueño sale del token. `201`. `422` si `fecha` no es futura |
+| `PATCH` | `/recordatorios/{id}` | Auth (dueño) | `RecordatorioUpdate` `{ titulo?, fecha?, tipo?, materia_id? }` (parcial, solo se aplican los campos presentes) → `RecordatorioResponse`. `404` si es de otro. `422` si `fecha` no es futura |
 | `DELETE` | `/recordatorios/{id}` | Auth (dueño) | `204`. `404` si el recordatorio es de otro |
 
 `fecha` es datetime ISO y **tiene que ser futura**. `tipo` libre (convención
@@ -268,6 +274,7 @@ Las 5 pantallas del MVP y qué llama cada una. `T` = token en `Authorization`.
 |--------|---------|
 | Mi agenda | `GET /recordatorios/?tipo=&desde=&hasta=&materia_id=` (T, paginado) |
 | Crear recordatorio | `POST /recordatorios/` (T) — `fecha` futura, sin `usuario_id` |
+| Editar recordatorio | `PATCH /recordatorios/{id}` (T, parcial) → `404` si es de otro |
 | Borrar recordatorio | `DELETE /recordatorios/{id}` (T) → `404` si es de otro |
 
 ---
@@ -294,6 +301,7 @@ export interface RegistroRequest {
 export interface TokenResponse {
   access_token: string; token_type: "bearer"; usuario: Usuario | null;
 }
+export interface PerfilUpdate { nombre?: string; }   // PATCH /auth/me — la carrera no se edita acá
 
 // ---- catálogo ----
 export interface Carrera {
@@ -311,7 +319,8 @@ export interface MateriaCreate {
 }
 
 // ---- cursadas ----
-export type EstadoCursada = "cursando" | "aprobada" | "pendiente";
+export type EstadoCursada =
+  | "cursando" | "promocionada" | "aprobada" | "desaprobada" | "pendiente";
 export interface Cursada {
   id: number; usuario_id: number; materia_id: number; cursando: boolean;
   estado: EstadoCursada;
@@ -348,6 +357,9 @@ export interface Recordatorio {
 export interface RecordatorioCreate {
   titulo: string; fecha: string; tipo: string; materia_id?: number | null;
 }
+export interface RecordatorioUpdate {   // PATCH /recordatorios/{id} — parcial
+  titulo?: string; fecha?: string; tipo?: string; materia_id?: number | null;
+}
 ```
 
 ---
@@ -377,6 +389,13 @@ caveat vigente.
    individual (`404` si no existe). Lectura pública.
 
 4. **CORS**: si el front no corre en `:5173`, pedir que agreguen el origin.
+
+5. **Ya disponibles, sin workaround (resuelto — dejan de ser gaps):**
+   - `PATCH /recordatorios/{id}` + schema `RecordatorioUpdate` (parcial): el botón
+     "editar" de un recordatorio ya no necesita hacer `DELETE` + `POST`.
+   - `PATCH /auth/me` + schema `PerfilUpdate` `{ nombre? }`: la pantalla de perfil
+     ya puede editar el nombre. **Ojo:** la carrera quedó **de solo lectura** — no
+     hay forma de cambiarla desde el perfil (`carrera_id` en el body se ignora).
 
 ---
 

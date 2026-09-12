@@ -338,3 +338,115 @@ def test_get_materia_no_colisiona_con_rutas_especificas(client, carrera_test):
     assert client.get("/materias/carreras").status_code == 200
     assert client.get("/materias/buscar?q=x").status_code == 200
     assert client.get(f"/materias/carrera/{carrera_test.id}").status_code == 200
+
+
+# ========== Estado derivado de una cursada (umbrales de nota_final) ==========
+#
+# Regla: `nota_final < 4` desaprueba, `4 <= nota_final < 7` aprueba (con final),
+# `nota_final >= 7` promociona (exime del final). `cursando=True` manda por
+# sobre cualquier nota. Se calcula en la capa de servicio
+# (`service.derivar_estado_cursada`), no en el modelo ni en el schema.
+
+
+def _cargar_cursada_con_nota(client, headers, carrera_id, db_session, nota_final, codigo):
+    """Crea una materia + cursada y le carga `nota_final` vía PATCH. Devuelve el item actualizado."""
+    materia = _crear_materia(db_session, carrera_id, codigo=codigo)
+    creada = client.post(
+        "/materias/usuario",
+        json={"materia_id": materia.id, "cursando": False},
+        headers=headers,
+    )
+    assert creada.status_code == 201, creada.text
+
+    editada = client.patch(
+        f"/materias/cursada/{creada.json()['id']}",
+        json={"nota_final": nota_final},
+        headers=headers,
+    )
+    assert editada.status_code == 200, editada.text
+    return editada.json()
+
+
+def test_estado_cursando_ignora_la_nota(
+    client, auth_headers, carrera_test, db_session
+):
+    materia = _crear_materia(db_session, carrera_test.id, codigo="EST-CUR")
+    r = client.post(
+        "/materias/usuario",
+        json={"materia_id": materia.id, "cursando": True},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["estado"] == "cursando"
+
+
+def test_estado_pendiente_sin_nota_ni_cursando(
+    client, auth_headers, carrera_test, db_session
+):
+    materia = _crear_materia(db_session, carrera_test.id, codigo="EST-PEND")
+    r = client.post(
+        "/materias/usuario",
+        json={"materia_id": materia.id, "cursando": False},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["estado"] == "pendiente"
+
+
+def test_estado_desaprobada_con_nota_menor_a_4(
+    client, auth_headers, carrera_test, db_session
+):
+    item = _cargar_cursada_con_nota(
+        client, auth_headers, carrera_test.id, db_session, nota_final=3, codigo="EST-DES"
+    )
+    assert item["estado"] == "desaprobada"
+
+
+def test_estado_aprobada_en_el_limite_de_4(
+    client, auth_headers, carrera_test, db_session
+):
+    item = _cargar_cursada_con_nota(
+        client, auth_headers, carrera_test.id, db_session, nota_final=4, codigo="EST-AP4"
+    )
+    assert item["estado"] == "aprobada"
+
+
+def test_estado_aprobada_con_nota_intermedia(
+    client, auth_headers, carrera_test, db_session
+):
+    item = _cargar_cursada_con_nota(
+        client, auth_headers, carrera_test.id, db_session, nota_final=6, codigo="EST-AP6"
+    )
+    assert item["estado"] == "aprobada"
+
+
+def test_estado_promocionada_en_el_limite_de_7(
+    client, auth_headers, carrera_test, db_session
+):
+    item = _cargar_cursada_con_nota(
+        client, auth_headers, carrera_test.id, db_session, nota_final=7, codigo="EST-PR7"
+    )
+    assert item["estado"] == "promocionada"
+
+
+def test_estado_promocionada_con_nota_maxima(
+    client, auth_headers, carrera_test, db_session
+):
+    item = _cargar_cursada_con_nota(
+        client, auth_headers, carrera_test.id, db_session, nota_final=10, codigo="EST-PR10"
+    )
+    assert item["estado"] == "promocionada"
+
+
+def test_estado_viaja_en_el_listado_de_mis_cursadas(
+    client, auth_headers, usuario_registrado, carrera_test, db_session
+):
+    """El GET paginado de /materias/usuario/{id} también trae `estado` calculado."""
+    _cargar_cursada_con_nota(
+        client, auth_headers, carrera_test.id, db_session, nota_final=2, codigo="EST-LIST"
+    )
+    mi_id = usuario_registrado["response"]["id"]
+    r = client.get(f"/materias/usuario/{mi_id}", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    estados = {item["materia_id"]: item["estado"] for item in r.json()["items"]}
+    assert "desaprobada" in estados.values()

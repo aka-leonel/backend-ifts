@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
 
@@ -71,13 +71,5 @@ class RecordatorioResponse(BaseModel):
     tipo: str
     usuario_id: int
     materia_id: Optional[int]
-
-    model_config = ConfigDict(from_attributes=True)
-
-class RecordatorioFilter(BaseModel):
-    tipo: Optional[str] = None
-    desde: Optional[date] = None
-    hasta: Optional[date] = None
-    materia_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
