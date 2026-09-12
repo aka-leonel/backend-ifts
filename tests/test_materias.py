@@ -340,16 +340,20 @@ def test_get_materia_no_colisiona_con_rutas_especificas(client, carrera_test):
     assert client.get(f"/materias/carrera/{carrera_test.id}").status_code == 200
 
 
-# ========== Estado derivado de una cursada (umbrales de nota_final) ==========
+# ========== Estado y nota_final derivados de una cursada ==========
 #
-# Regla: `nota_final < 4` desaprueba, `4 <= nota_final < 7` aprueba (con final),
-# `nota_final >= 7` promociona (exime del final). `cursando=True` manda por
-# sobre cualquier nota. Se calcula en la capa de servicio
-# (`service.derivar_estado_cursada`), no en el modelo ni en el schema.
+# Regla: la promoción exime de rendir el final, así que se decide por los
+# PARCIALES, no por el examen: ambos parciales `>= 7` -> "promocionada", y
+# `nota_final` (calculada, no se manda) es el promedio de los dos parciales.
+# Si no promocionó y se rindió `examen_final`: `>= 4` "aprobada" (nota_final =
+# examen_final), `< 4` "desaprobada". Si no promocionó y no hay examen_final:
+# "pendiente". `cursando=True` manda por sobre cualquier nota cargada. Se
+# calcula en la capa de servicio (`service.derivar_estado_cursada` /
+# `service.derivar_nota_final`), no en el modelo ni en el schema.
 
 
-def _cargar_cursada_con_nota(client, headers, carrera_id, db_session, nota_final, codigo):
-    """Crea una materia + cursada y le carga `nota_final` vía PATCH. Devuelve el item actualizado."""
+def _cargar_cursada_con_final(client, headers, carrera_id, db_session, examen_final, codigo):
+    """Crea una materia + cursada y le carga `examen_final` vía PATCH. Devuelve el item actualizado."""
     materia = _crear_materia(db_session, carrera_id, codigo=codigo)
     creada = client.post(
         "/materias/usuario",
@@ -360,7 +364,28 @@ def _cargar_cursada_con_nota(client, headers, carrera_id, db_session, nota_final
 
     editada = client.patch(
         f"/materias/cursada/{creada.json()['id']}",
-        json={"nota_final": nota_final},
+        json={"examen_final": examen_final},
+        headers=headers,
+    )
+    assert editada.status_code == 200, editada.text
+    return editada.json()
+
+
+def _cargar_cursada_con_parciales(
+    client, headers, carrera_id, db_session, nota_parcial_1, nota_parcial_2, codigo
+):
+    """Crea una materia + cursada y le carga ambos parciales vía PATCH."""
+    materia = _crear_materia(db_session, carrera_id, codigo=codigo)
+    creada = client.post(
+        "/materias/usuario",
+        json={"materia_id": materia.id, "cursando": False},
+        headers=headers,
+    )
+    assert creada.status_code == 201, creada.text
+
+    editada = client.patch(
+        f"/materias/cursada/{creada.json()['id']}",
+        json={"nota_parcial_1": nota_parcial_1, "nota_parcial_2": nota_parcial_2},
         headers=headers,
     )
     assert editada.status_code == 200, editada.text
@@ -396,8 +421,8 @@ def test_estado_pendiente_sin_nota_ni_cursando(
 def test_estado_desaprobada_con_nota_menor_a_4(
     client, auth_headers, carrera_test, db_session
 ):
-    item = _cargar_cursada_con_nota(
-        client, auth_headers, carrera_test.id, db_session, nota_final=3, codigo="EST-DES"
+    item = _cargar_cursada_con_final(
+        client, auth_headers, carrera_test.id, db_session, examen_final=3, codigo="EST-DES"
     )
     assert item["estado"] == "desaprobada"
 
@@ -405,8 +430,8 @@ def test_estado_desaprobada_con_nota_menor_a_4(
 def test_estado_aprobada_en_el_limite_de_4(
     client, auth_headers, carrera_test, db_session
 ):
-    item = _cargar_cursada_con_nota(
-        client, auth_headers, carrera_test.id, db_session, nota_final=4, codigo="EST-AP4"
+    item = _cargar_cursada_con_final(
+        client, auth_headers, carrera_test.id, db_session, examen_final=4, codigo="EST-AP4"
     )
     assert item["estado"] == "aprobada"
 
@@ -414,39 +439,128 @@ def test_estado_aprobada_en_el_limite_de_4(
 def test_estado_aprobada_con_nota_intermedia(
     client, auth_headers, carrera_test, db_session
 ):
-    item = _cargar_cursada_con_nota(
-        client, auth_headers, carrera_test.id, db_session, nota_final=6, codigo="EST-AP6"
+    item = _cargar_cursada_con_final(
+        client, auth_headers, carrera_test.id, db_session, examen_final=6, codigo="EST-AP6"
     )
     assert item["estado"] == "aprobada"
 
 
-def test_estado_promocionada_en_el_limite_de_7(
+def test_estado_promociona_con_ambos_parciales_en_el_limite_de_7(
     client, auth_headers, carrera_test, db_session
 ):
-    item = _cargar_cursada_con_nota(
-        client, auth_headers, carrera_test.id, db_session, nota_final=7, codigo="EST-PR7"
+    item = _cargar_cursada_con_parciales(
+        client, auth_headers, carrera_test.id, db_session,
+        nota_parcial_1=7, nota_parcial_2=7, codigo="EST-PR7",
     )
     assert item["estado"] == "promocionada"
+    assert item["nota_final"] == 7  # promedio de los parciales
+    assert item["examen_final"] is None  # nunca lo rindió
 
 
-def test_estado_promocionada_con_nota_maxima(
+def test_estado_promociona_con_parciales_altos(
     client, auth_headers, carrera_test, db_session
 ):
-    item = _cargar_cursada_con_nota(
-        client, auth_headers, carrera_test.id, db_session, nota_final=10, codigo="EST-PR10"
+    item = _cargar_cursada_con_parciales(
+        client, auth_headers, carrera_test.id, db_session,
+        nota_parcial_1=10, nota_parcial_2=8, codigo="EST-PR10",
     )
     assert item["estado"] == "promocionada"
+    assert item["nota_final"] == 9  # (10+8)/2
+
+
+def test_estado_no_promociona_si_un_solo_parcial_es_alto(
+    client, auth_headers, carrera_test, db_session
+):
+    """Falta el otro parcial >= 7: no promociona, depende del examen_final como siempre."""
+    item = _cargar_cursada_con_parciales(
+        client, auth_headers, carrera_test.id, db_session,
+        nota_parcial_1=9, nota_parcial_2=5, codigo="EST-NOPR",
+    )
+    assert item["estado"] == "pendiente"  # todavía no rindió el final
+
+    editada = client.patch(
+        f"/materias/cursada/{item['id']}", json={"examen_final": 6}, headers=auth_headers
+    )
+    assert editada.status_code == 200, editada.text
+    assert editada.json()["estado"] == "aprobada"
+    assert editada.json()["nota_final"] == 6
+
+
+def test_promocion_ignora_examen_final_viejo(
+    client, auth_headers, carrera_test, db_session
+):
+    """Reproduce el caso reportado: cargás un final (queda desaprobada), después
+    subís los dos parciales a >= 7 sin tocar el final -> pasa a promocionada, y
+    nota_final (calculada) ya no mira ese examen_final viejo, no queda una nota
+    inconsistente."""
+    item = _cargar_cursada_con_final(
+        client, auth_headers, carrera_test.id, db_session, examen_final=3, codigo="EST-RESET"
+    )
+    assert item["estado"] == "desaprobada"
+    assert item["nota_final"] == 3
+
+    editada = client.patch(
+        f"/materias/cursada/{item['id']}",
+        json={"nota_parcial_1": 8, "nota_parcial_2": 9},
+        headers=auth_headers,
+    )
+    assert editada.status_code == 200, editada.text
+    assert editada.json()["estado"] == "promocionada"
+    assert editada.json()["nota_final"] == 8.5  # (8+9)/2, ignora el examen_final=3 viejo
+
+
+def test_crear_cursada_con_parciales_altos_ignora_examen_final(
+    client, auth_headers, carrera_test, db_session
+):
+    """Si se manda examen_final junto con parciales que promocionan, se ignora igual."""
+    materia = _crear_materia(db_session, carrera_test.id, codigo="EST-CREATEPROMO")
+    r = client.post(
+        "/materias/usuario",
+        json={
+            "materia_id": materia.id,
+            "cursando": False,
+            "nota_parcial_1": 8,
+            "nota_parcial_2": 8,
+            "examen_final": 5,
+        },
+        headers=auth_headers,
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["estado"] == "promocionada"
+    assert r.json()["nota_final"] == 8  # promedio de los parciales, no el examen_final=5
 
 
 def test_estado_viaja_en_el_listado_de_mis_cursadas(
     client, auth_headers, usuario_registrado, carrera_test, db_session
 ):
     """El GET paginado de /materias/usuario/{id} también trae `estado` calculado."""
-    _cargar_cursada_con_nota(
-        client, auth_headers, carrera_test.id, db_session, nota_final=2, codigo="EST-LIST"
+    _cargar_cursada_con_final(
+        client, auth_headers, carrera_test.id, db_session, examen_final=2, codigo="EST-LIST"
     )
     mi_id = usuario_registrado["response"]["id"]
     r = client.get(f"/materias/usuario/{mi_id}", headers=auth_headers)
     assert r.status_code == 200, r.text
     estados = {item["materia_id"]: item["estado"] for item in r.json()["items"]}
     assert "desaprobada" in estados.values()
+
+
+def test_promedio_computa_promocionada_con_el_promedio_de_los_parciales(
+    client, auth_headers, usuario_registrado, carrera_test, db_session
+):
+    """Una promocionada no tiene nota_final: al promedio general aporta el
+    promedio de sus dos parciales, no un None que la deje afuera de la cuenta."""
+    _cargar_cursada_con_parciales(
+        client, auth_headers, carrera_test.id, db_session,
+        nota_parcial_1=10, nota_parcial_2=8, codigo="PROM-PROMO",  # promedia 9
+    )
+    _cargar_cursada_con_final(
+        client, auth_headers, carrera_test.id, db_session,
+        examen_final=6, codigo="PROM-AP",
+    )
+
+    mi_id = usuario_registrado["response"]["id"]
+    r = client.get(f"/materias/promedio/{mi_id}", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["materias_computadas"] == 2
+    assert data["promedio"] == 7.5  # (9 + 6) / 2

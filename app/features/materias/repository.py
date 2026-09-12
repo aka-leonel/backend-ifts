@@ -8,7 +8,6 @@ from app.features.materias.schema import (
     CarreraUpdate,
     MateriaCreate,
     MateriaUpdate,
-    MateriaUsuarioUpdate,
 )
 
 
@@ -187,13 +186,16 @@ class MateriaUsuarioRepository:
         self,
         materia_usuario_id: int,
         usuario_id: int,
-        datos: MateriaUsuarioUpdate,
+        cambios: dict,
     ) -> MateriaUsuario | None:
+        """Aplica el dict de cambios ya validado por el service (los mismos
+        campos que la tabla: cursando, nota_parcial_1, nota_parcial_2,
+        examen_final)."""
         materia_usuario = self.get_by_id(materia_usuario_id, usuario_id)
         if materia_usuario is None:
             return None
 
-        for campo, valor in datos.model_dump(exclude_unset=True).items():
+        for campo, valor in cambios.items():
             setattr(materia_usuario, campo, valor)
 
         self.db.commit()

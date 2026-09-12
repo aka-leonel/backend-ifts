@@ -2915,7 +2915,7 @@
               7
             ]
           },
-          "nota_final": {
+          "examen_final": {
             "anyOf": [
               {
                 "type": "number",
@@ -2926,7 +2926,8 @@
                 "type": "null"
               }
             ],
-            "title": "Nota Final",
+            "title": "Examen Final",
+            "description": "Nota del examen final rendido. No aplica si promocionó (parciales >= 7): en ese caso se ignora.",
             "examples": [
               null
             ]
@@ -2982,6 +2983,17 @@
             ],
             "title": "Nota Parcial 2"
           },
+          "examen_final": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Examen Final"
+          },
           "nota_final": {
             "anyOf": [
               {
@@ -2991,7 +3003,8 @@
                 "type": "null"
               }
             ],
-            "title": "Nota Final"
+            "title": "Nota Final",
+            "description": "Nota que cierra la cursada: promedio de los parciales si promocionó, o el examen_final rendido si no. Es un valor calculado, no se manda en el request."
           }
         },
         "type": "object",
@@ -3003,6 +3016,7 @@
           "estado",
           "nota_parcial_1",
           "nota_parcial_2",
+          "examen_final",
           "nota_final"
         ],
         "title": "MateriaUsuarioResponse"
@@ -3046,7 +3060,7 @@
             ],
             "title": "Nota Parcial 2"
           },
-          "nota_final": {
+          "examen_final": {
             "anyOf": [
               {
                 "type": "number",
@@ -3057,7 +3071,7 @@
                 "type": "null"
               }
             ],
-            "title": "Nota Final"
+            "title": "Examen Final"
           }
         },
         "type": "object",

@@ -12,7 +12,7 @@
 
 ### Variables
 @baseUrl = http://localhost:8000
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJ0ZXN0QG1paWZ0cy5hciIsImV4cCI6MTc4ODA0ODA0NX0.SodWzS3smlJJfQ48S_gWVUXNwP9F34C2fcfzEcGfh-Q
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJ0ZXN0QG1paWZ0cy5hciIsImV4cCI6MTc4OTMyNjkwNH0.p7Gl3jluZtKUO_YgMrivLOY39WCDpm8WexKlMVu8UTE
 
 ### ============================================
 ### AUTH - Autenticación
@@ -134,26 +134,29 @@ GET {{baseUrl}}/materias/usuario/1
 Authorization: Bearer {{token}}
 
 ### 15. Agregar materia al usuario (el dueño sale del token)
+### materia_id 1 (Matemática) ya está cargada para este usuario -> usa otra o da 409
 POST {{baseUrl}}/materias/usuario
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "materia_id": 1,
+  "materia_id": 2,
   "cursando": true,
   "nota_parcial_1": 8,
   "nota_parcial_2": 7,
-  "nota_final": null
+  "examen_final": null
 }
 
 ### 16. Actualizar cursada (notas) - sólo cursadas propias
+### nota_final NO se manda: se calcula sola (promedio de parciales si
+### promocionó, o examen_final si no)
 PATCH {{baseUrl}}/materias/cursada/1
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
   "cursando": false,
-  "nota_final": 8
+  "examen_final": 8
 }
 
 ### 17. Eliminar cursada - sólo cursadas propias

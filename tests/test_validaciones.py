@@ -89,7 +89,7 @@ def test_carrera_duracion_invalida(client, admin_headers, db_session):
 def test_cursada_nota_fuera_de_rango(client, auth_headers, usuario_registrado, carrera_test):
     r = client.post(
         "/materias/usuario",
-        json={"materia_id": 1, "nota_final": 11},
+        json={"materia_id": 1, "examen_final": 11},
         headers=auth_headers,
     )
     assert r.status_code == 422
