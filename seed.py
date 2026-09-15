@@ -133,7 +133,8 @@ def seed():
         # Eliminalo cuando implementen auth real en producción.
         print("Cargando usuario de prueba...")
         test_user = Usuario(
-            nombre="Estudiante Test",
+            nombre="Estudiante",
+            apellido="Test",
             email="test@miifts.ar",
             password_hash=pwd_context.hash("test1234"),
             carrera_id=dev_software.id,
@@ -148,6 +149,7 @@ def seed():
         print("Cargando usuario administrador...")
         admin_user = Usuario(
             nombre="Administrador",
+            apellido="Sistema",
             email="admin@miifts.ar",
             password_hash=pwd_context.hash("admin1234"),
             carrera_id=dev_software.id,

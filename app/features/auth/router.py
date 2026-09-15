@@ -42,7 +42,7 @@ def update_me(
     current_user: UsuarioResponse = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Actualiza el nombre y/o la carrera del usuario autenticado."""
+    """Actualiza el nombre y/o apellido del usuario autenticado."""
     service = AuthService(db)
     return service.actualizar_perfil(current_user.id, cambios)
 

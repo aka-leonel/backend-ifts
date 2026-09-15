@@ -34,6 +34,7 @@ class AuthRepository:
         """
         db_user = Usuario(
             nombre=user_data.nombre,
+            apellido=user_data.apellido,
             email=user_data.email,
             password_hash=hashed_password,
             carrera_id=user_data.carrera_id,
