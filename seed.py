@@ -33,6 +33,14 @@ def reset_db():
     print("Tablas creadas.")
 
 
+def hay_datos():
+    db = SessionLocal()
+    try:
+        return db.query(IFTS).first() is not None
+    finally:
+        db.close()
+
+
 def seed():
     db = SessionLocal()
     try:
@@ -172,4 +180,7 @@ if __name__ == "__main__":
     no_drop = "--no-drop" in sys.argv
     if not no_drop:
         reset_db()
+    elif hay_datos():
+        print("Ya hay datos cargados, no se hace nada (corré sin --no-drop para resetear).")
+        sys.exit(0)
     seed()
