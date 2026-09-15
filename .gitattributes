@@ -10,6 +10,10 @@
 *.env text eol=lf
 *.gitignore text eol=lf
 *.gitattributes text eol=lf
+*.sh text eol=lf
+*.ini text eol=lf
+*.yml text eol=lf
+Dockerfile text eol=lf
 
 # Archivos binarios — sin conversión
 *.db binary

@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
-from app.database import Base, engine
 from app.features.materias.router import router as materias_router
 from app.features.recordatorios.router import router as recordatorios_router
 from app.features.recursos.router import recursos_main_router as recursos_router
@@ -15,8 +14,6 @@ from app.features.auth.router import router as auth_ruoter
 from app.shared.exceptions import APIException
 
 logger = logging.getLogger("miifts")
-
-Base.metadata.create_all(bind=engine)
 
 ORIGENES_PERMITIDOS = [
     origen.strip()
