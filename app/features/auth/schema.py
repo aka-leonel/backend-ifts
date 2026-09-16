@@ -60,6 +60,31 @@ class UsuarioLogin(BaseModel):
     password: str = Field(..., examples=["secreta123"])
 
 
+class ForgotPasswordRequest(BaseModel):
+    """`POST /auth/forgot-password` — dispara el envío del email de reset."""
+    email: EmailStr = Field(..., examples=["ada@ifts.edu.ar"])
+
+
+class ResetPasswordRequest(BaseModel):
+    """`POST /auth/reset-password` — token recibido por email + contraseña nueva.
+
+    Misma validación de contraseña que `UsuarioCreate`.
+    """
+    token: str = Field(..., min_length=1, examples=["b8f2b3b7c1a94e6c9d0e..."])
+    password: str = Field(
+        ..., min_length=8,
+        description="Contraseña nueva (mínimo 8 caracteres, al menos una letra y un número)",
+        examples=["nuevaSecreta123"],
+    )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if not any(c.isalpha() for c in v) or not any(c.isdigit() for c in v):
+            raise ValueError("La contraseña debe incluir al menos una letra y un número")
+        return v
+
+
 # ========== Schemas de salida (responses) ==========
 
 class UsuarioResponse(BaseModel):
@@ -88,6 +113,11 @@ class VerifyResponse(BaseModel):
     """Respuesta de `GET /auth/verify`."""
     valid: bool
     user_id: int
+
+
+class MensajeResponse(BaseModel):
+    """Respuesta genérica de un solo mensaje (forgot/reset password)."""
+    detail: str
 
 
 # ========== Schemas auxiliares (para cambiar datos) ==========

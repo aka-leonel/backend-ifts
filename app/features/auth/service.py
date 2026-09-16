@@ -1,3 +1,6 @@
+import hashlib
+import logging
+import secrets
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 import jwt
@@ -5,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 import os
 
-from app.features.auth.repository import AuthRepository
+from app.features.auth.repository import AuthRepository, PasswordResetRepository
 from app.features.auth.schema import (
     PerfilUpdate,
     UsuarioCreate,
@@ -22,6 +25,15 @@ from app.shared.exceptions import (
 )
 
 _BEARER = {"WWW-Authenticate": "Bearer"}
+logger = logging.getLogger(__name__)
+
+# Mensaje único para forgot-password, exista o no el email — no revela si
+# una dirección está registrada (S5-13).
+FORGOT_PASSWORD_DETAIL = (
+    "Si el email está registrado, vas a recibir instrucciones para "
+    "restablecer tu contraseña."
+)
+RESET_PASSWORD_TOKEN_EXPIRE_MINUTES = 30
 
 # Configuración de hashing (bcrypt)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -40,6 +52,7 @@ class AuthService:
     def __init__(self, db: Session):
         self.db = db
         self.repository = AuthRepository(db)
+        self.reset_repository = PasswordResetRepository(db)
 
     # ========== Métodos de hashing ==========
 
@@ -167,3 +180,49 @@ class AuthService:
         """
         user = self.get_user_from_token(token)
         return UsuarioResponse.model_validate(user)
+
+    # ========== Olvidé mi contraseña ==========
+
+    @staticmethod
+    def _hash_token(token: str) -> str:
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    def solicitar_reset_password(self, email: str) -> None:
+        """Genera un token de un solo uso si el email existe y lo "envía".
+
+        La respuesta del endpoint es siempre la misma exista o no el email
+        (no revelar qué direcciones están registradas), así que acá no se
+        lanza ninguna excepción por email inexistente.
+        """
+        user = self.repository.get_by_email(email)
+        if user is None:
+            return
+
+        token = secrets.token_urlsafe(32)
+        expira = datetime.now(timezone.utc) + timedelta(
+            minutes=RESET_PASSWORD_TOKEN_EXPIRE_MINUTES
+        )
+        self.reset_repository.crear(user.id, self._hash_token(token), expira)
+        self._enviar_email_reset(user.email, token)
+
+    def _enviar_email_reset(self, email: str, token: str) -> None:
+        """Punto de integración con el proveedor de email.
+
+        TODO: no hay SMTP/proveedor configurado todavía. Mientras tanto, se
+        loguea el link para poder probar el flujo completo en dev.
+        """
+        frontend_url = os.getenv(
+            "FRONTEND_RESET_PASSWORD_URL", "http://localhost:5173/reset-password"
+        )
+        link = f"{frontend_url}?token={token}"
+        logger.info("Reset de contraseña para %s: %s", email, link)
+
+    def restablecer_password(self, token: str, nueva_password: str) -> None:
+        """Valida el token de un solo uso y actualiza la contraseña."""
+        reset_token = self.reset_repository.get_valido(self._hash_token(token))
+        if reset_token is None:
+            raise BadRequestError("Token inválido o expirado")
+
+        hashed = self.hash_password(nueva_password)
+        self.repository.update(reset_token.usuario_id, password_hash=hashed)
+        self.reset_repository.marcar_usado(reset_token.id)

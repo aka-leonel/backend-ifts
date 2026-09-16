@@ -13,6 +13,11 @@ from app.features.recursos.router import recursos_main_router as recursos_router
 from app.features.auth.router import router as auth_ruoter
 from app.shared.exceptions import APIException
 
+# Sin esto, el logger raíz queda en WARNING por defecto y todos los
+# logger.info() de la app (incluido el de reset de contraseña) se
+# descartan en silencio, sin llegar nunca a la consola.
+logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger("miifts")
 
 ORIGENES_PERMITIDOS = [

@@ -111,6 +111,44 @@ Credenciales inválidas → `401` `{ "detail": "Email o contraseña incorrectos"
 | `PATCH` | `/auth/me` | Bearer | `PerfilUpdate` `{ nombre?, apellido? }` → `UsuarioResponse`. `422` si `nombre`/`apellido` < 2 caracteres. **Solo nombre y apellido son editables**: la carrera se muestra en el perfil pero no se cambia desde acá; `carrera_id`/`email`/`rol` en el body se ignoran |
 | `GET` | `/auth/verify` | Bearer | `{ valid: true, user_id: number }` |
 
+### 2.4bis Olvidé mi contraseña
+
+Flujo de dos pasos, ambos endpoints **públicos** (sin token):
+
+```jsonc
+// 1) POST /auth/forgot-password — pide el email
+{ "email": "ada@ifts.edu.ar" }
+// 200 -> { "detail": "Si el email está registrado, vas a recibir instrucciones
+//          para restablecer tu contraseña." }
+```
+
+- Responde **siempre `200` con el mismo mensaje**, exista o no el email — no
+  reveles si una dirección está registrada. El front no debe distinguir estos
+  casos (así lo pide S5-13: mostrar directamente el estado de éxito).
+- El backend genera un token de un solo uso (vence a los **30 minutos**) y lo
+  manda por email con un link a `FRONTEND_RESET_PASSWORD_URL?token=<token>`
+  (`FRONTEND_RESET_PASSWORD_URL` es una env var del backend, default
+  `http://localhost:5173/reset-password` — avisar si la URL real del front es otra).
+- **Gap actual**: todavía no hay proveedor de SMTP configurado. En dev el
+  link se loguea en la consola del backend en vez de mandarse por email de
+  verdad — para probar el flujo end-to-end, pedile a quien tenga el backend
+  levantado el link de los logs.
+
+```jsonc
+// 2) POST /auth/reset-password — con el token de la URL + contraseña nueva
+{ "token": "b8f2b3b7c1a9...", "password": "nuevaSecreta123" }
+// 200 -> { "detail": "Contraseña actualizada correctamente." }
+```
+
+- `password`: misma validación que en Registro (≥8 caracteres, al menos una
+  letra y un número) → `422` si no cumple.
+- `400` con `{ "detail": "Token inválido o expirado" }` si el token no existe,
+  ya se usó, o pasaron más de 30 minutos → volver a la pantalla de "olvidé mi
+  contraseña" (S5-15), no mostrar un error genérico.
+- El token es de **un solo uso**: se marca como usado recién cuando el reset
+  se completa con éxito (`200`); un `422` de validación no lo consume, podés
+  reintentar con el mismo token. Un segundo intento después de un `200` da `400`.
+
 ### 2.5 Roles
 
 - `estudiante`: default. Gestiona lo suyo (cursadas, recursos, recordatorios).
@@ -310,6 +348,9 @@ export interface TokenResponse {
   access_token: string; token_type: "bearer"; usuario: Usuario | null;
 }
 export interface PerfilUpdate { nombre?: string; apellido?: string; }   // PATCH /auth/me — la carrera y el email no se editan acá
+export interface ForgotPasswordRequest { email: string; }   // POST /auth/forgot-password
+export interface ResetPasswordRequest { token: string; password: string; }   // POST /auth/reset-password
+export interface MensajeResponse { detail: string; }   // respuesta de ambos endpoints de arriba
 
 // ---- catálogo ----
 export interface Carrera {
@@ -412,6 +453,11 @@ caveat vigente.
      de perfil ya puede editar nombre y apellido. **Ojo:** la carrera y el email
      quedaron **de solo lectura** — no hay forma de cambiarlos desde el perfil
      (`carrera_id`/`email` en el body se ignoran).
+   - `POST /auth/forgot-password` + `POST /auth/reset-password` (contrato en
+     §2.4bis): ya se puede armar el flujo completo de "olvidé mi contraseña"
+     (S5-12 a S5-15). **Gap vigente**: no hay proveedor de SMTP configurado
+     todavía, el link de reset se loguea en el backend en vez de mandarse por
+     email real — para pruebas manuales end-to-end hay que pedirlo por consola.
 
 ---
 

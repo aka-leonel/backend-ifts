@@ -136,3 +136,96 @@ def test_patch_me_no_cambia_carrera_email_ni_rol(client, auth_headers, usuario_r
     assert data["carrera_id"] == carrera_original
     assert data["email"] == usuario_registrado["payload"]["email"]
     assert data["rol"] == "estudiante"
+
+
+# ========== Olvidé mi contraseña ==========
+
+
+def _pedir_token_reset(db_session, email: str) -> str:
+    """Genera un token de reset igual que el endpoint, sin pasar por el email
+    (que solo se loguea), y devuelve el token en texto plano para los tests."""
+    import secrets
+    from datetime import datetime, timedelta, timezone
+
+    from app.features.auth.service import AuthService
+
+    service = AuthService(db_session)
+    token = secrets.token_urlsafe(32)
+    user = service.repository.get_by_email(email)
+    service.reset_repository.crear(
+        user.id, service._hash_token(token), datetime.now(timezone.utc) + timedelta(minutes=30)
+    )
+    return token
+
+
+def test_forgot_password_email_existente_devuelve_200(client, usuario_registrado):
+    r = client.post(
+        "/auth/forgot-password", json={"email": usuario_registrado["payload"]["email"]}
+    )
+
+    assert r.status_code == 200, r.text
+    assert "detail" in r.json()
+
+
+def test_forgot_password_email_inexistente_devuelve_mismo_200(client):
+    """No debe revelar si el email está registrado: misma respuesta en ambos casos."""
+    r_existe = client.post("/auth/forgot-password", json={"email": "no-existe@example.com"})
+
+    assert r_existe.status_code == 200
+    assert r_existe.json()["detail"] == (
+        "Si el email está registrado, vas a recibir instrucciones para "
+        "restablecer tu contraseña."
+    )
+
+
+def test_reset_password_exitoso(client, db_session, usuario_registrado):
+    token = _pedir_token_reset(db_session, usuario_registrado["payload"]["email"])
+
+    r = client.post(
+        "/auth/reset-password", json={"token": token, "password": "nuevaClave123"}
+    )
+    assert r.status_code == 200, r.text
+
+    # La contraseña vieja ya no sirve, la nueva sí
+    login_vieja = client.post(
+        "/auth/login",
+        json={
+            "email": usuario_registrado["payload"]["email"],
+            "password": usuario_registrado["payload"]["password"],
+        },
+    )
+    assert login_vieja.status_code == 401
+
+    login_nueva = client.post(
+        "/auth/login",
+        json={"email": usuario_registrado["payload"]["email"], "password": "nuevaClave123"},
+    )
+    assert login_nueva.status_code == 200
+
+
+def test_reset_password_token_usado_dos_veces_falla(client, db_session, usuario_registrado):
+    token = _pedir_token_reset(db_session, usuario_registrado["payload"]["email"])
+
+    r1 = client.post(
+        "/auth/reset-password", json={"token": token, "password": "primeraClave123"}
+    )
+    assert r1.status_code == 200, r1.text
+
+    r2 = client.post(
+        "/auth/reset-password", json={"token": token, "password": "segundaClave123"}
+    )
+    assert r2.status_code == 400
+
+
+def test_reset_password_token_invalido_400(client):
+    r = client.post(
+        "/auth/reset-password", json={"token": "token-truchado", "password": "algoValido123"}
+    )
+    assert r.status_code == 400
+
+
+def test_reset_password_password_invalida_422(client, db_session, usuario_registrado):
+    token = _pedir_token_reset(db_session, usuario_registrado["payload"]["email"])
+
+    r = client.post("/auth/reset-password", json={"token": token, "password": "corta1"})
+    assert r.status_code == 422

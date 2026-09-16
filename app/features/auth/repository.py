@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
+
 from sqlalchemy.orm import Session
-from app.features.auth.model import Usuario
+from app.features.auth.model import PasswordResetToken, Usuario
 from app.features.auth.schema import UsuarioCreate, RolUsuario
 from typing import Optional
 
@@ -71,3 +73,39 @@ class AuthRepository:
         self.db.delete(user)
         self.db.commit()
         return True
+
+
+class PasswordResetRepository:
+    """Repositorio para los tokens de `forgot-password` / `reset-password`."""
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def crear(self, usuario_id: int, token_hash: str, expira: datetime) -> PasswordResetToken:
+        token = PasswordResetToken(usuario_id=usuario_id, token_hash=token_hash, expira=expira)
+        self.db.add(token)
+        self.db.commit()
+        self.db.refresh(token)
+        return token
+
+    def get_valido(self, token_hash: str) -> Optional[PasswordResetToken]:
+        """Devuelve el token si existe, no fue usado y no expiró. `None` si no."""
+        token = (
+            self.db.query(PasswordResetToken)
+            .filter(PasswordResetToken.token_hash == token_hash)
+            .first()
+        )
+        if token is None or token.usado:
+            return None
+        expira = token.expira
+        if expira.tzinfo is None:
+            expira = expira.replace(tzinfo=timezone.utc)
+        if expira < datetime.now(timezone.utc):
+            return None
+        return token
+
+    def marcar_usado(self, token_id: int) -> None:
+        token = self.db.query(PasswordResetToken).filter(PasswordResetToken.id == token_id).first()
+        if token is not None:
+            token.usado = True
+            self.db.commit()

@@ -2508,6 +2508,90 @@
         ]
       }
     },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Forgot Password",
+        "description": "Dispara el envío del email de reset. Responde siempre lo mismo,\nexista o no el email, para no revelar qué direcciones están registradas.",
+        "operationId": "forgot_password_auth_forgot_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MensajeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Reset Password",
+        "description": "Consume el token de un solo uso y actualiza la contraseña.",
+        "operationId": "reset_password_auth_reset_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MensajeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -2731,6 +2815,24 @@
           "requiere_id"
         ],
         "title": "CorrelativaResponse"
+      },
+      "ForgotPasswordRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "examples": [
+              "ada@ifts.edu.ar"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "ForgotPasswordRequest",
+        "description": "`POST /auth/forgot-password` — dispara el envío del email de reset."
       },
       "HTTPValidationError": {
         "properties": {
@@ -3076,6 +3178,20 @@
         },
         "type": "object",
         "title": "MateriaUsuarioUpdate"
+      },
+      "MensajeResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "MensajeResponse",
+        "description": "Respuesta genérica de un solo mensaje (forgot/reset password)."
       },
       "PaginatedResponse_CarreraResponse_": {
         "properties": {
@@ -3692,6 +3808,34 @@
           "fecha_creacion"
         ],
         "title": "RecursoResponse"
+      },
+      "ResetPasswordRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Token",
+            "examples": [
+              "b8f2b3b7c1a94e6c9d0e..."
+            ]
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "title": "Password",
+            "description": "Contraseña nueva (mínimo 8 caracteres, al menos una letra y un número)",
+            "examples": [
+              "nuevaSecreta123"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "ResetPasswordRequest",
+        "description": "`POST /auth/reset-password` — token recibido por email + contraseña nueva.\n\nMisma validación de contraseña que `UsuarioCreate`."
       },
       "RolUsuario": {
         "type": "string",
