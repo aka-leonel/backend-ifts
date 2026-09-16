@@ -91,7 +91,8 @@ def carrera_test(db_session) -> Carrera:
 def usuario_payload(carrera_test) -> dict:
     """Payload válido para POST /auth/registro."""
     return {
-        "nombre": "Juan Pérez",
+        "nombre": "Juan",
+        "apellido": "Pérez",
         "email": "juan.perez@example.com",
         "password": "password123",
         "carrera_id": carrera_test.id,
@@ -130,7 +131,8 @@ def admin_usuario(db_session, carrera_test) -> dict:
 
     password = "adminpass123"
     admin = Usuario(
-        nombre="Admin Root",
+        nombre="Admin",
+        apellido="Root",
         email="admin.root@example.com",
         password_hash=AuthService.hash_password(password),
         carrera_id=carrera_test.id,

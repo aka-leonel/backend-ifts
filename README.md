@@ -2,6 +2,73 @@
 
 Backend para el proyecto integrador miIFTS.
 
+## Cómo levantar el proyecto
+
+Primero, en ambos casos: `cp .env.example .env` (o copiarlo a mano en Windows)
+y ajustar `SECRET_KEY` si hace falta.
+
+### Local (SQLite, sin Docker)
+
+El proyecto usa **Python 3.12** (ver `.python-version`, mismo que CI y Docker).
+Si tenés varias versiones instaladas, creá el venv apuntando a esa:
+
+```bash
+py -3.12 -m venv venv          # Windows (o "python3.12 -m venv venv" en Mac/Linux)
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # Mac/Linux
+
+pip install -r requirements.txt
+python seed.py                 # crea las tablas y carga datos de referencia
+uvicorn app.main:app --reload
+```
+
+Swagger en `http://localhost:8000/docs`. Credenciales de prueba:
+`test@miifts.ar` / `test1234`.
+
+Este flujo no usa Alembic — `seed.py` crea el esquema directamente contra la
+SQLite local, como siempre. Alembic entra en juego cuando se quiere migrar un
+esquema existente sin perder datos (ver más abajo) o al correr contra Postgres.
+
+### Docker (Postgres)
+
+```bash
+docker compose up --build
+```
+
+Levanta Postgres + la API. El contenedor de la API corre `alembic upgrade head`
+automáticamente antes de arrancar `uvicorn`, así que el esquema siempre queda
+al día. API en `http://localhost:8000`, Postgres en el puerto 5432 del host.
+
+Para reiniciar con una base limpia: `docker compose down -v` (el `-v` borra el
+volumen de Postgres).
+
+## Migraciones con Alembic
+
+El esquema de la base se versiona con [Alembic](https://alembic.sqlalchemy.org/).
+Cada cambio en un `model.py` necesita su propia migración.
+
+| Acción | Comando |
+|--------|---------|
+| Generar una migración a partir de los cambios en los modelos | `alembic revision --autogenerate -m "descripción corta"` |
+| Aplicar todas las migraciones pendientes | `alembic upgrade head` |
+| Deshacer la última migración | `alembic downgrade -1` |
+| Ver el historial | `alembic history` |
+
+Flujo típico al cambiar un modelo:
+
+1. Editar el `model.py` correspondiente (agregar columna, tabla, etc.).
+2. `alembic revision --autogenerate -m "agrega X a Y"` — revisar el archivo
+   generado en `alembic/versions/` (el autogenerate no detecta todo, por
+   ejemplo renombres de columna).
+3. `alembic upgrade head` para aplicarlo a tu DB local y confirmar que anda.
+4. Commitear el archivo de migración junto con el cambio del modelo.
+
+**Migraciones en paralelo:** si dos personas generan una migración cada una
+desde el mismo estado (`head`) en ramas distintas, al mergear las dos quedan
+dos "heads" en `alembic/versions/`. Se resuelve con `alembic merge heads -m
+"merge"` (crea una migración que une ambas), o borrando y regenerando la
+migración propia contra el `head` ya actualizado después del merge.
+
 ## Autenticación y roles
 
 La API usa JWT (Bearer token). Se obtiene con `POST /auth/login` y se envía en

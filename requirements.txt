@@ -2,7 +2,9 @@ fastapi==0.115.5
 pydantic==2.13.4
 uvicorn[standard]==0.32.1
 sqlalchemy==2.0.36
-# psycopg2-binary==2.9.10  # No necesario - usamos SQLite
+# Driver de Postgres: no va acá porque compilarlo localmente requiere
+# pg_config y puede no tener wheel precompilado para tu versión de Python.
+# Se instala aparte solo dentro de Docker, ver requirements-docker.txt.
 python-dotenv==1.0.1
 PyJWT==2.10.1
 passlib[bcrypt]==1.7.4

@@ -14,6 +14,7 @@ class Usuario(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, nullable=False)
+    apellido = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)  # hash, nunca texto plano
     carrera_id = Column(Integer, ForeignKey("carreras.id"), nullable=False, index=True)

@@ -36,7 +36,8 @@ def _crear_materia(db_session, carrera_id, codigo="MAT1"):
 def segundo_estudiante_headers(client, carrera_test) -> dict:
     """Registra y loguea a un segundo estudiante distinto del de `auth_headers`."""
     payload = {
-        "nombre": "María López",
+        "nombre": "María",
+        "apellido": "López",
         "email": "maria.lopez@example.com",
         "password": "password456",
         "carrera_id": carrera_test.id,
@@ -58,6 +59,7 @@ def test_registro_ignora_rol_del_body(client, carrera_test):
     """Aunque el body mande rol=admin, el usuario se crea como estudiante."""
     payload = {
         "nombre": "Intruso",
+        "apellido": "Anónimo",
         "email": "intruso@example.com",
         "password": "password123",
         "carrera_id": carrera_test.id,

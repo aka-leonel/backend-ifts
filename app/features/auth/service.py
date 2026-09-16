@@ -144,7 +144,7 @@ class AuthService:
     # ========== Actualización de perfil ==========
 
     def actualizar_perfil(self, user_id: int, datos: PerfilUpdate) -> UsuarioResponse:
-        """Actualiza el nombre del usuario autenticado (único campo editable).
+        """Actualiza el nombre y/o apellido del usuario autenticado (únicos campos editables).
 
         La carrera se muestra en el perfil pero no se cambia desde acá.
         """
