@@ -2441,7 +2441,7 @@
           "auth"
         ],
         "summary": "Update Me",
-        "description": "Actualiza el nombre y/o la carrera del usuario autenticado.",
+        "description": "Actualiza el nombre y/o apellido del usuario autenticado.",
         "operationId": "update_me_auth_me_patch",
         "requestBody": {
           "content": {
@@ -3380,13 +3380,29 @@
             ],
             "title": "Nombre",
             "examples": [
-              "Ada Lovelace"
+              "Ada"
+            ]
+          },
+          "apellido": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apellido",
+            "examples": [
+              "Lovelace"
             ]
           }
         },
         "type": "object",
         "title": "PerfilUpdate",
-        "description": "`PATCH /auth/me` — el alumno sólo edita su propio nombre.\n\nLa carrera se muestra en el perfil pero no se cambia desde acá. El email\nidentifica la cuenta y el rol nunca se acepta desde el request. Cualquier\notro campo del body se ignora."
+        "description": "`PATCH /auth/me` — el alumno sólo edita su propio nombre y apellido.\n\nLa carrera se muestra en el perfil pero no se cambia desde acá. El email\nidentifica la cuenta y el rol nunca se acepta desde el request. Cualquier\notro campo del body se ignora."
       },
       "PromedioResponse": {
         "properties": {
@@ -3808,9 +3824,19 @@
             "maxLength": 100,
             "minLength": 2,
             "title": "Nombre",
-            "description": "Nombre completo",
+            "description": "Nombre",
             "examples": [
-              "Ada Lovelace"
+              "Ada"
+            ]
+          },
+          "apellido": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Apellido",
+            "description": "Apellido",
+            "examples": [
+              "Lovelace"
             ]
           },
           "email": {
@@ -3843,6 +3869,7 @@
         "type": "object",
         "required": [
           "nombre",
+          "apellido",
           "email",
           "password",
           "carrera_id"
@@ -3886,6 +3913,10 @@
             "type": "string",
             "title": "Nombre"
           },
+          "apellido": {
+            "type": "string",
+            "title": "Apellido"
+          },
           "email": {
             "type": "string",
             "title": "Email"
@@ -3907,6 +3938,7 @@
         "required": [
           "id",
           "nombre",
+          "apellido",
           "email",
           "carrera_id",
           "fecha_registro",

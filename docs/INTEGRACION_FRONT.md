@@ -68,13 +68,13 @@ servidor: “cerrar sesión” = borrar el token del cliente.
 
 ```jsonc
 // request
-{ "nombre": "Ada Lovelace", "email": "ada@ifts.edu.ar",
+{ "nombre": "Ada", "apellido": "Lovelace", "email": "ada@ifts.edu.ar",
   "password": "secreta123", "carrera_id": 1 }
 // 201 -> UsuarioResponse (NO devuelve token)
 ```
 
 - `password`: mínimo 8, **al menos una letra y un número**.
-- `nombre`: 2–100 caracteres.
+- `nombre`, `apellido`: 2–100 caracteres.
 - `carrera_id`: tiene que existir → conseguí la lista con
   `GET /materias/carreras` (público) para armar el `<select>`.
 - El campo `rol` se ignora: siempre se crea `estudiante`.
@@ -89,7 +89,7 @@ servidor: “cerrar sesión” = borrar el token del cliente.
 { "email": "ada@ifts.edu.ar", "password": "secreta123" }
 // 200 -> TokenResponse
 { "access_token": "eyJ...", "token_type": "bearer",
-  "usuario": { "id": 1, "nombre": "...", "email": "...", "carrera_id": 1,
+  "usuario": { "id": 1, "nombre": "...", "apellido": "...", "email": "...", "carrera_id": 1,
                "fecha_registro": "2026-09-02T12:00:00", "rol": "estudiante" } }
 ```
 
@@ -108,7 +108,7 @@ Credenciales inválidas → `401` `{ "detail": "Email o contraseña incorrectos"
 | Método | Path | Auth | Respuesta |
 |--------|------|------|-----------|
 | `GET` | `/auth/me` | Bearer | `UsuarioResponse` |
-| `PATCH` | `/auth/me` | Bearer | `PerfilUpdate` `{ nombre? }` → `UsuarioResponse`. `422` si `nombre` < 2 caracteres. **Solo el nombre es editable**: la carrera se muestra en el perfil pero no se cambia desde acá; `carrera_id`/`email`/`rol` en el body se ignoran |
+| `PATCH` | `/auth/me` | Bearer | `PerfilUpdate` `{ nombre?, apellido? }` → `UsuarioResponse`. `422` si `nombre`/`apellido` < 2 caracteres. **Solo nombre y apellido son editables**: la carrera se muestra en el perfil pero no se cambia desde acá; `carrera_id`/`email`/`rol` en el body se ignoran |
 | `GET` | `/auth/verify` | Bearer | `{ valid: true, user_id: number }` |
 
 ### 2.5 Roles
@@ -299,17 +299,17 @@ export interface ApiError { detail: string; errors?: { campo: string; msg: strin
 // ---- auth ----
 export type Rol = "estudiante" | "admin";
 export interface Usuario {
-  id: number; nombre: string; email: string; carrera_id: number;
+  id: number; nombre: string; apellido: string; email: string; carrera_id: number;
   fecha_registro: string; rol: Rol;
 }
 export interface LoginRequest { email: string; password: string; }
 export interface RegistroRequest {
-  nombre: string; email: string; password: string; carrera_id: number;
+  nombre: string; apellido: string; email: string; password: string; carrera_id: number;
 }
 export interface TokenResponse {
   access_token: string; token_type: "bearer"; usuario: Usuario | null;
 }
-export interface PerfilUpdate { nombre?: string; }   // PATCH /auth/me — la carrera no se edita acá
+export interface PerfilUpdate { nombre?: string; apellido?: string; }   // PATCH /auth/me — la carrera y el email no se editan acá
 
 // ---- catálogo ----
 export interface Carrera {
@@ -408,9 +408,10 @@ caveat vigente.
 5. **Ya disponibles, sin workaround (resuelto — dejan de ser gaps):**
    - `PATCH /recordatorios/{id}` + schema `RecordatorioUpdate` (parcial): el botón
      "editar" de un recordatorio ya no necesita hacer `DELETE` + `POST`.
-   - `PATCH /auth/me` + schema `PerfilUpdate` `{ nombre? }`: la pantalla de perfil
-     ya puede editar el nombre. **Ojo:** la carrera quedó **de solo lectura** — no
-     hay forma de cambiarla desde el perfil (`carrera_id` en el body se ignora).
+   - `PATCH /auth/me` + schema `PerfilUpdate` `{ nombre?, apellido? }`: la pantalla
+     de perfil ya puede editar nombre y apellido. **Ojo:** la carrera y el email
+     quedaron **de solo lectura** — no hay forma de cambiarlos desde el perfil
+     (`carrera_id`/`email` en el body se ignoran).
 
 ---
 
