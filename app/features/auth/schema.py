@@ -85,6 +85,26 @@ class ResetPasswordRequest(BaseModel):
         return v
 
 
+class CambiarPasswordRequest(BaseModel):
+    """`PATCH /auth/password` — el usuario ya está logueado, pero igual tiene
+    que reprobar identidad con la contraseña actual (si alguien le roba la
+    sesión, no puede usarla para expulsarlo cambiándole la contraseña).
+    """
+    password_actual: str = Field(..., examples=["secreta123"])
+    password_nueva: str = Field(
+        ..., min_length=8,
+        description="Contraseña nueva (mínimo 8 caracteres, al menos una letra y un número)",
+        examples=["nuevaSecreta123"],
+    )
+
+    @field_validator("password_nueva")
+    @classmethod
+    def validate_password_nueva(cls, v: str) -> str:
+        if not any(c.isalpha() for c in v) or not any(c.isdigit() for c in v):
+            raise ValueError("La contraseña debe incluir al menos una letra y un número")
+        return v
+
+
 # ========== Schemas de salida (responses) ==========
 
 class UsuarioResponse(BaseModel):

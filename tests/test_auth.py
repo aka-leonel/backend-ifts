@@ -229,3 +229,66 @@ def test_reset_password_password_invalida_422(client, db_session, usuario_regist
 
     r = client.post("/auth/reset-password", json={"token": token, "password": "corta1"})
     assert r.status_code == 422
+
+
+# ========== Cambiar contraseña (usuario logueado) ==========
+
+
+def test_cambiar_password_exitoso(client, auth_headers, usuario_registrado):
+    r = client.patch(
+        "/auth/password",
+        json={
+            "password_actual": usuario_registrado["payload"]["password"],
+            "password_nueva": "otraClaveNueva123",
+        },
+        headers=auth_headers,
+    )
+    assert r.status_code == 200, r.text
+
+    login_nueva = client.post(
+        "/auth/login",
+        json={
+            "email": usuario_registrado["payload"]["email"],
+            "password": "otraClaveNueva123",
+        },
+    )
+    assert login_nueva.status_code == 200
+
+
+def test_cambiar_password_sin_token_401(client):
+    r = client.patch(
+        "/auth/password",
+        json={"password_actual": "algo123", "password_nueva": "otroAlgo123"},
+    )
+    assert r.status_code == 401
+
+
+def test_cambiar_password_actual_incorrecta_401(client, auth_headers):
+    r = client.patch(
+        "/auth/password",
+        json={"password_actual": "noEsLaQueEra123", "password_nueva": "otraClaveNueva123"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 401
+
+
+def test_cambiar_password_igual_a_la_actual_400(client, auth_headers, usuario_registrado):
+    password_actual = usuario_registrado["payload"]["password"]
+    r = client.patch(
+        "/auth/password",
+        json={"password_actual": password_actual, "password_nueva": password_actual},
+        headers=auth_headers,
+    )
+    assert r.status_code == 400
+
+
+def test_cambiar_password_nueva_invalida_422(client, auth_headers, usuario_registrado):
+    r = client.patch(
+        "/auth/password",
+        json={
+            "password_actual": usuario_registrado["payload"]["password"],
+            "password_nueva": "corta1",
+        },
+        headers=auth_headers,
+    )
+    assert r.status_code == 422

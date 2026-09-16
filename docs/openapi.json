@@ -2592,6 +2592,53 @@
         }
       }
     },
+    "/auth/password": {
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Cambiar Password",
+        "description": "Cambia la contraseña del usuario autenticado. Requiere la actual.",
+        "operationId": "cambiar_password_auth_password_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MensajeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -2627,6 +2674,33 @@
   },
   "components": {
     "schemas": {
+      "CambiarPasswordRequest": {
+        "properties": {
+          "password_actual": {
+            "type": "string",
+            "title": "Password Actual",
+            "examples": [
+              "secreta123"
+            ]
+          },
+          "password_nueva": {
+            "type": "string",
+            "minLength": 8,
+            "title": "Password Nueva",
+            "description": "Contraseña nueva (mínimo 8 caracteres, al menos una letra y un número)",
+            "examples": [
+              "nuevaSecreta123"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "password_actual",
+          "password_nueva"
+        ],
+        "title": "CambiarPasswordRequest",
+        "description": "`PATCH /auth/password` — el usuario ya está logueado, pero igual tiene\nque reprobar identidad con la contraseña actual (si alguien le roba la\nsesión, no puede usarla para expulsarlo cambiándole la contraseña)."
+      },
       "CarreraCreate": {
         "properties": {
           "nombre": {

@@ -226,3 +226,24 @@ class AuthService:
         hashed = self.hash_password(nueva_password)
         self.repository.update(reset_token.usuario_id, password_hash=hashed)
         self.reset_repository.marcar_usado(reset_token.id)
+
+    # ========== Cambiar contraseña (usuario logueado) ==========
+
+    def cambiar_password(self, user_id: int, password_actual: str, password_nueva: str) -> None:
+        """Cambia la contraseña de un usuario autenticado.
+
+        Exige la contraseña actual como reautenticación: un JWT robado no
+        alcanza para tomar la cuenta cambiando la contraseña sin conocerla.
+        """
+        user = self.repository.get_by_id(user_id)
+        if user is None:
+            raise NotFoundError("Usuario no encontrado")
+
+        if not self.verify_password(password_actual, user.password_hash):
+            raise UnauthorizedError("La contraseña actual es incorrecta", headers=_BEARER)
+
+        if password_actual == password_nueva:
+            raise BadRequestError("La contraseña nueva debe ser distinta a la actual")
+
+        hashed = self.hash_password(password_nueva)
+        self.repository.update(user_id, password_hash=hashed)
