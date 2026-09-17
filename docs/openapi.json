@@ -2592,6 +2592,52 @@
         }
       }
     },
+    "/auth/change-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Change Password",
+        "operationId": "change_password_auth_change_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MensajeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -2705,6 +2751,33 @@
         },
         "type": "object",
         "title": "CarreraUpdate"
+      },
+      "ChangePasswordRequest": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Current Password",
+            "examples": [
+              "secreta123"
+            ]
+          },
+          "new_password": {
+            "type": "string",
+            "minLength": 8,
+            "title": "New Password",
+            "examples": [
+              "nuevaSecreta123"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "ChangePasswordRequest",
+        "description": "`POST /auth/change-password` — cambio autenticado desde Perfil."
       },
       "ConvenioCreate": {
         "properties": {

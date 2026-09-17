@@ -154,3 +154,19 @@ class PerfilUpdate(BaseModel):
         if len(v) < 2:
             raise ValueError("Debe tener al menos 2 caracteres")
         return v
+
+
+class ChangePasswordRequest(BaseModel):
+    """`POST /auth/change-password` — cambio autenticado desde Perfil."""
+
+    current_password: str = Field(..., min_length=1, examples=["secreta123"])
+    new_password: str = Field(
+        ..., min_length=8, examples=["nuevaSecreta123"]
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        if not any(c.isalpha() for c in v) or not any(c.isdigit() for c in v):
+            raise ValueError("La contraseña debe incluir al menos una letra y un número")
+        return v
