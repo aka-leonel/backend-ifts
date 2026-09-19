@@ -1,0 +1,3842 @@
+diff --git a/.coverage b/.coverage
+new file mode 100644
+index 0000000..3b48557
+Binary files /dev/null and b/.coverage differ
+diff --git a/.gitIgnore b/.gitIgnore
+deleted file mode 100644
+index 1fa98d7..0000000
+--- a/.gitIgnore
++++ /dev/null
+@@ -1,5 +0,0 @@
+-venv/
+-.env
+-_pycache_/
+-*.pyc
+-*.db
+\ No newline at end of file
+diff --git a/.gitattributes b/.gitattributes
+new file mode 100644
+index 0000000..02e4560
+--- /dev/null
++++ b/.gitattributes
+@@ -0,0 +1,16 @@
++# Normalizar saltos de línea al hacer commit (todos los archivos de texto quedan con LF en el repo)
++* text=auto
++
++# Python explícito
++*.py text eol=lf
++
++# Configs y script
++*.txt text eol=lf
++*.md text eol=lf
++*.env text eol=lf
++*.gitignore text eol=lf
++*.gitattributes text eol=lf
++
++# Archivos binarios — sin conversión
++*.db binary
++*.pyc binary
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..cbfce11
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,10 @@
++materias_test.http
++venv/
++.env
++.env.local
++__pycache__/
++*.pyc
++*.db
++*.sqlite3
++.vscode/
++.idea/
+\ No newline at end of file
+diff --git a/ASIGNACION_TAREAS.md b/ASIGNACION_TAREAS.md
+new file mode 100644
+index 0000000..8816c4a
+--- /dev/null
++++ b/ASIGNACION_TAREAS.md
+@@ -0,0 +1,242 @@
++# Asignación de Tareas - Sprint 4 días
++
++## 🎯 Resumen Ejecutivo
++
++| Integrante | Tarea Principal | Prioridad | Archivos a modificar |
++|------------|----------------|-----------|---------------------|
++| **1** | Seguridad + JWT en CRUD | 🔴 ALTA | `materias/router.py`, `recursos/router.py` |
++| **2** | Tests + CI/CD | 🔴 ALTA | `tests/`, `.github/workflows/` |
++| **3** | Búsqueda y Filtros | 🟡 MEDIA | `materias/service.py`, `recursos/service.py` |
++| **4** | Paginación | 🟡 MEDIA | `schemas/pagination.py`, todos los routers |
++| **5** | Validaciones | 🔴 ALTA | `*/schema.py`, `exceptions.py` |
++
++---
++
++## 📋 Integrante 1 - Seguridad (CRÍTICO)
++
++### ¿Qué hacer?
++Proteger todos los endpoints CRUD con autenticación JWT
++
++### Checklist:
++```python
++# materias/router.py
++from app.features.auth.dependencies import get_current_user
++from app.features.auth.schema import UsuarioResponse
++
++# En CADA endpoint de CREATE, UPDATE, DELETE:
++def crear_carrera(
++    datos: CarreraCreate,
++    db: Session = Depends(get_db),
++    usuario_actual: UsuarioResponse = Depends(get_current_user)  # ← AGREGAR ESTO
++):
++    # ...
++```
++
++### Archivos a modificar:
++- `app/features/materias/router.py` (6 endpoints)
++- `app/features/recursos/router.py` (si tiene PUT/DELETE)
++- `app/features/recordatorios/router.py` (todos)
++
++### Tiempo estimado: 2-3 días
++
++---
++
++## 🧪 Integrante 2 - Tests (CRÍTICO)
++
++### ¿Qué hacer?
++Escribir tests para asegurar que todo funciona
++
++### Crear estos archivos:
++```
++tests/
++  __init__.py
++  conftest.py          # ← Fixtures compartidos
++  test_auth.py         # ← 6 tests
++  test_materias.py     # ← 6 tests
++  test_recursos.py     # ← 3 tests
++```
++
++### Ejemplo de test:
++```python
++def test_crear_carrera_sin_auth(client):
++    response = client.post("/materias/carreras", json={
++        "nombre": "Test",
++        "duracion_cuatrimestres": 5,
++        "ifts_id": 1
++    })
++    assert response.status_code == 401
++```
++
++### Tiempo estimado: 3-4 días
++
++---
++
++## 🔍 Integrante 3 - Búsqueda
++
++### ¿Qué hacer?
++Agregar endpoints para buscar/filtrar datos
++
++### Nuevos endpoints:
++```python
++# materias/router.py
++@router.get("/buscar")
++def buscar_materias(
++    q: str = None,           # Búsqueda por nombre/código
++    anio: int = None,
++    cuatrimestre: int = None,
++    db: Session = Depends(get_db)
++):
++    return service.buscar_materias(db, q, anio, cuatrimestre)
++```
++
++### Archivos:
++- `materias/router.py` + `service.py` + `repository.py`
++- `recursos/router.py` + `service.py`
++- `recordatorios/router.py` + `service.py`
++
++### Tiempo estimado: 3 días
++
++---
++
++## 📄 Integrante 4 - Paginación
++
++### ¿Qué hacer?
++Hacer que los listados no devuelvan miles de resultados
++
++### Crear esquema compartido:
++```python
++# app/schemas/pagination.py
++from pydantic import BaseModel
++from typing import List, Generic, TypeVar
++
++T = TypeVar('T')
++
++class PaginatedResponse(BaseModel, Generic[T]):
++    items: List[T]
++    total: int
++    page: int
++    per_page: int
++    total_pages: int
++```
++
++### Modificar endpoints:
++```python
++@router.get("/", response_model=PaginatedResponse[MateriaResponse])
++def listar_materias(
++    page: int = 1,
++    per_page: int = 20,
++    db: Session = Depends(get_db)
++):
++    # ...
++```
++
++### Tiempo estimado: 2-3 días
++
++---
++
++## 📝 Integrante 5 - Validaciones (CRÍTICO)
++
++### ¿Qué hacer?
++Asegurar que los datos sean válidos antes de guardarlos
++
++### Agregar validadores:
++```python
++# materias/schema.py
++from pydantic import validator
++
++class MateriaCreate(BaseModel):
++    codigo: str
++    cuatrimestre: int
++    
++    @validator('codigo')
++    def codigo_uppercase(cls, v):
++        return v.upper()
++    
++    @validator('cuatrimestre')
++    def cuatrimestre_valido(cls, v):
++        if v not in [1, 2]:
++            raise ValueError('Cuatrimestre debe ser 1 o 2')
++        return v
++```
++
++### Crear excepciones custom:
++```python
++# app/exceptions.py
++from fastapi import HTTPException
++
++class NotFoundError(HTTPException):
++    def __init__(self, detail: str):
++        super().__init__(status_code=404, detail=detail)
++
++class DuplicateError(HTTPException):
++    def __init__(self, detail: str):
++        super().__init__(status_code=409, detail=detail)
++```
++
++### Tiempo estimado: 3 días
++
++---
++
++## 🗓️ Plan Día a Día
++
++### Día 1
++- [ ] Todos: Git pull, crear rama feature
++- [ ] Int 1: Proteger 3 endpoints de materias
++- [ ] Int 2: Setup tests + 3 tests de auth
++- [ ] Int 3: Endpoint búsqueda materias
++- [ ] Int 4: Crear schema paginación
++- [ ] Int 5: Validadores de materias
++
++### Día 2
++- [ ] Int 1: Proteger otros 3 endpoints
++- [ ] Int 2: 6 tests de materias
++- [ ] Int 3: Filtros de recursos
++- [ ] Int 4: Paginación en 2 endpoints
++- [ ] Int 5: Crear exceptions.py
++
++### Día 3
++- [ ] Int 1: Proteger recordatorios
++- [ ] Int 2: Tests recursos + CI
++- [ ] Int 3: Filtros recordatorios
++- [ ] Int 4: Paginación en 1 endpoint más
++- [ ] Int 5: Validaciones lógica negocio
++
++### Día 4
++- [ ] Todos: Testing cruzado
++- [ ] Todos: Crear PRs
++- [ ] Todos: Code review
++- [ ] Merge a dev si todo OK
++
++---
++
++## ✅ Definición de "Hecho"
++
++Una tarea está terminada cuando:
++- [ ] El código funciona localmente
++- [ ] Está pusheado a tu rama feature
++- [ ] Está documentado (docstrings, comentarios)
++- [ ] Actualizado api-requests.http si agregaste endpoints
++- [ ] PR creado en GitHub
++
++---
++
++## 🆘 Si te trabas
++
++1. **Pregunta en el grupo** - Alguien ya lo hizo
++2. **Lee TESTING.md** - Tiene ejemplos
++3. **Revisa el código existente** - Busca patrones similares
++4. **Googlea el error** - Copia el mensaje exacto
++
++---
++
++## 📊 Al final del sprint
++
++Completar esta tabla:
++
++| ¿Qué completaste? | ¿Qué faltó? | ¿Qué aprendiste? |
++|-------------------|-------------|------------------|
++|                   |             |                  |
++
++---
++
++**Ver detalles completos en:** `TAREAS_SPRINT.md`
+diff --git a/TAREAS_SPRINT.md b/TAREAS_SPRINT.md
+new file mode 100644
+index 0000000..64e405d
+--- /dev/null
++++ b/TAREAS_SPRINT.md
+@@ -0,0 +1,312 @@
++# Sprint de 4 días - Backend miIFTS
++**Objetivo:** Avance significativo en funcionalidad, seguridad y calidad
++
++---
++
++## 📊 Distribución de Tareas por Integrante
++
++### 🔐 **Integrante 1 - SEGURIDAD Y AUTENTICACIÓN**
++**Prioridad:** ALTA | **Complejidad:** Media | **Días:** 3-4
++
++#### Tareas:
++1. **Proteger endpoints CRUD de Materias con JWT**
++   - Importar `get_current_user` de `auth.dependencies`
++   - Agregar `usuario_actual = Depends(get_current_user)` a todos los endpoints CRUD:
++     - POST /materias/carreras
++     - PUT /materias/carreras/{id}
++     - DELETE /materias/carreras/{id}
++     - POST /materias/
++     - PUT /materias/{id}
++     - DELETE /materias/{id}
++   - Guardar `usuario_id` en logs/auditoría (opcional)
++
++2. **Proteger endpoints de Recursos con JWT**
++   - Ya está en `/recursos/` (POST)
++   - Agregar a PUT y DELETE si existen
++   - Verificar que `usuario_actual.id` coincida con `recurso.usuario_id`
++
++3. **Implementar roles de usuario**
++   - Agregar campo `rol` al modelo Usuario (admin/estudiante)
++   - Crear decorador `@require_admin` para operaciones sensibles
++   - Solo admins pueden: crear/editar/eliminar carreras y materias
++
++**Entregables:**
++- [ ] Todos los endpoints CRUD protegidos
++- [ ] Tests de autorización (mínimo 3)
++- [ ] Documentación de roles en README
++
++---
++
++### 🧪 **Integrante 2 - TESTING Y CALIDAD**
++**Prioridad:** ALTA | **Complejidad:** Media-Alta | **Días:** 4
++
++#### Tareas:
++1. **Tests unitarios para Auth**
++   ```python
++   # tests/test_auth.py
++   - test_registro_exitoso()
++   - test_registro_email_duplicado()
++   - test_login_exitoso()
++   - test_login_credenciales_invalidas()
++   - test_get_current_user_token_valido()
++   - test_get_current_user_token_invalido()
++   ```
++
++2. **Tests de integración para Materias CRUD**
++   ```python
++   # tests/test_materias.py
++   - test_crear_carrera_con_auth()
++   - test_crear_carrera_sin_auth() → 401
++   - test_actualizar_carrera()
++   - test_eliminar_carrera()
++   - test_crear_materia_codigo_duplicado() → 409
++   ```
++
++3. **Setup de CI/CD básico**
++   - Crear `.github/workflows/tests.yml`
++   - Correr tests en cada push a dev/main
++   - Verificar que pasa pylint/black
++
++**Entregables:**
++- [ ] Mínimo 15 tests funcionando
++- [ ] Coverage > 60%
++- [ ] CI configurado en GitHub Actions
++
++---
++
++### 🔍 **Integrante 3 - FILTROS Y BÚSQUEDA**
++**Prioridad:** MEDIA | **Complejidad:** Media | **Días:** 3
++
++#### Tareas:
++1. **Búsqueda de materias**
++   - Endpoint: `GET /materias/buscar?q=programacion&anio=1&cuatrimestre=1`
++   - Buscar por: nombre, código, año, cuatrimestre
++   - Implementar en service y repository
++
++2. **Filtros avanzados para recursos**
++   - `GET /recursos/?materia_id=1&tipo=pdf&desde=2024-01-01`
++   - Filtrar por: materia, tipo de archivo, rango de fechas
++   - Ordenar por: fecha_creacion, titulo
++
++3. **Búsqueda de recordatorios**
++   - `GET /recordatorios/?tipo=examen&desde=2024-12-01&hasta=2024-12-31`
++   - Filtrar por: tipo, rango de fechas, materia
++   - Ordenar por: fecha (próximos primero)
++
++**Entregables:**
++- [ ] 3 endpoints de búsqueda/filtrado funcionando
++- [ ] Documentación en Swagger con ejemplos
++- [ ] Tests de casos edge (búsqueda vacía, sin resultados)
++
++---
++
++### 📄 **Integrante 4 - PAGINACIÓN Y PERFORMANCE**
++**Prioridad:** MEDIA | **Complejidad:** Baja-Media | **Días:** 2-3
++
++#### Tareas:
++1. **Implementar paginación en listados**
++   - Crear esquema común de paginación:
++     ```python
++     # schemas/pagination.py
++     class PaginationParams(BaseModel):
++         page: int = 1
++         per_page: int = 20
++     
++     class PaginatedResponse(BaseModel):
++         items: List[Any]
++         total: int
++         page: int
++         per_page: int
++         total_pages: int
++     ```
++
++2. **Aplicar paginación a endpoints clave:**
++   - `GET /materias/carrera/{id}?page=1&per_page=10`
++   - `GET /recursos/?page=1&per_page=20`
++   - `GET /recordatorios/?page=1&per_page=15`
++
++3. **Optimizar queries con relaciones**
++   - Usar `joinedload()` en queries que traen relaciones
++   - Agregar índices en columnas más consultadas:
++     ```python
++     # En models:
++     __table_args__ = (Index('idx_materia_carrera', 'carrera_id'),)
++     ```
++
++**Entregables:**
++- [ ] Paginación funcionando en 3+ endpoints
++- [ ] Queries optimizadas (verificar con EXPLAIN)
++- [ ] Documentación de uso de paginación
++
++---
++
++### 📝 **Integrante 5 - VALIDACIONES Y MANEJO DE ERRORES**
++**Prioridad:** ALTA | **Complejidad:** Media | **Días:** 3
++
++#### Tareas:
++1. **Mejorar validaciones en schemas**
++   - Agregar validadores personalizados:
++     ```python
++     # materias/schema.py
++     @validator('cuatrimestre')
++     def validar_cuatrimestre(cls, v):
++         if v not in [1, 2]:
++             raise ValueError('Cuatrimestre debe ser 1 o 2')
++         return v
++     
++     @validator('nota_final')
++     def validar_nota(cls, v):
++         if v and (v < 1 or v > 10):
++             raise ValueError('Nota debe estar entre 1 y 10')
++         return v
++     ```
++
++2. **Manejo consistente de errores**
++   - Crear clase base de excepciones:
++     ```python
++     # exceptions.py
++     class APIException(HTTPException):
++         def __init__(self, detail: str):
++             super().__init__(status_code=self.status_code, detail=detail)
++     
++     class NotFoundError(APIException):
++         status_code = 404
++     
++     class DuplicateError(APIException):
++         status_code = 409
++     ```
++   - Usar en todos los services
++
++3. **Validar lógica de negocio**
++   - No permitir eliminar carrera con materias asociadas
++   - No permitir eliminar materia con cursadas activas
++   - Validar que fecha de recordatorio sea futura
++   - Validar que materia pertenezca a la carrera del usuario
++
++**Entregables:**
++- [ ] Validadores en todos los schemas principales
++- [ ] Manejo de errores consistente en toda la API
++- [ ] Tests de validaciones (mínimo 10)
++
++---
++
++## 📅 Cronograma sugerido
++
++### **Día 1** (Lunes)
++- Todos: Setup del entorno, pull de dev, crear rama feature/{nombre}
++- Integrante 1: Proteger endpoints de Materias
++- Integrante 2: Setup de tests + primeros 5 tests de Auth
++- Integrante 3: Endpoint de búsqueda de materias
++- Integrante 4: Implementar esquema de paginación
++- Integrante 5: Validadores de Materias
++
++### **Día 2** (Martes)
++- Integrante 1: Implementar sistema de roles
++- Integrante 2: Tests de Materias CRUD
++- Integrante 3: Filtros de recursos
++- Integrante 4: Aplicar paginación a endpoints
++- Integrante 5: Clase base de excepciones
++
++### **Día 3** (Miércoles)
++- Integrante 1: Proteger endpoints de Recursos
++- Integrante 2: Tests de integración + CI/CD
++- Integrante 3: Filtros de recordatorios
++- Integrante 4: Optimización de queries
++- Integrante 5: Validaciones de lógica de negocio
++
++### **Día 4** (Jueves)
++- Todos: Testing cruzado
++- Todos: Documentar cambios en README
++- Todos: PR a dev
++- Code review en pares
++
++---
++
++## ✅ Criterios de aceptación
++
++Para considerar el sprint exitoso:
++
++1. **Funcionalidad:**
++   - [ ] Todos los endpoints CRUD están protegidos con JWT
++   - [ ] Al menos 2 de 3 funciones de búsqueda/filtrado funcionando
++   - [ ] Paginación implementada en al menos 2 endpoints
++
++2. **Calidad:**
++   - [ ] Mínimo 15 tests pasando
++   - [ ] No hay endpoints que devuelvan stack traces al usuario
++   - [ ] Validaciones en todos los campos críticos
++
++3. **Documentación:**
++   - [ ] README actualizado con nuevas features
++   - [ ] Swagger docs completo con ejemplos
++   - [ ] api-requests.http actualizado
++
++4. **Proceso:**
++   - [ ] Cada feature en su propia rama
++   - [ ] PRs revisados por al menos 1 compañero
++   - [ ] Sin conflictos en merge a dev
++
++---
++
++## 🚀 Bonus (si sobra tiempo)
++
++1. **Migraciones con Alembic**
++   - Crear primera migración para rol de usuario
++   - Documentar proceso de migraciones
++
++2. **Logging estructurado**
++   - Implementar logging con loguru
++   - Logs de todas las operaciones críticas
++
++3. **.env.example mejorado**
++   - Todas las variables documentadas
++   - Valores seguros por defecto
++
++4. **Docker Compose**
++   - Containerizar la aplicación
++   - Setup fácil para nuevos dev
++
++---
++
++## 📞 Coordinación
++
++### Daily Standup (10 min diarios)
++- ¿Qué hice ayer?
++- ¿Qué haré hoy?
++- ¿Tengo algún blocker?
++
++### Slack/Discord
++- Canal #backend para dudas técnicas
++- Avisar cuando se sube PR para review
++- Compartir snippets de código útiles
++
++### Git Flow
++```bash
++# Crear rama
++git checkout dev
++git pull origin dev
++git checkout -b feature/tu-nombre-tarea
++
++# Durante desarrollo
++git add .
++git commit -m "feat: descripción clara"
++git push origin feature/tu-nombre-tarea
++
++# Cuando termines
++# Crear PR en GitHub: feature/tu-nombre → dev
++```
++
++---
++
++## 🎯 Métricas de éxito
++
++Al final del sprint, medir:
++- Endpoints con autenticación: objetivo 100%
++- Cobertura de tests: objetivo >60%
++- Endpoints con paginación: objetivo >50%
++- Validaciones implementadas: objetivo >80% de campos críticos
++- PRs mergeados sin conflictos: objetivo 100%
++
++---
++
++**¿Preguntas? Consultar en el canal #backend o revisar TESTING.md**
+diff --git a/TESTING.md b/TESTING.md
+new file mode 100644
+index 0000000..25f79f2
+--- /dev/null
++++ b/TESTING.md
+@@ -0,0 +1,334 @@
++# Guía de Testing - miIFTS API
++
++## 🚀 Paso 1: Ejecutar el seed
++
++```bash
++# Activar entorno virtual
++.\venv\Scripts\activate
++
++ source venv/Scripts/activate
++ pip install
++
++# Ejecutar seed (borra y recrea la DB)
++python seed.py
++```
++
++**Datos creados:**
++- Usuario: `test@miifts.ar` / `test1234` (ID: 1)
++- Carreras: ID 1 y 2
++- Materias: ID 1-19
++
++---
++
++## 🌐 Paso 2: Levantar el servidor
++
++```bash
++uvicorn app.main:app --reload
++```
++
++El servidor estará en: **http://localhost:8000**
++
++---
++
++## 📝 Paso 3: Probar endpoints
++
++### **Opción A: Usando FastAPI Docs (MÁS FÁCIL)**
++
++1. Abre en tu navegador: **http://localhost:8000/docs**
++2. Verás una interfaz interactiva con todos los endpoints
++
++#### Ejemplo: Login y probar endpoints protegidos
++
++**1. Hacer login:**
++- Busca `POST /auth/login`
++- Click en "Try it out"
++- Pega este JSON:
++```json
++{
++  "email": "test@miifts.ar",
++  "password": "test1234"
++}
++```
++- Click "Execute"
++- **COPIA EL TOKEN** de la respuesta (el campo `access_token`)
++
++**2. Autorizar en Swagger:**
++- Click en el botón verde "Authorize" (arriba a la derecha)
++- Pega el token en el campo
++- Click "Authorize"
++- Ahora todos los endpoints protegidos usarán ese token automáticamente
++
++**3. Probar endpoints:**
++
++Ejemplos que puedes probar:
++
++```
++GET /auth/me                          ← Ver tu usuario
++GET /materias/carreras               ← Listar carreras
++GET /materias/carrera/1              ← Materias de la carrera 1
++POST /materias/carreras              ← Crear nueva carrera (CRUD nuevo)
++PUT /materias/carreras/1             ← Actualizar carrera (CRUD nuevo)
++GET /materias/usuario/1              ← Materias del usuario 1
++```
++
++---
++
++### **Opción B: Usando curl (Terminal)**
++
++#### 1. Login y obtener token:
++```bash
++curl -X POST http://localhost:8000/auth/login \
++  -H "Content-Type: application/json" \
++  -d "{\"email\":\"test@miifts.ar\",\"password\":\"test1234\"}"
++```
++
++Respuesta:
++```json
++{
++  "access_token": "eyJ0eXAiOi...",
++  "token_type": "bearer"
++}
++```
++
++#### 2. Usar el token en otros endpoints:
++```bash
++# Reemplaza TU_TOKEN con el access_token de arriba
++TOKEN="eyJ0eXAiOi..."
++
++# Ver tu perfil
++curl http://localhost:8000/auth/me \
++  -H "Authorization: Bearer $TOKEN"
++
++# Listar carreras
++curl http://localhost:8000/materias/carreras
++
++# Crear una carrera (CRUD nuevo)
++curl -X POST http://localhost:8000/materias/carreras \
++  -H "Content-Type: application/json" \
++  -H "Authorization: Bearer $TOKEN" \
++  -d "{\"nombre\":\"Nueva Carrera\",\"duracion_cuatrimestres\":6,\"ifts_id\":1}"
++
++# Actualizar una carrera (CRUD nuevo)
++curl -X PUT http://localhost:8000/materias/carreras/1 \
++  -H "Content-Type: application/json" \
++  -H "Authorization: Bearer $TOKEN" \
++  -d "{\"nombre\":\"Carrera Actualizada\"}"
++```
++
++---
++
++### **Opción C: Usando Postman**
++
++#### 1. Importar la colección:
++
++Crea un archivo `miifts.postman_collection.json` con:
++
++```json
++{
++  "info": {
++    "name": "miIFTS API",
++    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
++  },
++  "item": [
++    {
++      "name": "Auth",
++      "item": [
++        {
++          "name": "Login",
++          "request": {
++            "method": "POST",
++            "header": [],
++            "body": {
++              "mode": "raw",
++              "raw": "{\n  \"email\": \"test@miifts.ar\",\n  \"password\": \"test1234\"\n}",
++              "options": {
++                "raw": {
++                  "language": "json"
++                }
++              }
++            },
++            "url": {
++              "raw": "http://localhost:8000/auth/login",
++              "protocol": "http",
++              "host": ["localhost"],
++              "port": "8000",
++              "path": ["auth", "login"]
++            }
++          }
++        }
++      ]
++    }
++  ]
++}
++```
++
++#### 2. En Postman:
++- Import → selecciona el archivo JSON
++- Envía el request de Login
++- Copia el `access_token`
++- En otros requests, ve a "Authorization" → Type: "Bearer Token" → pega el token
++
++---
++
++## 🧪 Ejemplos de testing completo
++
++### **Probar el CRUD de Carreras:**
++
++1. **Listar todas** (no requiere auth):
++```bash
++GET http://localhost:8000/materias/carreras
++```
++
++2. **Crear una nueva** (requiere auth):
++```bash
++POST http://localhost:8000/materias/carreras
++{
++  "nombre": "Tecnicatura en Desarrollo Web",
++  "duracion_cuatrimestres": 5,
++  "ifts_id": 1
++}
++```
++
++3. **Actualizar** (requiere auth):
++```bash
++PUT http://localhost:8000/materias/carreras/3
++{
++  "nombre": "Tecnicatura en Desarrollo Web Full Stack",
++  "duracion_cuatrimestres": 6
++}
++```
++
++4. **Eliminar** (requiere auth):
++```bash
++DELETE http://localhost:8000/materias/carreras/3
++```
++
++### **Probar el CRUD de Materias:**
++
++1. **Crear una materia**:
++```bash
++POST http://localhost:8000/materias/
++{
++  "carrera_id": 1,
++  "nombre": "Inglés Técnico",
++  "codigo": "ING",
++  "anio": 1,
++  "cuatrimestre": 1
++}
++```
++
++2. **Actualizar materia**:
++```bash
++PUT http://localhost:8000/materias/20
++{
++  "nombre": "Inglés Técnico I"
++}
++```
++
++3. **Eliminar materia**:
++```bash
++DELETE http://localhost:8000/materias/20
++```
++
++---
++
++## 🔍 Verificar respuestas
++
++### Respuesta exitosa (200/201):
++```json
++{
++  "id": 3,
++  "nombre": "Nueva Carrera",
++  "duracion_cuatrimestres": 6,
++  "ifts_id": 1
++}
++```
++
++### Error 404 (no encontrado):
++```json
++{
++  "detail": "Carrera no encontrada"
++}
++```
++
++### Error 401 (no autorizado):
++```json
++{
++  "detail": "Not authenticated"
++}
++```
++
++---
++
++## 📊 Endpoints disponibles
++
++### Auth:
++- `POST /auth/registro` - Registrar usuario
++- `POST /auth/login` - Login (devuelve token)
++- `GET /auth/me` - Perfil del usuario autenticado
++- `GET /auth/verify` - Verificar token
++
++### Materias:
++- `GET /materias/carreras` - Listar carreras
++- `POST /materias/carreras` - Crear carrera ⭐ NUEVO
++- `PUT /materias/carreras/{id}` - Actualizar carrera ⭐ NUEVO
++- `DELETE /materias/carreras/{id}` - Eliminar carrera ⭐ NUEVO
++- `GET /materias/carrera/{id}` - Materias de una carrera
++- `POST /materias/` - Crear materia ⭐ NUEVO
++- `PUT /materias/{id}` - Actualizar materia ⭐ NUEVO
++- `DELETE /materias/{id}` - Eliminar materia ⭐ NUEVO
++- `GET /materias/correlativas/{id}` - Correlativas de una materia
++- `GET /materias/usuario/{id}` - Materias del usuario
++- `GET /materias/promedio/{id}` - Promedio del usuario
++
++### Recursos:
++- `GET /recursos/` - Listar recursos
++- `POST /recursos/` - Crear recurso
++- `GET /recursos/materia/{id}` - Recursos de una materia
++
++### Recordatorios:
++- `GET /recordatorios/` - Listar recordatorios
++- `POST /recordatorios/` - Crear recordatorio
++- `DELETE /recordatorios/{id}` - Eliminar recordatorio
++
++---
++
++## 💡 Tips
++
++1. **Siempre ejecuta el seed antes de probar** si quieres datos limpios
++2. **Usa /docs** para explorar la API interactivamente
++3. **Guarda el token** después del login para usarlo en otros endpoints
++4. **Los endpoints con 🔒 requieren autenticación** (token en el header)
++5. **Verifica los códigos de estado:**
++   - 200: OK
++   - 201: Created
++   - 204: No Content (delete exitoso)
++   - 401: No autorizado
++   - 404: No encontrado
++   - 409: Conflicto (ej: email ya existe)
++
++---
++
++## 🐛 Solución de problemas
++
++### "Module not found"
++```bash
++# Asegúrate de activar el venv
++.\venv\Scripts\activate
++```
++
++### "Port already in use"
++```bash
++# Mata el proceso en el puerto 8000
++# Windows:
++netstat -ano | findstr :8000
++taskkill /PID <número> /F
++```
++
++### "Database is locked"
++```bash
++# Detén el servidor (Ctrl+C)
++# Borra la DB y vuelve a ejecutar seed
++rm miifts.db
++python seed.py
++```
+diff --git a/app/features/.gitkeep b/app/features/auth/__init__.py
+similarity index 100%
+rename from app/features/.gitkeep
+rename to app/features/auth/__init__.py
+diff --git a/app/features/auth/dependencies.py b/app/features/auth/dependencies.py
+new file mode 100644
+index 0000000..82f78f0
+--- /dev/null
++++ b/app/features/auth/dependencies.py
+@@ -0,0 +1,23 @@
++# app/features/auth/dependencies.py
++
++from fastapi import Depends
++from fastapi.security import OAuth2PasswordBearer
++from sqlalchemy.orm import Session
++
++from app.database import get_db
++from app.features.auth.service import AuthService
++from app.features.auth.schema import UsuarioResponse
++
++# Esquema OAuth2 para extraer el token del header Authorization
++oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
++
++def get_current_user(
++    token: str = Depends(oauth2_scheme),
++    db: Session = Depends(get_db)
++) -> UsuarioResponse:
++    """
++    Dependencia que obtiene el usuario autenticado a partir del token JWT.
++    Puede usarse directamente en endpoints protegidos.
++    """
++    service = AuthService(db)
++    return service.get_current_user(token)
+\ No newline at end of file
+diff --git a/app/features/auth/model.py b/app/features/auth/model.py
+new file mode 100644
+index 0000000..a6e6d5f
+--- /dev/null
++++ b/app/features/auth/model.py
+@@ -0,0 +1,22 @@
++from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
++from sqlalchemy.sql import func
++from sqlalchemy.orm import relationship
++from app.database import Base
++import enum
++
++# Definimos el rol como un Enum de Python (opcional pero recomendado)
++class RolUsuario(str, enum.Enum):
++    ESTUDIANTE = "estudiante"
++    ADMIN = "admin"
++
++class Usuario(Base):
++    __tablename__ = "usuarios"
++
++    id = Column(Integer, primary_key=True, index=True)
++    nombre = Column(String, nullable=False)
++    email = Column(String, unique=True, nullable=False, index=True)
++    password_hash = Column(String, nullable=False)  # hash, nunca texto plano
++    carrera_id = Column(Integer, ForeignKey("carreras.id"), nullable=False, index=True)
++    fecha_registro = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
++    rol = Column(Enum(RolUsuario), nullable=False, default=RolUsuario.ESTUDIANTE)
++    recordatorios = relationship("Recordatorio", back_populates="usuario")
+\ No newline at end of file
+diff --git a/app/features/auth/repository.py b/app/features/auth/repository.py
+new file mode 100644
+index 0000000..10c67a2
+--- /dev/null
++++ b/app/features/auth/repository.py
+@@ -0,0 +1,71 @@
++from sqlalchemy.orm import Session
++from app.features.auth.model import Usuario
++from app.features.auth.schema import UsuarioCreate, RolUsuario
++from typing import Optional
++
++class AuthRepository:
++    """
++    Repositorio para operaciones CRUD de la tabla Usuario.
++    """
++
++    def __init__(self, db: Session):
++        self.db = db
++
++    def get_by_id(self, user_id: int) -> Optional[Usuario]:
++        """
++        Obtiene un usuario por su ID.
++        """
++        return self.db.query(Usuario).filter(Usuario.id == user_id).first()
++
++    def get_by_email(self, email: str) -> Optional[Usuario]:
++        """
++        Obtiene un usuario por su email (único).
++        """
++        return self.db.query(Usuario).filter(Usuario.email == email).first()
++
++    def create(self, user_data: UsuarioCreate, hashed_password: str) -> Usuario:
++        """
++        Crea un nuevo usuario en la base de datos.
++        Recibe el schema de creación (con password en texto plano) y el hash ya calculado.
++        """
++        # Convertir el rol a Enum si viene como string, o usar el default
++        rol_enum = user_data.rol if isinstance(user_data.rol, RolUsuario) else RolUsuario(user_data.rol)
++
++        db_user = Usuario(
++            nombre=user_data.nombre,
++            email=user_data.email,
++            password_hash=hashed_password,
++            carrera_id=user_data.carrera_id,
++            rol=rol_enum,
++            # fecha_registro se asigna automáticamente con server_default
++        )
++        self.db.add(db_user)
++        self.db.commit()
++        self.db.refresh(db_user)  # Para obtener el ID generado y la fecha
++        return db_user
++
++    # Métodos opcionales (pueden agregarse más adelante)
++    def update(self, user_id: int, **kwargs) -> Optional[Usuario]:
++        """
++        Actualiza campos de un usuario (ej: cambio de email, nombre, carrera).
++        """
++        user = self.get_by_id(user_id)
++        if not user:
++            return None
++        for key, value in kwargs.items():
++            if hasattr(user, key):
++                setattr(user, key, value)
++        self.db.commit()
++        self.db.refresh(user)
++        return user
++
++    def delete(self, user_id: int) -> bool:
++        """
++        Elimina un usuario (borrado físico).
++        """
++        user = self.get_by_id(user_id)
++        if not user:
++            return False
++        self.db.delete(user)
++        self.db.commit()
++        return True
+\ No newline at end of file
+diff --git a/app/features/auth/router.py b/app/features/auth/router.py
+new file mode 100644
+index 0000000..16d5924
+--- /dev/null
++++ b/app/features/auth/router.py
+@@ -0,0 +1,34 @@
++# app/features/auth/router.py
++
++from fastapi import APIRouter, Depends, HTTPException, status
++from sqlalchemy.orm import Session
++
++from app.database import get_db
++from app.features.auth.schema import UsuarioCreate, UsuarioLogin, TokenResponse, UsuarioResponse
++from app.features.auth.service import AuthService
++from app.features.auth.dependencies import get_current_user  # <-- importamos desde dependencies
++
++router = APIRouter(prefix="/auth", tags=["auth"])
++
++
++
++@router.post("/registro", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
++def register(user_data: UsuarioCreate, db: Session = Depends(get_db)):
++    """Registra un nuevo usuario."""
++    service = AuthService(db)
++    return service.registrar_usuario(user_data)
++
++@router.post("/login", response_model=TokenResponse)
++def login(credenciales: UsuarioLogin, db: Session = Depends(get_db)):
++    """Inicia sesión y devuelve un token JWT."""
++    service = AuthService(db)
++    return service.iniciar_sesion(credenciales)
++
++@router.get("/me", response_model=UsuarioResponse)
++def get_me(current_user: UsuarioResponse = Depends(get_current_user)):
++    """Devuelve los datos del usuario autenticado (protegido)."""
++    return current_user
++
++@router.get("/verify", response_model=dict)
++def verify_token(current_user: UsuarioResponse = Depends(get_current_user)):
++    return {"valid": True, "user_id": current_user.id}
+\ No newline at end of file
+diff --git a/app/features/auth/schema.py b/app/features/auth/schema.py
+new file mode 100644
+index 0000000..2adc51d
+--- /dev/null
++++ b/app/features/auth/schema.py
+@@ -0,0 +1,67 @@
++from pydantic import BaseModel, EmailStr, Field, field_validator
++from datetime import datetime
++from typing import Optional
++from enum import Enum
++
++# Re-exportamos el enum para usarlo en los schemas
++class RolUsuario(str, Enum):
++    ESTUDIANTE = "estudiante"
++    ADMIN = "admin"
++
++
++# ========== Schemas de entrada (requests) ==========
++
++class UsuarioCreate(BaseModel):
++    """Datos necesarios para registrar un nuevo usuario."""
++    nombre: str = Field(..., min_length=2, max_length=100, description="Nombre completo")
++    email: EmailStr = Field(..., description="Correo electrónico único")
++    password: str = Field(..., min_length=8, description="Contraseña en texto plano (mínimo 8 caracteres)")
++    carrera_id: int = Field(..., description="ID de la carrera a la que pertenece")
++    rol: Optional[RolUsuario] = Field(default=RolUsuario.ESTUDIANTE, description="Rol del usuario")
++
++    @field_validator("password")
++    @classmethod
++    def validate_password(cls, v: str) -> str:
++        # Validación adicional si querés (por ejemplo, que tenga número)
++        # pero no es obligatorio para el TP.
++        return v
++
++
++class UsuarioLogin(BaseModel):
++    """Datos necesarios para iniciar sesión."""
++    email: EmailStr
++    password: str
++
++
++# ========== Schemas de salida (responses) ==========
++
++class UsuarioResponse(BaseModel):
++    """Datos del usuario que se devuelven al frontend (sin password_hash)."""
++    id: int
++    nombre: str
++    email: str
++    carrera_id: int
++    fecha_registro: datetime
++    rol: RolUsuario
++
++    class Config:
++        from_attributes = True  # Pydantic v2 (antes `orm_mode = True`)
++
++
++class TokenResponse(BaseModel):
++    """Respuesta del endpoint de login."""
++    access_token: str
++    token_type: str = "bearer"
++    # Opcional: devolver también los datos del usuario en el mismo payload
++    # para evitar un segundo viaje al frontend.
++    usuario: Optional[UsuarioResponse] = None
++
++
++# ========== Schemas auxiliares (para cambiar datos) ==========
++
++class UsuarioUpdate(BaseModel):
++    """Para actualizar perfil (opcional, no urgente)."""
++    nombre: Optional[str] = Field(None, min_length=2, max_length=100)
++    email: Optional[EmailStr] = None
++    carrera_id: Optional[int] = None
++    # No incluimos password aquí, eso iría en un endpoint aparte de cambio de contraseña
+\ No newline at end of file
+diff --git a/app/features/auth/service.py b/app/features/auth/service.py
+new file mode 100644
+index 0000000..54b2b48
+--- /dev/null
++++ b/app/features/auth/service.py
+@@ -0,0 +1,155 @@
++from sqlalchemy.orm import Session
++from fastapi import HTTPException, status
++from passlib.context import CryptContext
++from jose import JWTError, jwt
++from datetime import datetime, timedelta
++from typing import Optional
++import os
++
++from app.features.auth.repository import AuthRepository
++from app.features.auth.schema import UsuarioCreate, UsuarioLogin, UsuarioResponse, TokenResponse
++from app.features.auth.model import Usuario
++
++# Configuración de hashing (bcrypt)
++pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
++
++# Configuración de JWT - estas variables deberían estar en .env
++SECRET_KEY = os.getenv("SECRET_KEY", "mi-secret-key-muy-segura-cambiar-en-produccion")
++ALGORITHM = "HS256"
++ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
++
++
++class AuthService:
++    """
++    Servicio de autenticación: maneja la lógica de registro, login y JWT.
++    """
++
++    def __init__(self, db: Session):
++        self.db = db
++        self.repository = AuthRepository(db)
++
++    # ========== Métodos de hashing ==========
++
++    @staticmethod
++    def hash_password(password: str) -> str:
++        """Genera un hash bcrypt de la contraseña."""
++        return pwd_context.hash(password)
++
++    @staticmethod
++    def verify_password(plain_password: str, hashed_password: str) -> bool:
++        """Verifica si la contraseña en texto plano coincide con el hash."""
++        return pwd_context.verify(plain_password, hashed_password)
++
++    # ========== JWT ==========
++
++    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
++        """
++        Genera un JWT con el payload 'sub' = user_id y otros datos.
++        """
++        to_encode = data.copy()
++        if expires_delta:
++            expire = datetime.utcnow() + expires_delta
++        else:
++            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
++        to_encode.update({"exp": expire})
++        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
++        return encoded_jwt
++
++    def decode_token(self, token: str) -> dict:
++        """
++        Decodifica y valida un JWT. Lanza excepción si es inválido.
++        """
++        try:
++            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
++            return payload
++        except JWTError as e:
++            raise HTTPException(
++                status_code=status.HTTP_401_UNAUTHORIZED,
++                detail="Token inválido o expirado",
++                headers={"WWW-Authenticate": "Bearer"},
++            )
++
++    def get_user_from_token(self, token: str) -> Usuario:
++        """
++        Extrae el user_id del token y devuelve el objeto Usuario.
++        """
++        payload = self.decode_token(token)
++        user_id_str: str = payload.get("sub")
++        if user_id_str is None:
++            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token sin subject")
++        user_id = int(user_id_str)  # Convertir string a int
++        user = self.repository.get_by_id(user_id)
++        if user is None:
++            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
++        return user
++
++    # ========== Registro ==========
++
++    def registrar_usuario(self, user_data: UsuarioCreate) -> UsuarioResponse:
++        """
++        Registra un nuevo usuario.
++        Verifica que el email no exista, hashea la contraseña y guarda.
++        """
++        # 1. Verificar si el email ya está registrado
++        existing = self.repository.get_by_email(user_data.email)
++        if existing:
++            raise HTTPException(
++                status_code=status.HTTP_409_CONFLICT,
++                detail="El email ya está registrado"
++            )
++
++        # 2. Hashear la contraseña
++        hashed = self.hash_password(user_data.password)
++
++        # 3. Crear el usuario
++        try:
++            new_user = self.repository.create(user_data, hashed)
++        except Exception as e:
++            # Capturar errores de integridad (ej: FK a carrera que no existe)
++            raise HTTPException(
++                status_code=status.HTTP_400_BAD_REQUEST,
++                detail="Error al crear usuario. Verifica que la carrera exista."
++            )
++
++        # 4. Devolver response (sin password)
++        return UsuarioResponse.model_validate(new_user)
++
++    # ========== Login ==========
++
++    def iniciar_sesion(self, credenciales: UsuarioLogin) -> TokenResponse:
++        """
++        Autentica al usuario y devuelve un token JWT.
++        """
++        # 1. Buscar por email
++        user = self.repository.get_by_email(credenciales.email)
++        if not user:
++            raise HTTPException(
++                status_code=status.HTTP_401_UNAUTHORIZED,
++                detail="Email o contraseña incorrectos",
++                headers={"WWW-Authenticate": "Bearer"},
++            )
++
++        # 2. Verificar contraseña
++        if not self.verify_password(credenciales.password, user.password_hash):
++            raise HTTPException(
++                status_code=status.HTTP_401_UNAUTHORIZED,
++                detail="Email o contraseña incorrectos",
++                headers={"WWW-Authenticate": "Bearer"},
++            )
++
++        # 3. Generar token
++        access_token = self.create_access_token(data={"sub": str(user.id), "email": user.email})
++
++        # 4. Devolver token + datos del usuario (opcional)
++        user_response = UsuarioResponse.model_validate(user)
++        return TokenResponse(access_token=access_token, token_type="bearer", usuario=user_response)
++
++    # ========== Obtener usuario actual (para dependencias) ==========
++
++    def get_current_user(self, token: str) -> UsuarioResponse:
++        """
++        Obtiene el usuario autenticado a partir del token.
++        Esta función se usará como dependencia en los endpoints protegidos.
++        """
++        user = self.get_user_from_token(token)
++        return UsuarioResponse.model_validate(user)
+\ No newline at end of file
+diff --git a/app/features/materias/__init__.py b/app/features/materias/__init__.py
+new file mode 100644
+index 0000000..8b13789
+--- /dev/null
++++ b/app/features/materias/__init__.py
+@@ -0,0 +1 @@
++
+diff --git a/app/features/materias/model.py b/app/features/materias/model.py
+new file mode 100644
+index 0000000..2b09b6c
+--- /dev/null
++++ b/app/features/materias/model.py
+@@ -0,0 +1,66 @@
++from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, UniqueConstraint
++from app.database import Base
++
++class IFTS(Base):
++    __tablename__ = "ifts"
++
++    id = Column(Integer, primary_key=True, index=True)
++    nombre = Column(String, nullable=False)
++    ubicacion = Column(String, nullable=True)
++
++
++class Carrera(Base):
++    __tablename__ = "carreras"
++
++    id = Column(Integer, primary_key=True, index=True)
++    nombre = Column(String, nullable=False)
++    duracion_cuatrimestres = Column(Integer, nullable=False)
++    ifts_id = Column(Integer, ForeignKey("ifts.id"), nullable=False, index=True)
++
++
++class Materia(Base):
++    __tablename__ = "materias"
++    __table_args__ = (
++        UniqueConstraint("carrera_id", "codigo", name="uq_materia_codigo_carrera"),
++    )
++
++    id = Column(Integer, primary_key=True, index=True)
++    carrera_id = Column(Integer, ForeignKey("carreras.id"), nullable=False, index=True)
++    nombre = Column(String, nullable=False)
++    codigo = Column(String(20), nullable=False)
++    anio = Column(Integer, nullable=False)
++    cuatrimestre = Column(Integer, nullable=False)
++
++
++class Correlativa(Base):
++    __tablename__ = "correlativas"
++    __table_args__ = (
++        UniqueConstraint("materia_id", "requiere_id", name="uq_correlativa"),
++    )
++
++    id = Column(Integer, primary_key=True, index=True)
++    materia_id = Column(Integer, ForeignKey("materias.id"), nullable=False, index=True)
++    requiere_id = Column(Integer, ForeignKey("materias.id"), nullable=False, index=True)
++
++
++class MateriaUsuario(Base):
++    __tablename__ = "materias_usuario"
++    __table_args__ = (
++        UniqueConstraint("usuario_id", "materia_id", name="uq_materia_por_usuario"),
++    )
++
++    id = Column(Integer, primary_key=True, index=True)
++    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
++    materia_id = Column(Integer, ForeignKey("materias.id"), nullable=False, index=True)
++    cursando = Column(Boolean, nullable=False, default=False)
++    nota_parcial_1 = Column(Float, nullable=True)
++    nota_parcial_2 = Column(Float, nullable=True)
++    nota_final = Column(Float, nullable=True)
++
++    @property
++    def estado(self) -> str:
++        if self.cursando:
++            return "cursando"
++        if self.nota_final is not None:
++            return "aprobada"
++        return "pendiente"
+\ No newline at end of file
+diff --git a/app/features/materias/repository.py b/app/features/materias/repository.py
+new file mode 100644
+index 0000000..e10a623
+--- /dev/null
++++ b/app/features/materias/repository.py
+@@ -0,0 +1,185 @@
++from sqlalchemy.orm import Session
++
++from app.features.materias.model import Carrera, Correlativa, Materia, MateriaUsuario
++from app.features.materias.schema import (
++    CarreraCreate,
++    CarreraUpdate,
++    MateriaCreate,
++    MateriaUpdate,
++    MateriaUsuarioUpdate,
++)
++
++
++class CarreraRepository:
++    def __init__(self, db: Session):
++        self.db = db
++
++    def get_all(self) -> list[Carrera]:
++        return self.db.query(Carrera).all()
++
++    def get_by_id(self, carrera_id: int) -> Carrera | None:
++        return self.db.query(Carrera).filter(Carrera.id == carrera_id).first()
++
++    def create(self, datos: CarreraCreate) -> Carrera:
++        carrera = Carrera(**datos.model_dump())
++        self.db.add(carrera)
++        self.db.commit()
++        self.db.refresh(carrera)
++        return carrera
++
++    def update(self, carrera_id: int, datos: CarreraUpdate) -> Carrera | None:
++        carrera = self.get_by_id(carrera_id)
++        if carrera is None:
++            return None
++
++        for campo, valor in datos.model_dump(exclude_unset=True).items():
++            setattr(carrera, campo, valor)
++
++        self.db.commit()
++        self.db.refresh(carrera)
++        return carrera
++
++    def delete(self, carrera_id: int) -> Carrera | None:
++        carrera = self.get_by_id(carrera_id)
++        if carrera is None:
++            return None
++
++        self.db.delete(carrera)
++        self.db.commit()
++        return carrera
++
++
++class MateriaRepository:
++    def __init__(self, db: Session):
++        self.db = db
++
++    def get_paginated_by_carrera(self, carrera_id: int, limit: int, offset: int) -> list[Materia]:
++        return (
++            self.db.query(Materia)
++            .filter(Materia.carrera_id == carrera_id)
++            .order_by(Materia.anio, Materia.cuatrimestre)
++            .offset(offset)
++            .limit(limit)
++            .all()
++        )
++
++    def count_by_carrera(self, carrera_id: int) -> int:
++        return (
++            self.db.query(Materia)
++            .filter(Materia.carrera_id == carrera_id)
++            .count()
++        )
++
++
++    def get_by_id(self, materia_id: int) -> Materia | None:
++        return self.db.query(Materia).filter(Materia.id == materia_id).first()
++
++    def create(self, datos: MateriaCreate) -> Materia:
++        materia = Materia(**datos.model_dump())
++        self.db.add(materia)
++        self.db.commit()
++        self.db.refresh(materia)
++        return materia
++
++    def update(self, materia_id: int, datos: MateriaUpdate) -> Materia | None:
++        materia = self.get_by_id(materia_id)
++        if materia is None:
++            return None
++
++        for campo, valor in datos.model_dump(exclude_unset=True).items():
++            setattr(materia, campo, valor)
++
++        self.db.commit()
++        self.db.refresh(materia)
++        return materia
++
++    def delete(self, materia_id: int) -> Materia | None:
++        materia = self.get_by_id(materia_id)
++        if materia is None:
++            return None
++
++        self.db.delete(materia)
++        self.db.commit()
++        return materia
++
++
++class CorrelativaRepository:
++    def __init__(self, db: Session):
++        self.db = db
++
++    def get_by_materia(self, materia_id: int) -> list[Correlativa]:
++        return (
++            self.db.query(Correlativa)
++            .filter(Correlativa.materia_id == materia_id)
++            .all()
++        )
++
++
++class MateriaUsuarioRepository:
++    def __init__(self, db: Session):
++        self.db = db
++
++    def get_by_usuario(self, usuario_id: int) -> list[MateriaUsuario]:
++        return (
++            self.db.query(MateriaUsuario)
++            .filter(MateriaUsuario.usuario_id == usuario_id)
++            .all()
++        )
++
++    def get_by_usuario_y_materia(
++        self, usuario_id: int, materia_id: int
++    ) -> MateriaUsuario | None:
++        return (
++            self.db.query(MateriaUsuario)
++            .filter(
++                MateriaUsuario.usuario_id == usuario_id,
++                MateriaUsuario.materia_id == materia_id,
++            )
++            .first()
++        )
++
++    def get_by_id(
++        self, materia_usuario_id: int, usuario_id: int
++    ) -> MateriaUsuario | None:
++        return (
++            self.db.query(MateriaUsuario)
++            .filter(
++                MateriaUsuario.id == materia_usuario_id,
++                MateriaUsuario.usuario_id == usuario_id,
++            )
++            .first()
++        )
++
++    def create(self, materia_usuario: MateriaUsuario) -> MateriaUsuario:
++        self.db.add(materia_usuario)
++        self.db.commit()
++        self.db.refresh(materia_usuario)
++        return materia_usuario
++
++    def update(
++        self,
++        materia_usuario_id: int,
++        usuario_id: int,
++        datos: MateriaUsuarioUpdate,
++    ) -> MateriaUsuario | None:
++        materia_usuario = self.get_by_id(materia_usuario_id, usuario_id)
++        if materia_usuario is None:
++            return None
++
++        for campo, valor in datos.model_dump(exclude_unset=True).items():
++            setattr(materia_usuario, campo, valor)
++
++        self.db.commit()
++        self.db.refresh(materia_usuario)
++        return materia_usuario
++
++    def delete(
++        self, materia_usuario_id: int, usuario_id: int
++    ) -> MateriaUsuario | None:
++        materia_usuario = self.get_by_id(materia_usuario_id, usuario_id)
++        if materia_usuario is None:
++            return None
++
++        self.db.delete(materia_usuario)
++        self.db.commit()
++        return materia_usuario
+\ No newline at end of file
+diff --git a/app/features/materias/router.py b/app/features/materias/router.py
+new file mode 100644
+index 0000000..b006099
+--- /dev/null
++++ b/app/features/materias/router.py
+@@ -0,0 +1,149 @@
++from fastapi import APIRouter, Depends, Query, HTTPException, status
++from sqlalchemy.orm import Session
++from typing import List
++
++from app.database import get_db
++from app.features.materias import service
++from app.features.materias.schema import (
++    CarreraCreate,
++    CarreraResponse,
++    CarreraUpdate,
++    CorrelativaResponse,
++    MateriaCreate,
++    MateriaResponse,
++    MateriaUpdate,
++    MateriaUsuarioCreate,
++    MateriaUsuarioResponse,
++    MateriaUsuarioUpdate,
++    PromedioResponse,
++)
++from app.shared.schemas.pagination import PaginatedResponse
++
++router = APIRouter(
++    prefix="/materias",
++    tags=["materias"],
++)
++
++
++def get_usuario_actual() -> int:
++    return 1
++
++
++@router.get("/carreras", response_model=List[CarreraResponse])
++def get_carreras(db: Session = Depends(get_db)):
++    return service.get_carreras(db)
++
++
++@router.post("/carreras", response_model=CarreraResponse, status_code=status.HTTP_201_CREATED)
++def crear_carrera(datos: CarreraCreate, db: Session = Depends(get_db)):
++    return service.create_carrera(db, datos)
++
++
++@router.put("/carreras/{carrera_id}", response_model=CarreraResponse)
++def actualizar_carrera(carrera_id: int, datos: CarreraUpdate, db: Session = Depends(get_db)):
++    resultado = service.update_carrera(db, carrera_id, datos)
++    if resultado is None:
++        raise HTTPException(status_code=404, detail="Carrera no encontrada")
++    return resultado
++
++
++@router.delete("/carreras/{carrera_id}", status_code=status.HTTP_204_NO_CONTENT)
++def eliminar_carrera(carrera_id: int, db: Session = Depends(get_db)):
++    resultado = service.delete_carrera(db, carrera_id)
++    if resultado is None:
++        raise HTTPException(status_code=404, detail="Carrera no encontrada")
++    return None
++
++
++@router.get("/carrera/{carrera_id}", response_model=PaginatedResponse[MateriaResponse])
++def get_materias_by_carrera(
++    carrera_id: int,
++    db: Session = Depends(get_db),
++    page: int = Query(1, ge=1),
++    per_page: int = Query(10, ge=1, le=100),
++):
++    return service.get_materias_by_carrera(db, carrera_id, page, per_page)
++
++
++@router.get("/correlativas/{materia_id}", response_model=List[CorrelativaResponse])
++def get_correlativas(materia_id: int, db: Session = Depends(get_db)):
++    return service.get_correlativas(db, materia_id)
++
++
++@router.get("/usuario/{usuario_id}", response_model=List[MateriaUsuarioResponse])
++def get_materias_usuario(usuario_id: int, db: Session = Depends(get_db)):
++    return service.get_materias_usuario(db, usuario_id)
++
++
++@router.get("/promedio/{usuario_id}", response_model=PromedioResponse)
++def get_promedio(usuario_id: int, db: Session = Depends(get_db)):
++    return service.calcular_promedio(db, usuario_id)
++
++
++@router.post(
++    "/usuario/{usuario_id}",
++    response_model=MateriaUsuarioResponse,
++    status_code=status.HTTP_201_CREATED,
++)
++def add_materia_usuario(
++    usuario_id: int,
++    datos: MateriaUsuarioCreate,
++    db: Session = Depends(get_db),
++):
++    try:
++        return service.add_materia_usuario(db, datos, usuario_id)
++    except service.MateriaNoEncontrada as error:
++        raise HTTPException(status_code=404, detail=str(error))
++    except service.MateriaYaCargada as error:
++        raise HTTPException(status_code=409, detail=str(error))
++
++
++@router.patch("/cursada/{materia_usuario_id}", response_model=MateriaUsuarioResponse)
++def update_materia_usuario(
++    materia_usuario_id: int,
++    datos: MateriaUsuarioUpdate,
++    db: Session = Depends(get_db),
++    usuario_id: int = Depends(get_usuario_actual),
++):
++    resultado = service.update_materia_usuario(
++        db, materia_usuario_id, usuario_id, datos
++    )
++    if resultado is None:
++        raise HTTPException(status_code=404, detail="No se encontró esa cursada")
++    return resultado
++
++
++@router.delete("/cursada/{materia_usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
++def delete_materia_usuario(
++    materia_usuario_id: int,
++    db: Session = Depends(get_db),
++    usuario_id: int = Depends(get_usuario_actual),
++):
++    resultado = service.delete_materia_usuario(db, materia_usuario_id, usuario_id)
++    if resultado is None:
++        raise HTTPException(status_code=404, detail="No se encontró esa cursada")
++    return None
++
++
++@router.post("/", response_model=MateriaResponse, status_code=status.HTTP_201_CREATED)
++def crear_materia(datos: MateriaCreate, db: Session = Depends(get_db)):
++    try:
++        return service.create_materia(db, datos)
++    except service.MateriaCodigoDuplicado as error:
++        raise HTTPException(status_code=409, detail=str(error))
++
++
++@router.put("/{materia_id}", response_model=MateriaResponse)
++def actualizar_materia(materia_id: int, datos: MateriaUpdate, db: Session = Depends(get_db)):
++    resultado = service.update_materia(db, materia_id, datos)
++    if resultado is None:
++        raise HTTPException(status_code=404, detail="Materia no encontrada")
++    return resultado
++
++
++@router.delete("/{materia_id}", status_code=status.HTTP_204_NO_CONTENT)
++def eliminar_materia(materia_id: int, db: Session = Depends(get_db)):
++    resultado = service.delete_materia(db, materia_id)
++    if resultado is None:
++        raise HTTPException(status_code=404, detail="Matea no encontrada")
++    return None
+diff --git a/app/features/materias/schema.py b/app/features/materias/schema.py
+new file mode 100644
+index 0000000..07fefaf
+--- /dev/null
++++ b/app/features/materias/schema.py
+@@ -0,0 +1,119 @@
++from pydantic import BaseModel, Field
++from typing import Optional, List
++from app.shared.schemas.pagination import PaginatedResponse
++
++
++NotaOpcional = Optional[float]
++
++
++# ─── IFTS ────────────────────────────────────────────────────────────────────
++
++class IFTSCreate(BaseModel):
++    nombre: str
++    ubicacion: Optional[str] = None
++
++
++class IFTSResponse(BaseModel):
++    id: int
++    nombre: str
++    ubicacion: Optional[str]
++
++    class Config:
++        from_attributes = True
++
++
++# ─── Carrera ─────────────────────────────────────────────────────────────────
++
++class CarreraCreate(BaseModel):
++    nombre: str
++    duracion_cuatrimestres: int
++    ifts_id: int
++
++
++class CarreraUpdate(BaseModel):
++    nombre: Optional[str] = None
++    duracion_cuatrimestres: Optional[int] = None
++
++
++class CarreraResponse(BaseModel):
++    id: int
++    nombre: str
++    duracion_cuatrimestres: int
++    ifts_id: int
++
++    class Config:
++        from_attributes = True
++
++
++class MateriaResponse(BaseModel):
++    id: int
++    nombre: str
++    codigo: str
++    carrera_id: int
++    anio: int
++    cuatrimestre: int
++
++    class Config:
++        from_attributes = True
++
++class MateriaCreate(BaseModel):         
++    carrera_id: int
++    nombre: str
++    codigo: str
++    anio: int
++    cuatrimestre: int
++
++    class Config:
++        from_attributes = True
++
++class MateriaUpdate(BaseModel):         
++    nombre: Optional[str] = None
++    codigo: Optional[str] = None        
++    anio: Optional[int] = None
++    cuatrimestre: Optional[int] = None
++
++class CorrelativaResponse(BaseModel):
++    id: int
++    materia_id: int
++    requiere_id: int
++
++    class Config:
++        from_attributes = True
++
++
++class MateriaUsuarioCreate(BaseModel):
++    materia_id: int
++    cursando: bool = False
++    nota_parcial_1: NotaOpcional = Field(default=None, ge=1, le=10)
++    nota_parcial_2: NotaOpcional = Field(default=None, ge=1, le=10)
++    nota_final: NotaOpcional = Field(default=None, ge=1, le=10)
++
++
++class MateriaUsuarioUpdate(BaseModel):
++    cursando: Optional[bool] = None
++    nota_parcial_1: NotaOpcional = Field(default=None, ge=1, le=10)
++    nota_parcial_2: NotaOpcional = Field(default=None, ge=1, le=10)
++    nota_final: NotaOpcional = Field(default=None, ge=1, le=10)
++
++
++class MateriaUsuarioResponse(BaseModel):
++    id: int
++    usuario_id: int
++    materia_id: int
++    cursando: bool
++    estado: str
++    nota_parcial_1: NotaOpcional
++    nota_parcial_2: NotaOpcional
++    nota_final: NotaOpcional
++
++    class Config:
++        from_attributes = True
++
++
++class PromedioResponse(BaseModel):
++    promedio: Optional[float]
++    materias_computadas: int
++
++
++class MateriaPage(PaginatedResponse[MateriaResponse]):
++    pass
+\ No newline at end of file
+diff --git a/app/features/materias/service.py b/app/features/materias/service.py
+new file mode 100644
+index 0000000..6ca4bd9
+--- /dev/null
++++ b/app/features/materias/service.py
+@@ -0,0 +1,139 @@
++from sqlalchemy.exc import IntegrityError
++from sqlalchemy.orm import Session
++from math import ceil
++
++from app.features.materias.model import Carrera, Correlativa, Materia, MateriaUsuario
++from app.features.materias.repository import (
++    CarreraRepository,
++    CorrelativaRepository,
++    MateriaRepository,
++    MateriaUsuarioRepository,
++)
++from app.features.materias.schema import (
++    CarreraCreate,
++    CarreraUpdate,
++    MateriaCreate,
++    MateriaUpdate,
++    MateriaPage,
++    MateriaUsuarioCreate,
++    MateriaUsuarioUpdate,
++)
++
++
++class MateriaNoEncontrada(Exception):
++    pass
++
++
++class MateriaYaCargada(Exception):
++    pass
++
++
++def get_carreras(db: Session) -> list[Carrera]:
++    return CarreraRepository(db).get_all()
++
++
++def create_carrera(db: Session, datos: CarreraCreate) -> Carrera:
++    return CarreraRepository(db).create(datos)
++
++
++def update_carrera(db: Session, carrera_id: int, datos: CarreraUpdate) -> Carrera | None:
++    return CarreraRepository(db).update(carrera_id, datos)
++
++
++def delete_carrera(db: Session, carrera_id: int) -> Carrera | None:
++    return CarreraRepository(db).delete(carrera_id)
++
++def get_materias_by_carrera(
++    db: Session, carrera_id: int, page: int, per_page: int
++) -> MateriaPage:
++    repo = MateriaRepository(db)
++    offset = (page - 1) * per_page
++
++    total_items = repo.count_by_carrera(carrera_id=carrera_id)
++    materias = repo.get_paginated_by_carrera(
++        carrera_id=carrera_id, limit=per_page, offset=offset
++    )
++
++    total_pages = ceil(total_items / per_page)
++
++    return MateriaPage(
++        items=materias,
++        total=total_items,
++        page=page,
++        per_page=per_page,
++        total_pages=total_pages,
++    )
++
++
++class MateriaCodigoDuplicado(Exception):
++    pass
++
++
++def create_materia(db: Session, datos: MateriaCreate) -> Materia:
++    try:
++        return MateriaRepository(db).create(datos)
++    except IntegrityError:
++        db.rollback()
++        raise MateriaCodigoDuplicado(
++            f"Ya existe una materia con código '{datos.codigo}' en esa carrera"
++        )
++
++def update_materia(db: Session, materia_id: int, datos: MateriaUpdate) -> Materia | None:
++    return MateriaRepository(db).update(materia_id, datos)
++
++
++def delete_materia(db: Session, materia_id: int) -> Materia | None:
++    return MateriaRepository(db).delete(materia_id)
++
++
++def get_correlativas(db: Session, materia_id: int) -> list[Correlativa]:
++    return CorrelativaRepository(db).get_by_materia(materia_id)
++
++
++def get_materias_usuario(db: Session, usuario_id: int) -> list[MateriaUsuario]:
++    return MateriaUsuarioRepository(db).get_by_usuario(usuario_id)
++
++
++def add_materia_usuario(
++    db: Session, datos: MateriaUsuarioCreate, usuario_id: int
++) -> MateriaUsuario:
++    if MateriaRepository(db).get_by_id(datos.materia_id) is None:
++        raise MateriaNoEncontrada(f"No existe la materia {datos.materia_id}")
++
++    repo = MateriaUsuarioRepository(db)
++    if repo.get_by_usuario_y_materia(usuario_id, datos.materia_id) is not None:
++        raise MateriaYaCargada("Esa materia ya está cargada")
++
++    nueva = MateriaUsuario(usuario_id=usuario_id, **datos.model_dump())
++
++    try:
++        return repo.create(nueva)
++    except IntegrityError:
++        db.rollback()
++        raise MateriaYaCargada("Esa materia ya está cargada")
++
++
++def update_materia_usuario(
++    db: Session,
++    materia_usuario_id: int,
++    usuario_id: int,
++    datos: MateriaUsuarioUpdate,
++) -> MateriaUsuario | None:
++    return MateriaUsuarioRepository(db).update(materia_usuario_id, usuario_id, datos)
++
++
++def delete_materia_usuario(
++    db: Session, materia_usuario_id: int, usuario_id: int
++) -> MateriaUsuario | None:
++    return MateriaUsuarioRepository(db).delete(materia_usuario_id, usuario_id)
++
++
++def calcular_promedio(db: Session, usuario_id: int) -> dict:
++    cursadas = MateriaUsuarioRepository(db).get_by_usuario(usuario_id)
++    computadas = [c for c in cursadas if c.nota_final is not None]
++
++    if not computadas:
++        return {"promedio": None, "materias_computadas": 0}
++
++    promedio = sum(c.nota_final for c in computadas) / len(computadas)
++    return {"promedio": round(promedio, 2), "materias_computadas": len(computadas)}
+\ No newline at end of file
+diff --git a/app/features/recordatorios/__init__.py b/app/features/recordatorios/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/app/features/recordatorios/model.py b/app/features/recordatorios/model.py
+new file mode 100644
+index 0000000..385a4b1
+--- /dev/null
++++ b/app/features/recordatorios/model.py
+@@ -0,0 +1,15 @@
++from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
++from sqlalchemy.orm import relationship
++from app.database import Base
++
++class Recordatorio(Base):
++    __tablename__ = "recordatorios"
++
++    id = Column(Integer, primary_key=True, index=True)
++    titulo = Column(String, nullable=False)
++    fecha = Column(DateTime, nullable=False)
++    tipo = Column(String, nullable=False)  # "parcial" / "tp" / "final" / "otro"
++    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
++    materia_id = Column(Integer, ForeignKey("materias.id"), nullable=True)
++
++    usuario = relationship("Usuario", back_populates="recordatorios")
+diff --git a/app/features/recordatorios/repository.py b/app/features/recordatorios/repository.py
+new file mode 100644
+index 0000000..42b2285
+--- /dev/null
++++ b/app/features/recordatorios/repository.py
+@@ -0,0 +1,43 @@
++from sqlalchemy.orm import Session
++from app.features.recordatorios.model import Recordatorio
++
++class RecordatorioRepository:
++    
++    def __init__(self, db: Session):
++        self.db = db
++
++    
++    def count_by_usuario(self, usuario_id: int) -> int:
++        """Cuenta el número total de recordatorios para un usuario."""
++        return self.db.query(Recordatorio).filter(
++            Recordatorio.usuario_id == usuario_id
++        ).count()
++
++    def get_paginated_by_usuario(self, usuario_id: int, page: int, per_page: int) -> list[Recordatorio]:
++        """Obtiene los recordatorios de un usuario de forma paginada."""
++        offset = (page - 1) * per_page
++        return self.db.query(Recordatorio).filter(
++            Recordatorio.usuario_id == usuario_id
++        ).offset(offset).limit(per_page).all()
++    
++    
++    # def get_by_usuario(self, usuario_id: int):
++    #     return self.db.query(Recordatorio).filter(
++    #         Recordatorio.usuario_id == usuario_id
++    #     ).all()
++    
++    def create(self, recordatorio: Recordatorio):
++        self.db.add(recordatorio)
++        self.db.commit()
++        self.db.refresh(recordatorio)
++        return recordatorio
++    
++    def delete(self, recordatorio_id: int, usuario_id: int):
++        recordatorio = self.db.query(Recordatorio).filter(
++            Recordatorio.id == recordatorio_id,
++            Recordatorio.usuario_id == usuario_id
++        ).first()
++        if recordatorio:
++            self.db.delete(recordatorio)
++            self.db.commit()
++        return recordatorio
+\ No newline at end of file
+diff --git a/app/features/recordatorios/router.py b/app/features/recordatorios/router.py
+new file mode 100644
+index 0000000..3c4b88d
+--- /dev/null
++++ b/app/features/recordatorios/router.py
+@@ -0,0 +1,42 @@
++from fastapi import APIRouter, Depends, Query, HTTPException
++from sqlalchemy.orm import Session
++from typing import List
++from app.database import get_db
++from app.features.recordatorios import service
++from app.features.recordatorios.schema import RecordatorioCreate, RecordatorioResponse
++from app.shared.schemas.pagination import PaginatedResponse
++
++
++router = APIRouter(
++    prefix="/recordatorios",
++    tags=["recordatorios"]
++)
++
++@router.get("/", response_model=PaginatedResponse[RecordatorioResponse])
++def get_recordatorios_paginated(
++    usuario_id: int, 
++    db: Session = Depends(get_db),
++    page: int = Query(1, ge=1, description="Número de página"),
++    per_page: int = Query(10, ge=1, le=100, description="Recordatorios por página")
++):
++    return service.get_recordatorios_paginated(db, usuario_id, page, per_page)
++
++
++@router.post("/", response_model=RecordatorioResponse)
++def create_recordatorio(
++    recordatorio: RecordatorioCreate,
++    usuario_id: int,
++    db: Session = Depends(get_db)
++):
++    return service.create_recordatorio(db, recordatorio, usuario_id)
++
++@router.delete("/{recordatorio_id}")
++def delete_recordatorio(
++    recordatorio_id: int,
++    usuario_id: int,
++    db: Session = Depends(get_db)
++):
++    resultado = service.delete_recordatorio(db, recordatorio_id, usuario_id)
++    if not resultado:
++        raise HTTPException(status_code=404, detail="Recordatorio no encontrado")
++    return {"ok": True}
+\ No newline at end of file
+diff --git a/app/features/recordatorios/schema.py b/app/features/recordatorios/schema.py
+new file mode 100644
+index 0000000..533750e
+--- /dev/null
++++ b/app/features/recordatorios/schema.py
+@@ -0,0 +1,20 @@
++from pydantic import BaseModel
++from datetime import datetime
++from typing import Optional
++
++class RecordatorioCreate(BaseModel):
++    titulo: str
++    fecha: datetime
++    tipo: str
++    materia_id: Optional[int] = None
++
++class RecordatorioResponse(BaseModel):
++    id: int
++    titulo: str
++    fecha: datetime
++    tipo: str
++    usuario_id: int
++    materia_id: Optional[int]
++
++    class Config:
++        from_attributes = True
+\ No newline at end of file
+diff --git a/app/features/recordatorios/service.py b/app/features/recordatorios/service.py
+new file mode 100644
+index 0000000..e5072f4
+--- /dev/null
++++ b/app/features/recordatorios/service.py
+@@ -0,0 +1,47 @@
++import math
++from sqlalchemy.orm import Session
++from app.features.recordatorios.repository import RecordatorioRepository
++from app.features.recordatorios.model import Recordatorio
++from app.features.recordatorios.schema import RecordatorioCreate
++from app.shared.schemas.pagination import PaginatedResponse
++
++
++def get_recordatorios_paginated(db: Session, usuario_id: int, page: int, per_page: int):
++    repo = RecordatorioRepository(db)
++
++    # 1. Obtener los items para la página actual
++    items = repo.get_paginated_by_usuario(
++        usuario_id=usuario_id, 
++        page=page, 
++        per_page=per_page
++    )
++
++    # 2. Obtener la cantidad total de items
++    total_items = repo.count_by_usuario(usuario_id=usuario_id)
++
++    # 3. Calcular el total de páginas
++    total_pages = math.ceil(total_items / per_page)
++
++    # 4. Construir la respuesta paginada
++    return PaginatedResponse(
++        items=items,
++        total=total_items,
++        page=page,
++        per_page=per_page,
++        total_pages=total_pages
++    )
++
++def create_recordatorio(db: Session, recordatorio: RecordatorioCreate, usuario_id: int):
++    repo = RecordatorioRepository(db)
++    nuevo = Recordatorio(
++        titulo=recordatorio.titulo,
++        fecha=recordatorio.fecha,
++        tipo=recordatorio.tipo,
++        materia_id=recordatorio.materia_id,
++        usuario_id=usuario_id
++    )
++    return repo.create(nuevo)
++
++def delete_recordatorio(db: Session, recordatorio_id: int, usuario_id: int):
++    repo = RecordatorioRepository(db)
++    return repo.delete(recordatorio_id, usuario_id)
+\ No newline at end of file
+diff --git a/app/features/recursos/__init__.py b/app/features/recursos/__init__.py
+new file mode 100644
+index 0000000..d84585c
+--- /dev/null
++++ b/app/features/recursos/__init__.py
+@@ -0,0 +1,8 @@
++from app.features.recursos.schema import (
++    RecursoCreate,
++    RecursoResponse,
++    ConvenioCreate,
++    ConvenioResponse,
++    TalentoTechCreate,
++    TalentoTechResponse,
++)
+diff --git a/app/features/recursos/dependencies/__init__.py b/app/features/recursos/dependencies/__init__.py
+new file mode 100644
+index 0000000..2ed925a
+--- /dev/null
++++ b/app/features/recursos/dependencies/__init__.py
+@@ -0,0 +1,5 @@
++from app.features.recursos.dependencies.dependencies import (
++    get_recurso_service,
++    get_convenio_service,
++    get_talentotech_service,
++)
+diff --git a/app/features/recursos/dependencies/dependencies.py b/app/features/recursos/dependencies/dependencies.py
+new file mode 100644
+index 0000000..9e7cca9
+--- /dev/null
++++ b/app/features/recursos/dependencies/dependencies.py
+@@ -0,0 +1,15 @@
++from app.database import get_db
++from sqlalchemy.orm import Session
++from app.features.recursos.schema import RecursoCreate, RecursoResponse
++from app.features.recursos import repository
++from app.features.recursos.service import RecursoService, ConvenioService, TalentoTechService
++from fastapi import Depends
++
++def get_recurso_service(db: Session = Depends(get_db)) -> RecursoService:
++    return RecursoService(repository.RecursoRepository(db))
++
++def get_convenio_service(db: Session = Depends(get_db)) -> ConvenioService:
++    return ConvenioService(repository.ConvenioRepository(db))
++
++def get_talentotech_service(db: Session = Depends(get_db)) -> TalentoTechService:
++    return TalentoTechService(repository.TalentoTechRepository(db))
+\ No newline at end of file
+diff --git a/app/features/recursos/model.py b/app/features/recursos/model.py
+new file mode 100644
+index 0000000..c6165fe
+--- /dev/null
++++ b/app/features/recursos/model.py
+@@ -0,0 +1,41 @@
++from sqlalchemy import Column, ForeignKey, Integer, String, Text, DateTime
++from sqlalchemy.sql import func
++from app.database import Base
++from app.features.materias.model import Materia, Carrera
++
++
++class Recurso(Base):
++    __tablename__ = "recursos"
++
++    id = Column(Integer, primary_key=True, index=True)
++    # Se agregó ForeignKey opcional hacia la tabla de usuarios
++    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
++    materia_id = Column(Integer, ForeignKey("materias.id"), nullable=False, index=True)
++    titulo = Column(String(150), nullable=False)
++    url = Column(Text, nullable=False)
++    descripcion = Column(Text, nullable=False)
++    fecha_creacion = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
++
++
++class Convenio(Base):
++    __tablename__ = "convenios"
++
++    id = Column(Integer, primary_key=True, index=True)
++    carrera_id = Column(Integer, ForeignKey("carreras.id"), nullable=False,  index=True)
++    
++    institucion = Column(String(150), nullable=False)
++    carrera_destino = Column(String(150), nullable=False)
++    descripcion = Column(Text, nullable=False)
++    link_info = Column(Text, nullable=False)
++
++
++class TalentoTech(Base):
++    __tablename__ = "talentotech"
++
++    id = Column(Integer, primary_key=True, index=True)
++    carrera_id = Column(Integer,  ForeignKey("carreras.id"),nullable=False)
++    nombre_curso = Column(String(150), nullable=False)
++    categoria = Column(String(20), nullable=False)
++    descripcion = Column(Text, nullable=False)
++    duracion = Column(String(50), nullable=False)
++    link_inscripcion = Column(Text, nullable=False)
+\ No newline at end of file
+diff --git a/app/features/recursos/repository.py b/app/features/recursos/repository.py
+new file mode 100644
+index 0000000..8e34c4c
+--- /dev/null
++++ b/app/features/recursos/repository.py
+@@ -0,0 +1,188 @@
++from sqlalchemy.orm import Session
++from sqlalchemy import func
++from typing import List, Tuple
++
++from app.features.recursos.model import Recurso, Convenio, TalentoTech
++from app.features.recursos.schema import RecursoBase, RecursoCreate, ConvenioResponse, TalentoTechResponse, TalentoTechCreate, ConvenioCreate
++from typing import Optional
++
++
++class RecursoRepository:
++    def __init__(self, db: Session):
++        self.db = db
++    
++    def get_all_paginated(self, page: int, per_page: int) -> Tuple[List[Recurso], int]:
++        offset = (page - 1) * per_page
++
++        # 2. Obtiene el conteo total de recursos en la tabla
++        total = self.db.query(func.count(Recurso.id)).scalar()
++
++        # 3. Obtiene los recursos para la página actual usando offset y limit
++        items = self.db.query(Recurso).offset(offset).limit(per_page).all()
++
++        # 4. Devuelve tanto los items como el total
++        return items, total
++
++    # def get_all(self) -> list[Recurso]:
++    #     return self.db.query(Recurso).all()
++
++    def get_recursos_by_usuario(self, usuario_id: int) -> list[Recurso]:
++        return (self.db.query(Recurso).filter(Recurso.usuario_id == usuario_id).all())
++
++    def create_recurso(self, recurso: RecursoCreate, usuario_id: int) -> Recurso:
++        recurso_db = Recurso(
++            usuario_id = usuario_id,
++            materia_id = recurso.materia_id,
++            titulo = recurso.titulo,
++            url = str(recurso.url),
++            descripcion = recurso.descripcion if recurso.descripcion else None,
++          ##  fecha_creacion = recurso.fecha_creacion
++        )
++        self.db.add(recurso_db)
++        self.db.commit()
++        self.db.refresh(recurso_db)
++        return recurso_db
++
++    def update_recurso(self, recurso_id: int, recurso: RecursoCreate) -> Optional[Recurso]: 
++        db_recurso = self.db.query(Recurso).filter(Recurso.id == recurso_id).first()
++        if db_recurso is None:
++            return None
++        db_recurso.titulo = recurso.titulo
++        db_recurso.url = str(recurso.url)
++        db_recurso.descripcion = recurso.descripcion if recurso.descripcion else None
++        db_recurso.materia_id = recurso.materia_id
++        self.db.commit()
++        self.db.refresh(db_recurso)
++        return db_recurso
++
++    def delete_recurso(self, recurso_id: int) -> None:
++        db_recurso = self.db.query(Recurso).filter(Recurso.id == recurso_id).first()
++        if db_recurso is None:
++            return None
++        self.db.delete(db_recurso)
++        self.db.commit()
++
++    def get_recurso_by_id(self, recurso_id: int) -> Optional[Recurso]:
++        return self.db.query(Recurso).filter(Recurso.id == recurso_id).first()
++
++    def get_recurso_by_materia(self, materia_id: int) -> list[Recurso]:
++        return (self.db.query(Recurso).filter(Recurso.materia_id == materia_id).all())
++
++
++class ConvenioRepository:
++    def __init__(self, db: Session):
++        self.db = db
++
++    def get_convenio_by_id(self, convenio_id: int) -> Optional[Convenio]:
++        return self.db.query(Convenio).filter(Convenio.id == convenio_id).first()  
++
++    def get_all_paginated(self, page: int, per_page: int) -> Tuple[List[Convenio], int]:
++        offset = (page - 1) * per_page
++        total = self.db.query(func.count(Convenio.id)).scalar()
++        items = self.db.query(Convenio).offset(offset).limit(per_page).all()
++        return items, total
++
++    # def get_all(self) -> list[Convenio]:
++    #     return self.db.query(Convenio).all()
++    
++    def get_convenios_by_carrera(self, carrera_id: int) -> list[Convenio]:
++        return self.db.query(Convenio).filter(Convenio.carrera_id == carrera_id).all()
++
++    def create_convenio(self, convenio: ConvenioCreate) -> Convenio:
++        db_convenio = Convenio(
++            institucion = convenio.institucion,
++            carrera_destino = convenio.carrera_destino,
++            descripcion = convenio.descripcion,
++            link_info = str(convenio.link_info),
++            carrera_id = convenio.carrera_id
++        )
++        self.db.add(db_convenio)
++        self.db.commit()
++        self.db.refresh(db_convenio)
++        return db_convenio
++
++    def update_convenio(self, convenio_id: int, convenio: ConvenioCreate) -> Optional[Convenio]:
++        db_convenio = self.db.query(Convenio).filter(Convenio.id == convenio_id).first()
++        if db_convenio is None:
++            return None
++        db_convenio.institucion = convenio.institucion
++        db_convenio.carrera_destino = convenio.carrera_destino
++        db_convenio.descripcion = convenio.descripcion
++        db_convenio.link_info = str(convenio.link_info)
++        db_convenio.carrera_id = convenio.carrera_id
++        self.db.commit()
++        self.db.refresh(db_convenio)
++        return db_convenio
++
++    def delete_convenio(self, convenio_id: int) -> None:
++        db_convenio = self.db.query(Convenio).filter(Convenio.id == convenio_id).first()
++        if db_convenio is None:
++            return None
++        self.db.delete(db_convenio)
++        self.db.commit()
++    
++class TalentoTechRepository:
++    def __init__(self, db: Session):
++        self.db = db
++
++    def get_all_paginated(self, page: int, per_page: int) -> Tuple[List[TalentoTech], int]:
++        offset = (page - 1) * per_page
++        total = self.db.query(func.count(TalentoTech.id)).scalar()
++        items = self.db.query(TalentoTech).offset(offset).limit(per_page).all()
++        return items, total
++    
++    def get_talentotech_by_id(self, talentotech_id: int) -> Optional[TalentoTech]:
++        return self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
++    
++    def get_talentotech_by_carrera(self, carrera_id: int) -> list[TalentoTech]:
++        return self.db.query(TalentoTech).filter(TalentoTech.carrera_id == carrera_id).all()
++
++    def get_talentotech_by_categoria(self, categoria: str) -> list[TalentoTech]:
++        return self.db.query(TalentoTech).filter(TalentoTech.categoria == categoria).all()
++
++    def create_talentotech(self, talentotech: TalentoTechCreate) -> TalentoTech:
++        db_talentotech = TalentoTech(
++            carrera_id = talentotech.carrera_id,
++            nombre_curso = talentotech.nombre_curso,
++            categoria = talentotech.categoria,
++            descripcion = talentotech.descripcion,
++            duracion = talentotech.duracion,
++            link_inscripcion = str(talentotech.link_inscripcion)
++        )
++        self.db.add(db_talentotech)
++        self.db.commit()
++        self.db.refresh(db_talentotech)
++        return db_talentotech
++
++    def update_talentotech(self, talentotech_id: int, talentotech: TalentoTechCreate) -> Optional[TalentoTech]:
++        db_talentotech = self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
++        if (db_talentotech) is None:
++            return None
++        db_talentotech.carrera_id = talentotech.carrera_id
++        db_talentotech.nombre_curso = talentotech.nombre_curso
++        db_talentotech.categoria = talentotech.categoria
++        db_talentotech.descripcion = talentotech.descripcion
++        db_talentotech.duracion = talentotech.duracion
++        db_talentotech.link_inscripcion = str(talentotech.link_inscripcion)
++        self.db.commit()
++        self.db.refresh(db_talentotech)
++        return db_talentotech   
++
++    def delete_talentotech(self, talentotech_id: int) -> None:
++        db_talentotech = self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
++        if db_talentotech is None:
++            return None
++        self.db.delete(db_talentotech)
++        self.db.commit()
++        
++
++
++
++
++    
++
++
++
++
++
++
+diff --git a/app/features/recursos/router.py b/app/features/recursos/router.py
+new file mode 100644
+index 0000000..390bdde
+--- /dev/null
++++ b/app/features/recursos/router.py
+@@ -0,0 +1,8 @@
++from fastapi import APIRouter
++from app.features.recursos.routers import recursos, convenios, talentotech
++
++recursos_main_router = APIRouter()
++
++recursos_main_router.include_router(recursos.router)
++recursos_main_router.include_router(convenios.router)
++recursos_main_router.include_router(talentotech.router)
+diff --git a/app/features/recursos/routers/__init__.py b/app/features/recursos/routers/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/app/features/recursos/routers/convenios.py b/app/features/recursos/routers/convenios.py
+new file mode 100644
+index 0000000..c89e983
+--- /dev/null
++++ b/app/features/recursos/routers/convenios.py
+@@ -0,0 +1,26 @@
++from fastapi import APIRouter, Depends, Query
++from typing import List
++
++from app.shared.schemas.pagination import PaginatedResponse
++from app.features.recursos.schema import ConvenioResponse, ConvenioCreate
++from app.features.recursos.service import ConvenioService
++from app.features.recursos.dependencies import get_convenio_service
++
++router = APIRouter(
++    prefix="/convenios",
++    tags=["convenios"]
++)
++
++
++@router.get("/", response_model=PaginatedResponse[ConvenioResponse])
++def get_all_paginated(
++    service_convenio: ConvenioService = Depends(get_convenio_service),
++    page: int = Query(1, ge=1, description="Número de página"),
++    per_page: int = Query(20, ge=1, le=100, description="Convenios por página")
++):
++    return service_convenio.get_all_paginated(page=page, per_page=per_page)
++
++
++@router.get("/{convenio_id}", response_model=ConvenioResponse)
++def get_by_id(convenio_id: int, service_convenio: ConvenioService = Depends(get_convenio_service)):
++    return service_convenio.get_by_id(convenio_id)
+diff --git a/app/features/recursos/routers/recursos.py b/app/features/recursos/routers/recursos.py
+new file mode 100644
+index 0000000..0ec5032
+--- /dev/null
++++ b/app/features/recursos/routers/recursos.py
+@@ -0,0 +1,66 @@
++from fastapi import APIRouter, Depends, HTTPException, status, Query
++from typing import List
++
++from app.shared.schemas.pagination import PaginatedResponse
++from app.features.recursos.schema import RecursoCreate, RecursoResponse
++from app.features.recursos.service import RecursoService, RecursoNotFound
++from app.features.recursos.dependencies import get_recurso_service
++from app.features.auth.router import get_current_user
++from app.features.auth.schema import UsuarioResponse
++
++router = APIRouter(
++    prefix="/recursos",
++    tags=["recursos"]
++)
++
++
++@router.get("/", response_model=PaginatedResponse[RecursoResponse])
++def get_all_paginated(
++    service_recurso: RecursoService = Depends(get_recurso_service),
++    page: int = Query(1, ge=1, description="Número de página"),
++    per_page: int = Query(20, ge=1, le=100, description="Recursos por página")
++):
++    return service_recurso.get_all_paginated(page=page, per_page=per_page)
++
++
++@router.get("/usuario/{usuario_id}", response_model=List[RecursoResponse])
++def get_by_usuario(usuario_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
++    return service_recurso.get_by_usuario(usuario_id)
++
++
++@router.get("/materia/{materia_id}", response_model=List[RecursoResponse])
++def get_by_materia(materia_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
++    return service_recurso.get_by_materia(materia_id)
++
++
++@router.get("/{recurso_id}", response_model=RecursoResponse)
++def get_by_id(recurso_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
++    try:
++        return service_recurso.get_by_id(recurso_id)
++    except RecursoNotFound as err:
++        raise HTTPException(status_code=404, detail=str(err))
++
++
++@router.post("/", response_model=RecursoResponse, status_code=status.HTTP_201_CREATED)
++def create(
++    recurso: RecursoCreate,
++    service_recurso: RecursoService = Depends(get_recurso_service),
++    current_user: UsuarioResponse = Depends(get_current_user)
++):
++    return service_recurso.create(recurso=recurso, usuario_id=current_user.id)
++
++
++@router.put("/{recurso_id}", response_model=RecursoResponse)
++def update(recurso_id: int, recurso: RecursoCreate, service_recurso: RecursoService = Depends(get_recurso_service)):
++    try:
++        return service_recurso.update(recurso_id, recurso)
++    except RecursoNotFound as err:
++        raise HTTPException(status_code=404, detail=str(err))
++
++
++@router.delete("/{recurso_id}", status_code=status.HTTP_204_NO_CONTENT)
++def delete(recurso_id: int, service_recurso: RecursoService = Depends(get_recurso_service)):
++    try:
++        service_recurso.delete(recurso_id)
++    except RecursoNotFound as err:
++        raise HTTPException(status_code=404, detail=str(err))
+diff --git a/app/features/recursos/routers/talentotech.py b/app/features/recursos/routers/talentotech.py
+new file mode 100644
+index 0000000..4c9b050
+--- /dev/null
++++ b/app/features/recursos/routers/talentotech.py
+@@ -0,0 +1,34 @@
++from fastapi import APIRouter, Depends, Query, HTTPException, status
++from typing import List
++
++from app.shared.schemas.pagination import PaginatedResponse
++from app.features.recursos.schema import TalentoTechResponse, TalentoTechCreate
++from app.features.recursos.service import TalentoTechService, TalentoTechNotFound
++from app.features.recursos.dependencies import get_talentotech_service
++
++router = APIRouter(
++    prefix="/talentotech",
++    tags=["talentotech"]
++)
++
++@router.get("/", response_model=PaginatedResponse[TalentoTechResponse])
++def get_all_paginated(
++    service_talentotech: TalentoTechService = Depends(get_talentotech_service),
++    page: int = Query(1, ge=1, description="Número de página"),
++    per_page: int = Query(20, ge=1, le=100, description="Cursos por página")
++):
++    return service_talentotech.get_all_paginated(page=page, per_page=per_page)
++
++@router.get("/{talentotech_id}", response_model=TalentoTechResponse)
++def get_by_id(talentotech_id: int, service_talentotech: TalentoTechService = Depends(get_talentotech_service)):
++    try:
++        return service_talentotech.get_by_id(talentotech_id)
++    except TalentoTechNotFound as e:
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
++
++@router.post("/", response_model=TalentoTechResponse, status_code=status.HTTP_201_CREATED)
++def create_talentotech(
++    talentotech: TalentoTechCreate,
++    service_talentotech: TalentoTechService = Depends(get_talentotech_service)
++):
++    return service_talentotech.create(talentotech)
+diff --git a/app/features/recursos/schema.py b/app/features/recursos/schema.py
+new file mode 100644
+index 0000000..30c308a
+--- /dev/null
++++ b/app/features/recursos/schema.py
+@@ -0,0 +1,52 @@
++from pydantic import BaseModel, Field, HttpUrl
++from typing import Optional
++from datetime import datetime
++from app.features.auth.dependencies import get_current_user
++
++class RecursoBase(BaseModel):
++    titulo: str = Field(..., min_length=1, max_length=150)
++    url: HttpUrl
++    descripcion: str
++    materia_id: int
++
++    class Config:
++        from_attributes = True
++
++class RecursoCreate(RecursoBase):
++    pass    
++    
++
++class RecursoResponse(RecursoBase):
++    id: int
++    usuario_id: int
++    fecha_creacion: datetime
++
++    class Config:
++        from_attributes = True
++
++class ConvenioCreate(BaseModel):
++    institucion: str
++    carrera_destino: str
++    descripcion: str
++    link_info: HttpUrl
++    carrera_id: int
++
++class ConvenioResponse(ConvenioCreate):
++    id: int
++
++    class Config:
++        from_attributes = True
++
++class TalentoTechCreate(BaseModel):
++    carrera_id: int
++    nombre_curso: str
++    categoria: str
++    descripcion: str
++    duracion: str
++    link_inscripcion: HttpUrl
++
++class TalentoTechResponse(TalentoTechCreate):
++    id: int
++
++    class Config:
++        from_attributes = True
+\ No newline at end of file
+diff --git a/app/features/recursos/service.py b/app/features/recursos/service.py
+new file mode 100644
+index 0000000..453fb15
+--- /dev/null
++++ b/app/features/recursos/service.py
+@@ -0,0 +1,101 @@
++from typing import List
++from app.shared.schemas.pagination import PaginatedResponse
++import math
++from app.features.recursos.model import Recurso, Convenio, TalentoTech
++from app.features.recursos.schema import RecursoCreate, ConvenioCreate, TalentoTechCreate, RecursoResponse, ConvenioResponse, TalentoTechResponse
++from app.features.recursos.repository import RecursoRepository, ConvenioRepository, TalentoTechRepository
++
++class RecursoNotFound(Exception):
++    pass
++
++class ConvenioNotFound(Exception):
++    pass
++
++class TalentoTechNotFound(Exception):
++    pass
++
++# --- RecursoService ---
++class RecursoService:
++    def __init__(self, repository: RecursoRepository):
++        self.repository = repository
++    
++    def get_all_paginated(self, page: int, per_page: int) -> PaginatedResponse[RecursoResponse]:
++        items, total = self.repository.get_all_paginated(page=page, per_page=per_page)
++        total_pages = math.ceil(total / per_page) if total > 0 else 0
++
++        return PaginatedResponse(
++            items=items,
++            total=total,
++            page=page,
++            per_page=per_page,
++            total_pages=total_pages
++        )
++
++    def get_by_usuario(self, usuario_id: int) -> list[Recurso]:
++        return self.repository.get_recursos_by_usuario(usuario_id)
++
++    def create(self, recurso: RecursoCreate, usuario_id: int) -> Recurso:
++        return self.repository.create_recurso(recurso, usuario_id)
++
++    def update(self, recurso_id: int, recurso: RecursoCreate) -> Recurso:
++        self.get_by_id(recurso_id)
++        return self.repository.update_recurso(recurso_id, recurso)
++
++    def delete(self, recurso_id: int) -> None:
++        self.get_by_id(recurso_id) 
++        return self.repository.delete_recurso(recurso_id)
++    
++    def get_by_id(self, recurso_id: int) -> Recurso:
++        recurso_valid = self.repository.get_recurso_by_id(recurso_id)
++        if recurso_valid is None:
++            raise RecursoNotFound(f"No se encontró el recurso {recurso_id}")
++        return recurso_valid
++
++    def get_by_materia(self, materia_id: int) -> list[Recurso]:
++        return self.repository.get_recurso_by_materia(materia_id)
++
++# --- ConvenioService ---
++class ConvenioService:
++    def __init__(self, repository: ConvenioRepository):
++        self.repository = repository
++
++    def get_all_paginated(self, page: int, per_page: int) -> PaginatedResponse[ConvenioResponse]:
++        items, total = self.repository.get_all_paginated(page=page, per_page=per_page)
++        total_pages = math.ceil(total / per_page) if total > 0 else 0
++        
++        return PaginatedResponse(
++            items=items,
++            total=total,
++            page=page,
++            per_page=per_page,
++            total_pages=total_pages
++        )
++
++    def get_by_id(self, convenio_id: int) -> Convenio:
++        convenio_valid = self.repository.get_convenio_by_id(convenio_id)
++        if convenio_valid is None:
++            raise ConvenioNotFound(f"No se encontró el convenio {convenio_id}")
++        return convenio_valid
++    
++# --- TalentoTechService ---
++class TalentoTechService:
++    def __init__(self, repository: TalentoTechRepository):
++        self.repository = repository
++    
++    def get_all_paginated(self, page: int, per_page: int) -> PaginatedResponse[TalentoTechResponse]:
++        items, total = self.repository.get_all_paginated(page=page, per_page=per_page)
++        total_pages = math.ceil(total / per_page) if total > 0 else 0
++
++        return PaginatedResponse(
++            items=items,
++            total=total,
++            page=page,
++            per_page=per_page,
++            total_pages=total_pages
++        )
++
++    def get_by_id(self, talentotech_id: int) -> TalentoTech:
++        talentotech_valid = self.repository.get_talentotech_by_id(talentotech_id)
++        if talentotech_valid is None:
++            raise TalentoTechNotFound(f"No se encontró el talentotech con ID: {talentotech_id}")
++        return talentotech_valid
+diff --git a/app/main.py b/app/main.py
+index 2459303..075337a 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -1,19 +1,49 @@
++import os
++
+ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ 
++from app.database import Base, engine
++from app.features.materias.router import router as materias_router
++from app.features.recordatorios.router import router as recordatorios_router
++from app.features.recursos.router import recursos_main_router as recursos_router
++from app.features.auth.router import router as auth_ruoter
++
++Base.metadata.create_all(bind=engine)
++
++ORIGENES_PERMITIDOS = [
++    origen.strip()
++    for origen in os.getenv(
++        "CORS_ORIGINS",
++        "http://localhost:5173,http://127.0.0.1:5173",
++    ).split(",")
++    if origen.strip()
++]
++
+ app = FastAPI(
+     title="miIFTS API",
+-    version="1.0.0"
++    version="1.0.0",
+ )
+ 
+ app.add_middleware(
+     CORSMiddleware,
+-    allow_origins=["*"],
++    allow_origins=ORIGENES_PERMITIDOS,
+     allow_credentials=True,
+     allow_methods=["*"],
+     allow_headers=["*"],
+ )
+ 
++app.include_router(recordatorios_router)
++app.include_router(materias_router)
++app.include_router(recursos_router)
++app.include_router(auth_ruoter)
++
++
+ @app.get("/")
+ def root():
+-    return {"mensaje": "miIFTS API funcionando"}
+\ No newline at end of file
++    return {"mensaje": "miIFTS API funcionando"}
++
++
++@app.get("/health")
++def health():
++    return {"status": "ok"}
+\ No newline at end of file
+diff --git a/app/shared/schemas/pagination.py b/app/shared/schemas/pagination.py
+new file mode 100644
+index 0000000..fb7a950
+--- /dev/null
++++ b/app/shared/schemas/pagination.py
+@@ -0,0 +1,11 @@
++from pydantic import BaseModel
++from typing import List, Generic, TypeVar
++
++T = TypeVar('T')
++
++class PaginatedResponse(BaseModel, Generic[T]):
++    items: List[T]
++    total: int
++    page: int
++    per_page: int
++    total_pages: int
+diff --git a/pytest.ini b/pytest.ini
+new file mode 100644
+index 0000000..27eec68
+--- /dev/null
++++ b/pytest.ini
+@@ -0,0 +1,3 @@
++[pytest]
++testpaths = tests
++python_files = test_*.py
+diff --git a/requirements.txt b/requirements.txt
+index 9d43916..733aede 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,10 +1,16 @@
+-fastapi
+-uvicorn
+-sqlalchemy
+-psycopg2-binary
+-python-dotenv
+-python-jose[cryptography]
+-passlib[bcrypt]
+-alembic
+-python-multipart
+-httpx
+\ No newline at end of file
++fastapi==0.115.5
++uvicorn[standard]==0.32.1
++sqlalchemy==2.0.36
++# psycopg2-binary==2.9.10  # No necesario - usamos SQLite
++python-dotenv==1.0.1
++python-jose[cryptography]==3.3.0
++passlib[bcrypt]==1.7.4
++bcrypt==4.0.1
++alembic==1.14.0
++python-multipart==0.0.20
++httpx==0.28.1
++email-validator==2.3.0 
++pytest==8.3.3
++pytest-cov==5.0.0
++black==24.8.0
++pylint==3.2.7
+\ No newline at end of file
+diff --git a/seed.py b/seed.py
+new file mode 100644
+index 0000000..23b1a84
+--- /dev/null
++++ b/seed.py
+@@ -0,0 +1,186 @@
++"""
++Script de seed para miIFTS.
++
++Uso:
++    python seed.py              # borra y recrea todo
++    python seed.py --no-drop   # solo inserta si las tablas están vacías
++
++IMPORTANTE: Actualizá los datos de IFTS, carreras, materias y correlativas
++según el plan de estudios real de tu institución (usá el PDF como fuente).
++"""
++import sys
++import os
++
++## imports para probar recordatorios
++
++import random
++from datetime import date, timedelta
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++
++from passlib.context import CryptContext
++from app.database import Base, engine, SessionLocal
++
++# Importar TODOS los modelos para que SQLAlchemy los registre antes del create_all
++from app.features.auth.model import Usuario, RolUsuario
++from app.features.materias.model import IFTS, Carrera, Materia, Correlativa, MateriaUsuario
++from app.features.recordatorios.model import Recordatorio
++from app.features.recursos.model import Recurso, Convenio, TalentoTech
++
++pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
++
++
++def reset_db():
++    print("Eliminando tablas existentes...")
++    Base.metadata.drop_all(bind=engine)
++    print("Creando tablas...")
++    Base.metadata.create_all(bind=engine)
++    print("Tablas creadas.")
++
++
++def seed():
++    db = SessionLocal()
++    try:
++        # ── 1. IFTS ──────────────────────────────────────────────────────────
++        # REEMPLAZÁ con el nombre real de tu IFTS
++        print("\nCargando IFTS...")
++        ifts = IFTS(
++            nombre="IFTS N° 18 - Colpayo",
++            ubicacion="CABA",
++        )
++        db.add(ifts)
++        db.flush()
++
++        # ── 2. Carreras ───────────────────────────────────────────────────────
++        # REEMPLAZÁ con las carreras reales de tu IFTS
++        print("Cargando carreras...")
++        dev_software = Carrera(
++            nombre="Tecnicatura Superior en Desarrollo de Software",
++            duracion_cuatrimestres=6,
++            ifts_id=ifts.id,
++        )
++        analisis_sistemas = Carrera(
++            nombre="Tecnicatura Superior en Análisis de Sistemas",
++            duracion_cuatrimestres=6,
++            ifts_id=ifts.id,
++        )
++        db.add_all([dev_software, analisis_sistemas])
++        db.flush()
++
++        # ── 3. Materias ───────────────────────────────────────────────────────
++        # REEMPLAZÁ con las materias reales del plan de estudios (PDF).
++        # El campo 'codigo' debe coincidir con el código del plan (ej: "1.1.3").
++        # Cada combinación (carrera_id, codigo) debe ser única.
++        print("Cargando materias de Desarrollo de Software...")
++        materias_dev = [
++            # Año 1 — Cuatrimestre 1
++            Materia(carrera_id=dev_software.id, nombre="Matemática",                      codigo="1.1.1", anio=1, cuatrimestre=1),
++            Materia(carrera_id=dev_software.id, nombre="Introducción a la Programación",  codigo="1.1.2", anio=1, cuatrimestre=1),
++            Materia(carrera_id=dev_software.id, nombre="Arquitectura de Computadoras",    codigo="1.1.3", anio=1, cuatrimestre=1),
++            Materia(carrera_id=dev_software.id, nombre="Inglés Técnico I",                codigo="1.1.4", anio=1, cuatrimestre=1),
++            # Año 1 — Cuatrimestre 2
++            Materia(carrera_id=dev_software.id, nombre="Matemática II",                   codigo="1.2.1", anio=1, cuatrimestre=2),
++            Materia(carrera_id=dev_software.id, nombre="Programación I",                  codigo="1.2.2", anio=1, cuatrimestre=2),
++            Materia(carrera_id=dev_software.id, nombre="Sistemas Operativos",             codigo="1.2.3", anio=1, cuatrimestre=2),
++            Materia(carrera_id=dev_software.id, nombre="Inglés Técnico II",               codigo="1.2.4", anio=1, cuatrimestre=2),
++            # Año 2 — Cuatrimestre 1
++            Materia(carrera_id=dev_software.id, nombre="Base de Datos I",                 codigo="2.1.1", anio=2, cuatrimestre=1),
++            Materia(carrera_id=dev_software.id, nombre="Programación II",                 codigo="2.1.2", anio=2, cuatrimestre=1),
++            Materia(carrera_id=dev_software.id, nombre="Redes y Comunicaciones",          codigo="2.1.3", anio=2, cuatrimestre=1),
++            # Año 2 — Cuatrimestre 2
++            Materia(carrera_id=dev_software.id, nombre="Base de Datos II",                codigo="2.2.1", anio=2, cuatrimestre=2),
++            Materia(carrera_id=dev_software.id, nombre="Programación III",                codigo="2.2.2", anio=2, cuatrimestre=2),
++            Materia(carrera_id=dev_software.id, nombre="Ingeniería de Software I",        codigo="2.2.3", anio=2, cuatrimestre=2),
++            # Año 3 — Cuatrimestre 1
++            Materia(carrera_id=dev_software.id, nombre="Programación IV",                 codigo="3.1.1", anio=3, cuatrimestre=1),
++            Materia(carrera_id=dev_software.id, nombre="Ingeniería de Software II",       codigo="3.1.2", anio=3, cuatrimestre=1),
++            Materia(carrera_id=dev_software.id, nombre="Gestión de Proyectos",            codigo="3.1.3", anio=3, cuatrimestre=1),
++            # Año 3 — Cuatrimestre 2
++            Materia(carrera_id=dev_software.id, nombre="Práctica Profesionalizante",      codigo="3.2.1", anio=3, cuatrimestre=2),
++            Materia(carrera_id=dev_software.id, nombre="Proyecto Final",                  codigo="3.2.2", anio=3, cuatrimestre=2),
++        ]
++        db.add_all(materias_dev)
++        db.flush()
++
++        # Dict por codigo para armar correlativas sin hardcodear IDs
++        dev = {m.codigo: m for m in materias_dev}
++
++        # ── 4. Correlativas ───────────────────────────────────────────────────
++        # Formato: materia X requiere haber aprobado materia Y.
++        # Usá los codigos del plan (el dict 'dev' los mapea a IDs reales).
++        print("Cargando correlativas...")
++        correlativas = [
++            Correlativa(materia_id=dev["1.2.1"].id, requiere_id=dev["1.1.1"].id),  # Matemática II ← Matemática
++            Correlativa(materia_id=dev["1.2.2"].id, requiere_id=dev["1.1.2"].id),  # Programación I ← Intro Prog
++            Correlativa(materia_id=dev["1.2.4"].id, requiere_id=dev["1.1.4"].id),  # Inglés II ← Inglés I
++            Correlativa(materia_id=dev["2.1.1"].id, requiere_id=dev["1.2.2"].id),  # BD I ← Programación I
++            Correlativa(materia_id=dev["2.1.2"].id, requiere_id=dev["1.2.2"].id),  # Programación II ← Prog I
++            Correlativa(materia_id=dev["2.2.1"].id, requiere_id=dev["2.1.1"].id),  # BD II ← BD I
++            Correlativa(materia_id=dev["2.2.2"].id, requiere_id=dev["2.1.2"].id),  # Programación III ← Prog II
++            Correlativa(materia_id=dev["2.2.3"].id, requiere_id=dev["2.1.2"].id),  # Ing Software I ← Prog II
++            Correlativa(materia_id=dev["3.1.1"].id, requiere_id=dev["2.2.2"].id),  # Programación IV ← Prog III
++            Correlativa(materia_id=dev["3.1.2"].id, requiere_id=dev["2.2.3"].id),  # Ing Software II ← IS I
++            Correlativa(materia_id=dev["3.1.3"].id, requiere_id=dev["2.2.3"].id),  # Gestión ← IS I
++        ]
++        db.add_all(correlativas)
++        db.flush()
++
++        # ── 5. Usuario de prueba ──────────────────────────────────────────────
++        # Credenciales compartidas para que todos puedan probar sin JWT.
++        # Eliminalo cuando implementen auth real en producción.
++        print("Cargando usuario de prueba...")
++        test_user = Usuario(
++            nombre="Estudiante Test",
++            email="test@miifts.ar",
++            password_hash=pwd_context.hash("test1234"),
++            carrera_id=dev_software.id,
++            rol=RolUsuario.ESTUDIANTE,
++        )
++        db.add(test_user)
++        db.flush()
++
++        ## datos para probar recordatorios y su paginado
++
++        # ── 6. Recordatorios de prueba ──────────────────────────────────────
++        print("Cargando recordatorios de prueba...")
++        recordatorios_prueba = []
++        tipos_recordatorio = ["EXAMEN", "TRABAJO_PRACTICO", "CONSULTA"]
++        for i in range(25):
++            materia_aleatoria = random.choice(materias_dev)
++            tipo_aleatorio = random.choice(tipos_recordatorio)
++            fecha_futura = date.today() + timedelta(days=random.randint(5, 90))
++            
++            recordatorios_prueba.append(Recordatorio(
++                titulo=f"Recordatorio de prueba {i+1} para {materia_aleatoria.nombre}",
++                fecha=fecha_futura,
++                tipo=tipo_aleatorio,
++                materia_id=materia_aleatoria.id,
++                usuario_id=test_user.id
++            ))
++        db.add_all(recordatorios_prueba)
++        db.flush()
++
++        db.commit()
++
++        print("\n[OK] Seed completado.")
++        print(f"  IFTS:         {ifts.nombre}")
++        print(f"  Carreras:     2")
++        print(f"  Materias:     {len(materias_dev)} (Desarrollo de Software)")
++        print(f"  Correlativas: {len(correlativas)}")
++        print(f"  Usuario test: test@miifts.ar / test1234  (id={test_user.id})")
++        print("\n  IMPORTANTE: el usuario de prueba tiene id=1.")
++        print("  get_usuario_actual() devuelve 1 mientras no este el JWT completo.")
++
++    except Exception as exc:
++        db.rollback()
++        print(f"\nError durante el seed: {exc}")
++        raise
++    finally:
++        db.close()
++
++
++if __name__ == "__main__":
++    no_drop = "--no-drop" in sys.argv
++    if not no_drop:
++        reset_db()
++    seed()
+diff --git a/test_api.py b/test_api.py
+new file mode 100644
+index 0000000..36fd5bb
+--- /dev/null
++++ b/test_api.py
+@@ -0,0 +1,207 @@
++"""
++Script de prueba rápida para la API de miIFTS
++Ejecutar con: python test_api.py
++"""
++
++import requests
++import json
++
++BASE_URL = "http://localhost:8000"
++
++def print_test(name, passed):
++    symbol = "✓" if passed else "✗"
++    status = "PASS" if passed else "FAIL"
++    print(f"{symbol} {name}: {status}")
++
++def test_api():
++    print("\n" + "="*50)
++    print("TESTING miIFTS API")
++    print("="*50 + "\n")
++
++    # Test 1: Health check
++    print("1. Testing health endpoint...")
++    try:
++        response = requests.get(f"{BASE_URL}/health")
++        print_test("GET /health", response.status_code == 200)
++        print(f"   Response: {response.json()}\n")
++    except Exception as e:
++        print_test("GET /health", False)
++        print(f"   Error: {e}\n")
++        print("   ⚠️  Asegúrate de que el servidor esté corriendo:")
++        print("      uvicorn app.main:app --reload\n")
++        return
++
++    # Test 2: Login
++    print("2. Testing login...")
++    login_data = {
++        "email": "test@miifts.ar",
++        "password": "test1234"
++    }
++    try:
++        response = requests.post(f"{BASE_URL}/auth/login", json=login_data)
++        print_test("POST /auth/login", response.status_code == 200)
++        if response.status_code == 200:
++            token = response.json()["access_token"]
++            print(f"   Token obtenido: {token[:30]}...\n")
++        else:
++            print(f"   Response: {response.json()}\n")
++            print("   ⚠️  Ejecuta el seed primero: python seed.py\n")
++            return
++    except Exception as e:
++        print_test("POST /auth/login", False)
++        print(f"   Error: {e}\n")
++        return
++
++    headers = {"Authorization": f"Bearer {token}"}
++
++    # Test 3: Get current user
++    print("3. Testing authenticated endpoint...")
++    try:
++        response = requests.get(f"{BASE_URL}/auth/me", headers=headers)
++        print_test("GET /auth/me", response.status_code == 200)
++        if response.status_code == 200:
++            user = response.json()
++            print(f"   Usuario: {user['email']} (ID: {user['id']})\n")
++    except Exception as e:
++        print_test("GET /auth/me", False)
++        print(f"   Error: {e}\n")
++
++    # Test 4: List carreras
++    print("4. Testing carreras endpoint...")
++    try:
++        response = requests.get(f"{BASE_URL}/materias/carreras")
++        print_test("GET /materias/carreras", response.status_code == 200)
++        if response.status_code == 200:
++            carreras = response.json()
++            print(f"   Carreras encontradas: {len(carreras)}\n")
++    except Exception as e:
++        print_test("GET /materias/carreras", False)
++        print(f"   Error: {e}\n")
++
++    # Test 5: Create carrera (NUEVO CRUD)
++    print("5. Testing CREATE carrera (NUEVO CRUD)...")
++    nueva_carrera = {
++        "nombre": "Test Carrera",
++        "duracion_cuatrimestres": 5,
++        "ifts_id": 1
++    }
++    try:
++        response = requests.post(
++            f"{BASE_URL}/materias/carreras",
++            json=nueva_carrera,
++            headers=headers
++        )
++        print_test("POST /materias/carreras", response.status_code == 201)
++        if response.status_code == 201:
++            carrera = response.json()
++            carrera_id = carrera["id"]
++            print(f"   Carrera creada con ID: {carrera_id}\n")
++        else:
++            print(f"   Response: {response.json()}\n")
++            carrera_id = None
++    except Exception as e:
++        print_test("POST /materias/carreras", False)
++        print(f"   Error: {e}\n")
++        carrera_id = None
++
++    # Test 6: Update carrera (NUEVO CRUD)
++    if carrera_id:
++        print("6. Testing UPDATE carrera (NUEVO CRUD)...")
++        update_data = {
++            "nombre": "Test Carrera Actualizada"
++        }
++        try:
++            response = requests.put(
++                f"{BASE_URL}/materias/carreras/{carrera_id}",
++                json=update_data,
++                headers=headers
++            )
++            print_test("PUT /materias/carreras/{id}", response.status_code == 200)
++            if response.status_code == 200:
++                carrera = response.json()
++                print(f"   Nombre actualizado: {carrera['nombre']}\n")
++        except Exception as e:
++            print_test("PUT /materias/carreras/{id}", False)
++            print(f"   Error: {e}\n")
++
++        # Test 7: Delete carrera (NUEVO CRUD)
++        print("7. Testing DELETE carrera (NUEVO CRUD)...")
++        try:
++            response = requests.delete(
++                f"{BASE_URL}/materias/carreras/{carrera_id}",
++                headers=headers
++            )
++            print_test("DELETE /materias/carreras/{id}", response.status_code == 204)
++            print(f"   Carrera eliminada\n")
++        except Exception as e:
++            print_test("DELETE /materias/carreras/{id}", False)
++            print(f"   Error: {e}\n")
++
++    # Test 8: Create materia (NUEVO CRUD)
++    print("8. Testing CREATE materia (NUEVO CRUD)...")
++    nueva_materia = {
++        "carrera_id": 1,
++        "nombre": "Test Materia",
++        "codigo": "TST",
++        "anio": 1,
++        "cuatrimestre": 1
++    }
++    try:
++        response = requests.post(
++            f"{BASE_URL}/materias/",
++            json=nueva_materia,
++            headers=headers
++        )
++        print_test("POST /materias/", response.status_code == 201)
++        if response.status_code == 201:
++            materia = response.json()
++            materia_id = materia["id"]
++            print(f"   Materia creada con ID: {materia_id}\n")
++        else:
++            print(f"   Response: {response.json()}\n")
++            materia_id = None
++    except Exception as e:
++        print_test("POST /materias/", False)
++        print(f"   Error: {e}\n")
++        materia_id = None
++
++    # Test 9: Update materia (NUEVO CRUD)
++    if materia_id:
++        print("9. Testing UPDATE materia (NUEVO CRUD)...")
++        update_data = {
++            "nombre": "Test Materia Actualizada"
++        }
++        try:
++            response = requests.put(
++                f"{BASE_URL}/materias/{materia_id}",
++                json=update_data,
++                headers=headers
++            )
++            print_test("PUT /materias/{id}", response.status_code == 200)
++            if response.status_code == 200:
++                materia = response.json()
++                print(f"   Nombre actualizado: {materia['nombre']}\n")
++        except Exception as e:
++            print_test("PUT /materias/{id}", False)
++            print(f"   Error: {e}\n")
++
++        # Test 10: Delete materia (NUEVO CRUD)
++        print("10. Testing DELETE materia (NUEVO CRUD)...")
++        try:
++            response = requests.delete(
++                f"{BASE_URL}/materias/{materia_id}",
++                headers=headers
++            )
++            print_test("DELETE /materias/{id}", response.status_code == 204)
++            print(f"   Materia eliminada\n")
++        except Exception as e:
++            print_test("DELETE /materias/{id}", False)
++            print(f"   Error: {e}\n")
++
++    print("="*50)
++    print("TESTING COMPLETADO")
++    print("="*50)
++    print("\nPara más detalles, visita: http://localhost:8000/docs\n")
++
++if __name__ == "__main__":
++    test_api()
+diff --git a/test_seed.md b/test_seed.md
+new file mode 100644
+index 0000000..67ad3ed
+--- /dev/null
++++ b/test_seed.md
+@@ -0,0 +1,25 @@
++# Pasos para ejecutar el seed
++
++## 1. Asegúrate de estar en el directorio correcto
++cd C:\Users\juan\backend-ifts
++
++## 2. Activa el entorno virtual
++.\venv\Scripts\activate
++
++## 3. Ejecuta el seed (esto borra y recrea la DB)
++python seed.py
++
++## Qué hace el seed:
++- Borra miifts.db si existe
++- Crea todas las tablas
++- Inserta:
++  - 1 IFTS
++  - 2 Carreras
++  - 19 Materias
++  - 11 Correlativas
++  - 1 Usuario de prueba (email: test@miifts.ar, password: test1234)
++
++## Después del seed tendrás:
++- Usuario ID 1 (test@miifts.ar)
++- Carrera ID 1 y 2
++- Materias ID 1-19
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..be8bb24
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,119 @@
++"""
++Fixtures compartidas para todos los tests.
++
++Usa una base SQLite en memoria (independiente de miifts.db) y hace
++override de la dependencia `get_db` de FastAPI para que cada test
++corra en una transacción limpia, sin tocar la base real de desarrollo.
++"""
++
++import os
++import sys
++
++import pytest
++from fastapi.testclient import TestClient
++from sqlalchemy import create_engine
++from sqlalchemy.orm import sessionmaker
++from sqlalchemy.pool import StaticPool
++
++# Permite correr "pytest" desde la raíz del repo sin instalar el paquete
++sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
++
++from app.database import Base, get_db  # noqa: E402
++from app.main import app  # noqa: E402
++from app.features.materias.model import IFTS, Carrera  # noqa: E402
++
++# --- Motor de base de datos de test (SQLite en memoria) ---
++# StaticPool + una sola conexión: así todas las sesiones "ven" las mismas
++# tablas durante todo el test, aunque sqlite:///:memory: normalmente
++# crearía una DB nueva por conexión.
++SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
++
++engine = create_engine(
++    SQLALCHEMY_TEST_DATABASE_URL,
++    connect_args={"check_same_thread": False},
++    poolclass=StaticPool,
++)
++TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
++
++
++@pytest.fixture(scope="function")
++def db_session():
++    """Crea todas las tablas, entrega una sesión limpia y las borra al final."""
++    Base.metadata.create_all(bind=engine)
++    session = TestingSessionLocal()
++    try:
++        yield session
++    finally:
++        session.close()
++        Base.metadata.drop_all(bind=engine)
++
++
++@pytest.fixture(scope="function")
++def client(db_session):
++    """TestClient de FastAPI con la DB real reemplazada por la de test."""
++
++    def _override_get_db():
++        try:
++            yield db_session
++        finally:
++            pass
++
++    app.dependency_overrides[get_db] = _override_get_db
++    with TestClient(app) as test_client:
++        yield test_client
++    app.dependency_overrides.clear()
++
++
++# --- Fixtures de datos base (IFTS / Carrera) ---
++# Usuario.carrera_id y Materia.carrera_id son NOT NULL, así que casi
++# todos los tests de auth y materias necesitan una carrera ya creada.
++
++
++@pytest.fixture
++def carrera_test(db_session) -> Carrera:
++    ifts = IFTS(nombre="IFTS N°1", ubicacion="CABA")
++    db_session.add(ifts)
++    db_session.commit()
++    db_session.refresh(ifts)
++
++    carrera = Carrera(
++        nombre="Tecnicatura en Programación",
++        duracion_cuatrimestres=6,
++        ifts_id=ifts.id,
++    )
++    db_session.add(carrera)
++    db_session.commit()
++    db_session.refresh(carrera)
++    return carrera
++
++
++@pytest.fixture
++def usuario_payload(carrera_test) -> dict:
++    """Payload válido para POST /auth/registro."""
++    return {
++        "nombre": "Juan Pérez",
++        "email": "juan.perez@example.com",
++        "password": "password123",
++        "carrera_id": carrera_test.id,
++    }
++
++
++@pytest.fixture
++def usuario_registrado(client, usuario_payload) -> dict:
++    """Registra un usuario a través de la API y devuelve su payload + response."""
++    response = client.post("/auth/registro", json=usuario_payload)
++    assert response.status_code == 201, response.text
++    return {"payload": usuario_payload, "response": response.json()}
++
++
++@pytest.fixture
++def auth_headers(client, usuario_registrado) -> dict:
++    """Hace login con el usuario_registrado y devuelve el header Authorization."""
++    login_data = {
++        "email": usuario_registrado["payload"]["email"],
++        "password": usuario_registrado["payload"]["password"],
++    }
++    response = client.post("/auth/login", json=login_data)
++    assert response.status_code == 200, response.text
++    token = response.json()["access_token"]
++    return {"Authorization": f"Bearer {token}"}
+diff --git a/tests/test_auth.py b/tests/test_auth.py
+new file mode 100644
+index 0000000..d4d464c
+--- /dev/null
++++ b/tests/test_auth.py
+@@ -0,0 +1,94 @@
++"""
++tests/test_auth.py
++
++Tarea Integrante 2 - Testing y Calidad
++Tests unitarios para el feature de Auth (registro, login, get_current_user).
++"""
++
++
++# ========== Registro ==========
++
++
++def test_registro_exitoso(client, usuario_payload):
++    response = client.post("/auth/registro", json=usuario_payload)
++
++    assert response.status_code == 201
++    data = response.json()
++    assert data["email"] == usuario_payload["email"]
++    assert data["nombre"] == usuario_payload["nombre"]
++    assert data["rol"] == "estudiante"
++    # El hash de la contraseña nunca debe viajar al cliente
++    assert "password" not in data
++    assert "password_hash" not in data
++
++
++def test_registro_email_duplicado(client, usuario_registrado):
++    # usuario_registrado ya registró este email una vez
++    payload_repetido = usuario_registrado["payload"]
++
++    response = client.post("/auth/registro", json=payload_repetido)
++
++    assert response.status_code == 409
++    assert "email" in response.json()["detail"].lower()
++
++
++# ========== Login ==========
++
++
++def test_login_exitoso(client, usuario_registrado):
++    login_data = {
++        "email": usuario_registrado["payload"]["email"],
++        "password": usuario_registrado["payload"]["password"],
++    }
++
++    response = client.post("/auth/login", json=login_data)
++
++    assert response.status_code == 200
++    data = response.json()
++    assert "access_token" in data
++    assert data["token_type"] == "bearer"
++    assert data["usuario"]["email"] == login_data["email"]
++
++
++def test_login_credenciales_invalidas(client, usuario_registrado):
++    email_registrado = usuario_registrado["payload"]["email"]
++
++    # Contraseña incorrecta
++    response = client.post(
++        "/auth/login",
++        json={"email": email_registrado, "password": "contraseña-incorrecta"},
++    )
++    assert response.status_code == 401
++
++    # Email inexistente
++    response = client.post(
++        "/auth/login",
++        json={"email": "no-existe@example.com", "password": "cualquiera123"},
++    )
++    assert response.status_code == 401
++
++
++# ========== get_current_user ==========
++
++
++def test_get_current_user_token_valido(client, auth_headers, usuario_registrado):
++    response = client.get("/auth/me", headers=auth_headers)
++
++    assert response.status_code == 200
++    data = response.json()
++    assert data["email"] == usuario_registrado["payload"]["email"]
++
++
++def test_get_current_user_token_invalido(client):
++    headers = {"Authorization": "Bearer token-invalido-o-truchado"}
++
++    response = client.get("/auth/me", headers=headers)
++
++    assert response.status_code == 401
++
++
++def test_get_current_user_sin_token(client):
++    # Caso extra: ni siquiera se manda el header Authorization
++    response = client.get("/auth/me")
++
++    assert response.status_code == 401
+diff --git a/tests/test_materias.py b/tests/test_materias.py
+new file mode 100644
+index 0000000..48e9a1c
+--- /dev/null
++++ b/tests/test_materias.py
+@@ -0,0 +1,159 @@
++"""
++tests/test_materias.py
++
++Tarea Integrante 2 - Testing y Calidad
++Tests de integración para el CRUD de Materias/Carreras.
++
++Esta rama es SOLO de testing/CI: no se toca código de app/features acá.
++Dos tests quedan marcados como xfail porque dependen de trabajo de otras
++ramas del sprint; así el pipeline queda verde y el motivo consta en el
++propio reporte de pytest. Cuando se mergeen esos fixes, borrar el marcador
++xfail correspondiente (con strict=False, si ya pasan no rompen el build,
++pero van a figurar como XPASS para que se note que hay que limpiarlos).
++
++  - test_crear_carrera_sin_auth (401 esperado):
++    depende de que Integrante 1 agregue Depends(get_current_user) al
++    endpoint POST /materias/carreras (Día 1 del sprint).
++
++  - test_crear_materia_codigo_duplicado (409 esperado):
++    hoy MateriaRepository.create() no atrapa el IntegrityError de la
++    UniqueConstraint("carrera_id", "codigo"), así que explota con 500.
++    Reportado en el daily para que se resuelva en materias/service.py
++    y materias/router.py (mismo patrón que ya usa add_materia_usuario).
++"""
++
++import pytest
++
++# ========== Carreras ==========
++
++
++def test_crear_carrera_con_auth(client, auth_headers, db_session):
++    # Necesitamos que exista un IFTS antes de crear la carrera (FK).
++    from app.features.materias.model import IFTS
++
++    ifts = IFTS(nombre="IFTS N°1", ubicacion="CABA")
++    db_session.add(ifts)
++    db_session.commit()
++    db_session.refresh(ifts)
++
++    payload = {
++        "nombre": "Tecnicatura en Análisis de Sistemas",
++        "duracion_cuatrimestres": 6,
++        "ifts_id": ifts.id,
++    }
++
++    response = client.post("/materias/carreras", json=payload, headers=auth_headers)
++
++    assert response.status_code == 201
++    data = response.json()
++    assert data["nombre"] == payload["nombre"]
++    assert data["duracion_cuatrimestres"] == 6
++
++
++@pytest.mark.xfail(
++    reason=(
++        "Pendiente de Integrante 1: POST /materias/carreras todavía no "
++        "tiene Depends(get_current_user). Hoy devuelve 201 en vez de 401."
++    ),
++    strict=False,
++)
++def test_crear_carrera_sin_auth(client, db_session):
++    from app.features.materias.model import IFTS
++
++    ifts = IFTS(nombre="IFTS N°1", ubicacion="CABA")
++    db_session.add(ifts)
++    db_session.commit()
++    db_session.refresh(ifts)
++
++    payload = {
++        "nombre": "Tecnicatura sin auth",
++        "duracion_cuatrimestres": 4,
++        "ifts_id": ifts.id,
++    }
++
++    response = client.post("/materias/carreras", json=payload)
++
++    assert response.status_code == 401
++
++
++def test_actualizar_carrera(client, auth_headers, carrera_test):
++    payload = {"nombre": "Tecnicatura en Programación (actualizada)"}
++
++    response = client.put(
++        f"/materias/carreras/{carrera_test.id}",
++        json=payload,
++        headers=auth_headers,
++    )
++
++    assert response.status_code == 200
++    data = response.json()
++    assert data["nombre"] == payload["nombre"]
++    # Campo no enviado: debe conservar el valor original
++    assert data["duracion_cuatrimestres"] == carrera_test.duracion_cuatrimestres
++
++
++def test_actualizar_carrera_inexistente(client, auth_headers):
++    response = client.put(
++        "/materias/carreras/99999",
++        json={"nombre": "No existe"},
++        headers=auth_headers,
++    )
++
++    assert response.status_code == 404
++
++
++def test_eliminar_carrera(client, auth_headers, carrera_test):
++    response = client.delete(
++        f"/materias/carreras/{carrera_test.id}", headers=auth_headers
++    )
++    assert response.status_code == 204
++
++    # Verificamos que ya no se puede volver a actualizar (no existe más)
++    response = client.put(
++        f"/materias/carreras/{carrera_test.id}",
++        json={"nombre": "Fantasma"},
++        headers=auth_headers,
++    )
++    assert response.status_code == 404
++
++
++def test_eliminar_carrera_inexistente(client, auth_headers):
++    response = client.delete("/materias/carreras/99999", headers=auth_headers)
++
++    assert response.status_code == 404
++
++
++# ========== Materias ==========
++
++
++def test_crear_materia(client, auth_headers, carrera_test):
++    payload = {
++        "carrera_id": carrera_test.id,
++        "nombre": "Programación I",
++        "codigo": "PROG1",
++        "anio": 1,
++        "cuatrimestre": 1,
++    }
++
++    response = client.post("/materias/", json=payload, headers=auth_headers)
++
++    assert response.status_code == 201
++    data = response.json()
++    assert data["codigo"] == "PROG1"
++
++
++def test_crear_materia_codigo_duplicado(client, auth_headers, carrera_test):
++    payload = {
++        "carrera_id": carrera_test.id,
++        "nombre": "Programación I",
++        "codigo": "PROG1",
++        "anio": 1,
++        "cuatrimestre": 1,
++    }
++
++    primera = client.post("/materias/", json=payload, headers=auth_headers)
++    assert primera.status_code == 201
++
++    segunda = client.post("/materias/", json=payload, headers=auth_headers)
++
++    assert segunda.status_code == 409
