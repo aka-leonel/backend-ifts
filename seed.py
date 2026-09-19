@@ -67,7 +67,12 @@ def seed():
             duracion_cuatrimestres=6,
             ifts_id=ifts.id,
         )
-        db.add_all([dev_software, analisis_sistemas])
+        ciencia_datos_ia = Carrera(
+            nombre="Tecnicatura Superior en Ciencia de Datos e Inteligencia Artificial",
+            duracion_cuatrimestres=6,
+            ifts_id=ifts.id,
+        )
+        db.add_all([dev_software, analisis_sistemas, ciencia_datos_ia])
         db.flush()
 
         # ── 3. Materias ───────────────────────────────────────────────────────
@@ -148,6 +153,124 @@ def seed():
         db.add_all(correlativas)
         db.flush()
 
+        # ── Materias y correlativas para Análisis de Sistemas ────────────────
+        print("Cargando materias de Analisis de Sistemas...")
+        materias_analisis_sistemas = [
+            # Año 1 — Cuatrimestre 1
+            Materia(carrera_id=analisis_sistemas.id, nombre="Técnicas de Programación",                      codigo="1.1.1", anio=1, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Elementos de Análisis Matemáticos",             codigo="1.1.2", anio=1, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Administración y Gestión de Bases de Datos",    codigo="1.1.3", anio=1, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Lógica Computacional",                           codigo="1.1.4", anio=1, cuatrimestre=1),
+            # Año 1 — Cuatrimestre 2
+            Materia(carrera_id=analisis_sistemas.id, nombre="Desarrollo de Sistemas Orientados a Objetos",   codigo="1.2.1", anio=1, cuatrimestre=2),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Estadística y probabilidades para el Análisis de Sistemas", codigo="1.2.2", anio=1, cuatrimestre=2),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Modelado y Diseño de Software",                 codigo="1.2.3", anio=1, cuatrimestre=2),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Inglés",                                      codigo="1.2.4", anio=1, cuatrimestre=2),
+            Materia(carrera_id=analisis_sistemas.id, nombre="PPI I - Aproximación al campo laboral",       codigo="1.2.5", anio=1, cuatrimestre=2),
+            # Año 2 — Cuatrimestre 1
+            Materia(carrera_id=analisis_sistemas.id, nombre="Análisis de Sistemas",                         codigo="2.1.1", anio=2, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Ingeniería de Software",                        codigo="2.1.2", anio=2, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Taller de Comunicación",                        codigo="2.1.3", anio=2, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Diseño e implementación de pruebas de software", codigo="2.1.4", anio=2, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="PPI II - Relevamiento de requerimientos de usuarios", codigo="2.1.5", anio=2, cuatrimestre=1),
+            # Año 2 — Cuatrimestre 2
+            Materia(carrera_id=analisis_sistemas.id, nombre="Trabajo, Tecnología y Sociedad",                codigo="2.2.1", anio=2, cuatrimestre=2),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Redes y Ciberseguridad",                         codigo="2.2.2", anio=2, cuatrimestre=2),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Gestión de Proyectos",                           codigo="2.2.3", anio=2, cuatrimestre=2),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Seminario de Actualización en Tecnología Web",    codigo="2.2.4", anio=2, cuatrimestre=2),
+            Materia(carrera_id=analisis_sistemas.id, nombre="PP III - Diseño y Arquitectura de Sistemas",     codigo="2.2.5", anio=2, cuatrimestre=2),
+            # Año 3 — Cuatrimestre 1
+            Materia(carrera_id=analisis_sistemas.id, nombre="Sistemas de Gestión",                             codigo="3.1.1", anio=3, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Liderazgo y Gestión de Equipos",                 codigo="3.1.2", anio=3, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Aseguramiento de Calidad de los Sistemas",       codigo="3.1.3", anio=3, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="Arquitectura de Sistemas en la Nube",            codigo="3.1.4", anio=3, cuatrimestre=1),
+            Materia(carrera_id=analisis_sistemas.id, nombre="PP IV - Proyecto Integrador",                    codigo="3.1.5", anio=3, cuatrimestre=1),
+        ]
+        db.add_all(materias_analisis_sistemas)
+        db.flush()
+
+        # Dict por codigo para Analisis de Sistemas
+        dict_analisis_sistemas = {m.codigo: m for m in materias_analisis_sistemas}
+
+        print("Cargando correlativas de Analisis de Sistemas...")
+        correlativas_analisis = [
+            # 1er año - cuatrimestre 2
+            Correlativa(materia_id=dict_analisis_sistemas["1.2.1"].id, requiere_id=dict_analisis_sistemas["1.1.1"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["1.2.1"].id, requiere_id=dict_analisis_sistemas["1.1.3"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["1.2.1"].id, requiere_id=dict_analisis_sistemas["1.1.4"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["1.2.3"].id, requiere_id=dict_analisis_sistemas["1.1.1"].id),
+            # 2do año - cuatrimestre 1
+            Correlativa(materia_id=dict_analisis_sistemas["2.1.4"].id, requiere_id=dict_analisis_sistemas["1.2.1"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["2.2.4"].id, requiere_id=dict_analisis_sistemas["1.2.1"].id),
+            # 3er año
+            Correlativa(materia_id=dict_analisis_sistemas["3.1.1"].id, requiere_id=dict_analisis_sistemas["1.1.3"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["3.1.2"].id, requiere_id=dict_analisis_sistemas["2.1.1"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["3.1.2"].id, requiere_id=dict_analisis_sistemas["2.1.2"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["3.1.3"].id, requiere_id=dict_analisis_sistemas["2.1.4"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["3.1.4"].id, requiere_id=dict_analisis_sistemas["2.2.2"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["3.1.5"].id, requiere_id=dict_analisis_sistemas["2.1.5"].id),
+            Correlativa(materia_id=dict_analisis_sistemas["3.1.5"].id, requiere_id=dict_analisis_sistemas["2.2.5"].id),
+        ]
+        db.add_all(correlativas_analisis)
+        db.flush()
+
+        # ── Materias y correlativas para Ciencia de Datos e Inteligencia Artificial ─────
+        print("Cargando materias de Ciencia de Datos e Inteligencia Artificial...")
+        materias_ciencia_datos = [
+            # Año 1 — Cuatrimestre 1
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Técnicas de Programación", codigo="1.1.1", anio=1, cuatrimestre=1),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Elementos de Análisis Matemáticos", codigo="1.1.2", anio=1, cuatrimestre=1),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Administración y Gestión de Bases de Datos", codigo="1.1.3", anio=1, cuatrimestre=1),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Lógica Computacional", codigo="1.1.4", anio=1, cuatrimestre=1),
+            # Año 1 — Cuatrimestre 2
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Comunicación", codigo="1.2.1", anio=1, cuatrimestre=2),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Estadística y Probabilidades para Gestión de Datos", codigo="1.2.2", anio=1, cuatrimestre=2),
+            # Año 2 — Cuatrimestre 1
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Desarrollo de Sistemas de Inteligencia Artificial", codigo="2.1.1", anio=2, cuatrimestre=1),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="PPI I - Aproximación al campo laboral", codigo="2.1.2", anio=2, cuatrimestre=1),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Ciencia de Datos", codigo="2.1.3", anio=2, cuatrimestre=1),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Gestión de Proyectos", codigo="2.1.4", anio=2, cuatrimestre=1),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Procesamiento de Aprendizaje Automático", codigo="2.1.5", anio=2, cuatrimestre=1),
+            # Año 2 — Cuatrimestre 2
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Modelizado de Sistemas de Inteligencia Artificial", codigo="2.2.1", anio=2, cuatrimestre=2),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Trabajo, Tecnología y Sociedad", codigo="2.2.2", anio=2, cuatrimestre=2),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Modelizado de Minería de Datos", codigo="2.2.3", anio=2, cuatrimestre=2),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Técnicas de Procesamiento del Habla", codigo="2.2.4", anio=2, cuatrimestre=2),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Análisis y Exploración de Datos", codigo="2.2.5", anio=2, cuatrimestre=2),
+            # Año 3 — Cuatrimestre 1
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Seminario de Actualización", codigo="3.1.1", anio=3, cuatrimestre=1),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Técnicas de Procesamiento Digital de Imágenes", codigo="3.1.2", anio=3, cuatrimestre=1),
+            Materia(carrera_id=ciencia_datos_ia.id, nombre="Proyecto Integrador", codigo="3.1.3", anio=3, cuatrimestre=1),
+        ]
+        db.add_all(materias_ciencia_datos)
+        db.flush()
+
+        dict_ciencia_datos = {m.codigo: m for m in materias_ciencia_datos}
+
+        print("Cargando correlativas de Ciencia de Datos e Inteligencia Artificial...")
+        correlativas_ciencia_datos = [
+            # 1er año - cuatrimestre 2
+            Correlativa(materia_id=dict_ciencia_datos["2.1.1"].id, requiere_id=dict_ciencia_datos["1.1.1"].id),
+            Correlativa(materia_id=dict_ciencia_datos["2.1.1"].id, requiere_id=dict_ciencia_datos["1.1.3"].id),
+            Correlativa(materia_id=dict_ciencia_datos["2.1.1"].id, requiere_id=dict_ciencia_datos["1.1.4"].id),
+            # 2do año - cuatrimestre 1
+            Correlativa(materia_id=dict_ciencia_datos["2.1.3"].id, requiere_id=dict_ciencia_datos["1.1.3"].id),
+            Correlativa(materia_id=dict_ciencia_datos["2.1.3"].id, requiere_id=dict_ciencia_datos["1.2.2"].id),
+            Correlativa(materia_id=dict_ciencia_datos["2.1.4"].id, requiere_id=dict_ciencia_datos["2.1.3"].id),
+            Correlativa(materia_id=dict_ciencia_datos["2.1.5"].id, requiere_id=dict_ciencia_datos["2.1.3"].id),
+            # 2do año - cuatrimestre 2
+            Correlativa(materia_id=dict_ciencia_datos["2.2.1"].id, requiere_id=dict_ciencia_datos["2.1.1"].id),
+            Correlativa(materia_id=dict_ciencia_datos["2.2.1"].id, requiere_id=dict_ciencia_datos["2.1.3"].id),
+            Correlativa(materia_id=dict_ciencia_datos["2.2.3"].id, requiere_id=dict_ciencia_datos["2.1.3"].id),
+            Correlativa(materia_id=dict_ciencia_datos["2.2.5"].id, requiere_id=dict_ciencia_datos["2.1.3"].id),
+            # 3er año - cuatrimestre 1
+            Correlativa(materia_id=dict_ciencia_datos["3.1.2"].id, requiere_id=dict_ciencia_datos["2.2.3"].id),
+            Correlativa(materia_id=dict_ciencia_datos["3.1.3"].id, requiere_id=dict_ciencia_datos["2.1.4"].id),
+            Correlativa(materia_id=dict_ciencia_datos["3.1.3"].id, requiere_id=dict_ciencia_datos["2.2.1"].id),
+        ]
+        db.add_all(correlativas_ciencia_datos)
+        db.flush()
+
         # ── 5. Usuario de prueba ──────────────────────────────────────────────
         # Credenciales compartidas para que todos puedan probar sin JWT.
         # Eliminalo cuando implementen auth real en producción.
@@ -182,9 +305,11 @@ def seed():
 
         print("\n[OK] Seed completado.")
         print(f"  IFTS:         {ifts.nombre}")
-        print(f"  Carreras:     2")
+        print(f"  Carreras:     3")
         print(f"  Materias:     {len(materias_dev)} (Desarrollo de Software)")
-        print(f"  Correlativas: {len(correlativas)}")
+        print(f"  Materias AS:  {len(materias_analisis_sistemas)} (Análisis de Sistemas)")
+        print(f"  Materias CDAI:{len(materias_ciencia_datos)} (Ciencia de Datos e IA)")
+        print(f"  Correlativas: {len(correlativas) + len(correlativas_analisis) + len(correlativas_ciencia_datos)}")
         print(f"  Usuario test:  test@miifts.ar / test1234   (id={test_user.id}, rol=estudiante)")
         print(f"  Usuario admin: admin@miifts.ar / admin1234  (id={admin_user.id}, rol=admin)")
         print("\n  IMPORTANTE: el usuario de prueba tiene id=1.")
