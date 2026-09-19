@@ -77,30 +77,33 @@ def seed():
         print("Cargando materias de Desarrollo de Software...")
         materias_dev = [
             # Año 1 — Cuatrimestre 1
-            Materia(carrera_id=dev_software.id, nombre="Matemática",                      codigo="1.1.1", anio=1, cuatrimestre=1),
-            Materia(carrera_id=dev_software.id, nombre="Introducción a la Programación",  codigo="1.1.2", anio=1, cuatrimestre=1),
-            Materia(carrera_id=dev_software.id, nombre="Arquitectura de Computadoras",    codigo="1.1.3", anio=1, cuatrimestre=1),
-            Materia(carrera_id=dev_software.id, nombre="Inglés Técnico I",                codigo="1.1.4", anio=1, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Técnicas de Programación",                                codigo="1.1.1", anio=1, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Administración de Bases de Datos",                        codigo="1.1.2", anio=1, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Elementos de Análisis Matemáticos",                      codigo="1.1.3", anio=1, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Lógica Computacional",                                   codigo="1.1.4", anio=1, cuatrimestre=1),
             # Año 1 — Cuatrimestre 2
-            Materia(carrera_id=dev_software.id, nombre="Matemática II",                   codigo="1.2.1", anio=1, cuatrimestre=2),
-            Materia(carrera_id=dev_software.id, nombre="Programación I",                  codigo="1.2.2", anio=1, cuatrimestre=2),
-            Materia(carrera_id=dev_software.id, nombre="Sistemas Operativos",             codigo="1.2.3", anio=1, cuatrimestre=2),
-            Materia(carrera_id=dev_software.id, nombre="Inglés Técnico II",               codigo="1.2.4", anio=1, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="Desarrollo de Sistemas Orientados a Objetos",           codigo="1.2.1", anio=1, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="Modelado y Diseño de Software",                         codigo="1.2.2", anio=1, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="Estadística y probabilidades para el Desarrollo de Software", codigo="1.2.3", anio=1, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="Inglés",                                                codigo="1.2.4", anio=1, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="PPI I - Aproximación al campo profesional del Desarrollo de Software", codigo="1.2.5", anio=1, cuatrimestre=2),
             # Año 2 — Cuatrimestre 1
-            Materia(carrera_id=dev_software.id, nombre="Base de Datos I",                 codigo="2.1.1", anio=2, cuatrimestre=1),
-            Materia(carrera_id=dev_software.id, nombre="Programación II",                 codigo="2.1.2", anio=2, cuatrimestre=1),
-            Materia(carrera_id=dev_software.id, nombre="Redes y Comunicaciones",          codigo="2.1.3", anio=2, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Desarrollo de Aplicaciones para Dispositivos",          codigo="2.1.1", anio=2, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Metodología de Pruebas de Sistemas",                     codigo="2.1.2", anio=2, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Tecnologías de la Información y Comunicación",           codigo="2.1.3", anio=2, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Taller de Comunicación",                                 codigo="2.1.4", anio=2, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Desarrollo de Sistemas de información Orientados a la Gestión y apoyo de decisiones", codigo="2.1.5", anio=2, cuatrimestre=1),
             # Año 2 — Cuatrimestre 2
-            Materia(carrera_id=dev_software.id, nombre="Base de Datos II",                codigo="2.2.1", anio=2, cuatrimestre=2),
-            Materia(carrera_id=dev_software.id, nombre="Programación III",                codigo="2.2.2", anio=2, cuatrimestre=2),
-            Materia(carrera_id=dev_software.id, nombre="Ingeniería de Software I",        codigo="2.2.3", anio=2, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="Desarrollo de Sistemas Web (Back End)",                 codigo="2.2.1", anio=2, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="Desarrollo de Sistemas Web (Front End)",                codigo="2.2.2", anio=2, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="Ingeniería de Software",                                 codigo="2.2.3", anio=2, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="Desarrollo e implementación de sistemas en la Nube",     codigo="2.2.4", anio=2, cuatrimestre=2),
             # Año 3 — Cuatrimestre 1
-            Materia(carrera_id=dev_software.id, nombre="Programación IV",                 codigo="3.1.1", anio=3, cuatrimestre=1),
-            Materia(carrera_id=dev_software.id, nombre="Ingeniería de Software II",       codigo="3.1.2", anio=3, cuatrimestre=1),
-            Materia(carrera_id=dev_software.id, nombre="Gestión de Proyectos",            codigo="3.1.3", anio=3, cuatrimestre=1),
-            # Año 3 — Cuatrimestre 2
-            Materia(carrera_id=dev_software.id, nombre="Práctica Profesionalizante",      codigo="3.2.1", anio=3, cuatrimestre=2),
-            Materia(carrera_id=dev_software.id, nombre="Proyecto Final",                  codigo="3.2.2", anio=3, cuatrimestre=2),
+            Materia(carrera_id=dev_software.id, nombre="Programación sobre Redes",                               codigo="3.1.1", anio=3, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Seminario de Profundización y/o Actualización",          codigo="3.1.2", anio=3, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Gestión de Proyectos",                                   codigo="3.1.3", anio=3, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Trabajo, Tecnología y Sociedad",                          codigo="3.1.4", anio=3, cuatrimestre=1),
+            Materia(carrera_id=dev_software.id, nombre="Proyecto Integrador",                                    codigo="3.1.5", anio=3, cuatrimestre=1),
         ]
         db.add_all(materias_dev)
         db.flush()
@@ -113,17 +116,34 @@ def seed():
         # Usá los codigos del plan (el dict 'dev' los mapea a IDs reales).
         print("Cargando correlativas...")
         correlativas = [
-            Correlativa(materia_id=dev["1.2.1"].id, requiere_id=dev["1.1.1"].id),  # Matemática II ← Matemática
-            Correlativa(materia_id=dev["1.2.2"].id, requiere_id=dev["1.1.2"].id),  # Programación I ← Intro Prog
-            Correlativa(materia_id=dev["1.2.4"].id, requiere_id=dev["1.1.4"].id),  # Inglés II ← Inglés I
-            Correlativa(materia_id=dev["2.1.1"].id, requiere_id=dev["1.2.2"].id),  # BD I ← Programación I
-            Correlativa(materia_id=dev["2.1.2"].id, requiere_id=dev["1.2.2"].id),  # Programación II ← Prog I
-            Correlativa(materia_id=dev["2.2.1"].id, requiere_id=dev["2.1.1"].id),  # BD II ← BD I
-            Correlativa(materia_id=dev["2.2.2"].id, requiere_id=dev["2.1.2"].id),  # Programación III ← Prog II
-            Correlativa(materia_id=dev["2.2.3"].id, requiere_id=dev["2.1.2"].id),  # Ing Software I ← Prog II
-            Correlativa(materia_id=dev["3.1.1"].id, requiere_id=dev["2.2.2"].id),  # Programación IV ← Prog III
-            Correlativa(materia_id=dev["3.1.2"].id, requiere_id=dev["2.2.3"].id),  # Ing Software II ← IS I
-            Correlativa(materia_id=dev["3.1.3"].id, requiere_id=dev["2.2.3"].id),  # Gestión ← IS I
+            # 1er año - cuatrimestre 2
+            Correlativa(materia_id=dev["1.2.1"].id, requiere_id=dev["1.1.1"].id),  # Desarrollo de Sistemas OO ← Técnicas de Programación
+            Correlativa(materia_id=dev["1.2.1"].id, requiere_id=dev["1.1.2"].id),  # ← Administración de BD
+            Correlativa(materia_id=dev["1.2.1"].id, requiere_id=dev["1.1.4"].id),  # ← Lógica Computacional
+            Correlativa(materia_id=dev["1.2.2"].id, requiere_id=dev["1.1.1"].id),  # Modelado y Diseño ← Técnicas de Programación
+            # 2do año - cuatrimestre 1
+            Correlativa(materia_id=dev["2.1.1"].id, requiere_id=dev["1.2.1"].id),  # Desarrollo Apps Dispositivos ← Desarrollo OO
+            Correlativa(materia_id=dev["2.1.1"].id, requiere_id=dev["1.2.2"].id),  # ← Modelado y Diseño
+            Correlativa(materia_id=dev["2.1.2"].id, requiere_id=dev["1.1.1"].id),  # Metodología Pruebas ← Técnicas de Programación
+            Correlativa(materia_id=dev["2.1.5"].id, requiere_id=dev["1.2.1"].id),  # Desarrollo Sistemas Info ← Desarrollo OO
+            Correlativa(materia_id=dev["2.1.5"].id, requiere_id=dev["1.2.2"].id),  # ← Modelado y Diseño
+            Correlativa(materia_id=dev["2.1.5"].id, requiere_id=dev["1.2.5"].id),  # ← PPI I
+            # 2do año - cuatrimestre 2
+            Correlativa(materia_id=dev["2.2.1"].id, requiere_id=dev["2.1.1"].id),  # Web Back ← Apps Dispositivos
+            Correlativa(materia_id=dev["2.2.1"].id, requiere_id=dev["2.1.2"].id),  # ← Metodología Pruebas
+            Correlativa(materia_id=dev["2.2.1"].id, requiere_id=dev["2.1.5"].id),  # ← Desarrollo Sistemas Info
+            Correlativa(materia_id=dev["2.2.2"].id, requiere_id=dev["1.2.2"].id),  # Web Front ← Modelado y Diseño
+            Correlativa(materia_id=dev["2.2.3"].id, requiere_id=dev["1.2.2"].id),  # Ingeniería de Software ← Modelado y Diseño
+            Correlativa(materia_id=dev["2.2.4"].id, requiere_id=dev["2.1.1"].id),  # Nube ← Apps Dispositivos
+            Correlativa(materia_id=dev["2.2.4"].id, requiere_id=dev["2.1.3"].id),  # ← Tecnologías de la Información y Comunicación
+            Correlativa(materia_id=dev["2.2.4"].id, requiere_id=dev["2.1.5"].id),  # ← Desarrollo Sistemas Info
+            # 3er año
+            Correlativa(materia_id=dev["3.1.1"].id, requiere_id=dev["2.2.1"].id),  # Programación sobre Redes ← Web Back
+            Correlativa(materia_id=dev["3.1.1"].id, requiere_id=dev["2.2.2"].id),  # ← Web Front
+            Correlativa(materia_id=dev["3.1.1"].id, requiere_id=dev["2.2.3"].id),  # ← Ingeniería de Software
+            Correlativa(materia_id=dev["3.1.2"].id, requiere_id=dev["2.2.3"].id),  # Seminario ← Ingeniería de Software
+            Correlativa(materia_id=dev["3.1.3"].id, requiere_id=dev["2.2.3"].id),  # Gestión de Proyectos ← Ingeniería de Software
+            Correlativa(materia_id=dev["3.1.5"].id, requiere_id=dev["2.2.4"].id),  # Proyecto Integrador ← Desarrollo en la Nube
         ]
         db.add_all(correlativas)
         db.flush()
