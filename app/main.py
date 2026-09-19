@@ -24,7 +24,7 @@ ORIGENES_PERMITIDOS = [
     origen.strip()
     for origen in os.getenv(
         "CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173, ",
+        "http://localhost:5173,http://127.0.0.1:5173,http://mi-ifts-frontend.s3-website-us-east-1.amazonaws.com",
     ).split(",")
     if origen.strip()
 ]
