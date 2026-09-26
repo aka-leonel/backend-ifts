@@ -227,18 +227,7 @@ class AuthService:
         self.repository.update(reset_token.usuario_id, password_hash=hashed)
         self.reset_repository.marcar_usado(reset_token.id)
 
-<<<<<<< HEAD
-    def cambiar_password(self, user_id: int, current_password: str, new_password: str) -> None:
-        user = self.repository.get_by_id(user_id)
-        if user is None:
-            raise NotFoundError("Usuario no encontrado")
-        if not self.verify_password(current_password, user.password_hash):
-            raise UnauthorizedError("Contraseña actual incorrecta", headers=_BEARER)
-        if current_password == new_password:
-            raise BadRequestError("La nueva contraseña debe ser distinta a la actual")
-        hashed = self.hash_password(new_password)
-=======
-    # ========== Cambiar contraseña (usuario logueado) ==========
+# ========== Cambiar contraseña (usuario logueado) ==========
 
     def cambiar_password(self, user_id: int, password_actual: str, password_nueva: str) -> None:
         """Cambia la contraseña de un usuario autenticado.
@@ -257,5 +246,4 @@ class AuthService:
             raise BadRequestError("La contraseña nueva debe ser distinta a la actual")
 
         hashed = self.hash_password(password_nueva)
->>>>>>> 2756426b78e976c3bf5afca7e6de1e2528f71231
         self.repository.update(user_id, password_hash=hashed)

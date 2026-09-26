@@ -21,6 +21,7 @@ class Usuario(Base):
     fecha_registro = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     rol = Column(Enum(RolUsuario), nullable=False, default=RolUsuario.ESTUDIANTE)
     recordatorios = relationship("Recordatorio", back_populates="usuario")
+    push_subscriptions = relationship("PushSubscription", back_populates="usuario")
 
 
 class PasswordResetToken(Base):
