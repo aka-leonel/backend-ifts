@@ -149,6 +149,26 @@ Flujo de dos pasos, ambos endpoints **públicos** (sin token):
   se completa con éxito (`200`); un `422` de validación no lo consume, podés
   reintentar con el mismo token. Un segundo intento después de un `200` da `400`.
 
+### 2.4ter Cambiar contraseña (logueado)
+
+`PATCH /auth/password` — **Bearer**. Para la pantalla de Perfil: a diferencia
+de `PATCH /auth/me`, éste sí puede tocar la contraseña, pero exige la actual
+como reautenticación (si te roban la sesión, no alcanza para tomarte la cuenta).
+
+```jsonc
+// request
+{ "password_actual": "claveVieja123", "password_nueva": "claveNueva123" }
+// 200 -> { "detail": "Contraseña actualizada correctamente." }
+```
+
+- `401` si `password_actual` no coincide con la real (mismo criterio que login).
+- `400` con `{ "detail": "La contraseña nueva debe ser distinta a la actual" }`
+  si mandás la misma.
+- `422` si `password_nueva` no cumple la validación (≥8, letra + número).
+- No hace falta pasar por email para esto — es un solo request, sin token de
+  reset. Reemplaza la idea anterior de reutilizar `forgot-password` desde
+  Perfil: ya no hace falta ese workaround.
+
 ### 2.5 Roles
 
 - `estudiante`: default. Gestiona lo suyo (cursadas, recursos, recordatorios).
@@ -350,7 +370,8 @@ export interface TokenResponse {
 export interface PerfilUpdate { nombre?: string; apellido?: string; }   // PATCH /auth/me — la carrera y el email no se editan acá
 export interface ForgotPasswordRequest { email: string; }   // POST /auth/forgot-password
 export interface ResetPasswordRequest { token: string; password: string; }   // POST /auth/reset-password
-export interface MensajeResponse { detail: string; }   // respuesta de ambos endpoints de arriba
+export interface CambiarPasswordRequest { password_actual: string; password_nueva: string; }   // PATCH /auth/password
+export interface MensajeResponse { detail: string; }   // respuesta de los 3 endpoints de arriba
 
 // ---- catálogo ----
 export interface Carrera {
@@ -458,6 +479,11 @@ caveat vigente.
      (S5-12 a S5-15). **Gap vigente**: no hay proveedor de SMTP configurado
      todavía, el link de reset se loguea en el backend en vez de mandarse por
      email real — para pruebas manuales end-to-end hay que pedirlo por consola.
+   - `PATCH /auth/password` (contrato en §2.4ter): cambio de contraseña estando
+     logueado, con reautenticación por contraseña actual. Con esto, **S5-08 queda
+     desactualizado** — ya sí hay una forma legítima de tocar la contraseña
+     desde Perfil, solo que por este endpoint dedicado, no agregando password
+     a `PATCH /auth/me`.
 
 ---
 

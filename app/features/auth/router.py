@@ -5,7 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.features.auth.schema import (
+<<<<<<< HEAD
     ChangePasswordRequest,
+=======
+    CambiarPasswordRequest,
+>>>>>>> 2756426b78e976c3bf5afca7e6de1e2528f71231
     ForgotPasswordRequest,
     MensajeResponse,
     PerfilUpdate,
@@ -69,6 +73,7 @@ def reset_password(datos: ResetPasswordRequest, db: Session = Depends(get_db)):
     service.restablecer_password(datos.token, datos.password)
     return MensajeResponse(detail="Contraseña actualizada correctamente.")
 
+<<<<<<< HEAD
 
 @router.post("/change-password", response_model=MensajeResponse)
 def change_password(
@@ -78,4 +83,15 @@ def change_password(
 ):
     service = AuthService(db)
     service.cambiar_password(current_user.id, datos.current_password, datos.new_password)
+=======
+@router.patch("/password", response_model=MensajeResponse)
+def cambiar_password(
+    datos: CambiarPasswordRequest,
+    current_user: UsuarioResponse = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Cambia la contraseña del usuario autenticado. Requiere la actual."""
+    service = AuthService(db)
+    service.cambiar_password(current_user.id, datos.password_actual, datos.password_nueva)
+>>>>>>> 2756426b78e976c3bf5afca7e6de1e2528f71231
     return MensajeResponse(detail="Contraseña actualizada correctamente.")

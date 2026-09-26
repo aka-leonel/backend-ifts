@@ -2592,6 +2592,7 @@
         }
       }
     },
+<<<<<<< HEAD
     "/auth/change-password": {
       "post": {
         "tags": [
@@ -2599,11 +2600,25 @@
         ],
         "summary": "Change Password",
         "operationId": "change_password_auth_change_password_post",
+=======
+    "/auth/password": {
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Cambiar Password",
+        "description": "Cambia la contraseña del usuario autenticado. Requiere la actual.",
+        "operationId": "cambiar_password_auth_password_patch",
+>>>>>>> 2756426b78e976c3bf5afca7e6de1e2528f71231
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
+<<<<<<< HEAD
                 "$ref": "#/components/schemas/ChangePasswordRequest"
+=======
+                "$ref": "#/components/schemas/CambiarPasswordRequest"
+>>>>>>> 2756426b78e976c3bf5afca7e6de1e2528f71231
               }
             }
           },
@@ -2673,6 +2688,33 @@
   },
   "components": {
     "schemas": {
+      "CambiarPasswordRequest": {
+        "properties": {
+          "password_actual": {
+            "type": "string",
+            "title": "Password Actual",
+            "examples": [
+              "secreta123"
+            ]
+          },
+          "password_nueva": {
+            "type": "string",
+            "minLength": 8,
+            "title": "Password Nueva",
+            "description": "Contraseña nueva (mínimo 8 caracteres, al menos una letra y un número)",
+            "examples": [
+              "nuevaSecreta123"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "password_actual",
+          "password_nueva"
+        ],
+        "title": "CambiarPasswordRequest",
+        "description": "`PATCH /auth/password` — el usuario ya está logueado, pero igual tiene\nque reprobar identidad con la contraseña actual (si alguien le roba la\nsesión, no puede usarla para expulsarlo cambiándole la contraseña)."
+      },
       "CarreraCreate": {
         "properties": {
           "nombre": {
