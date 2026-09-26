@@ -213,6 +213,7 @@ class MateriaUsuarioResponse(BaseModel):
     id: int
     usuario_id: int
     materia_id: int
+    materia_nombre: str
     cursando: bool
     estado: str
     nota_parcial_1: NotaOpcional

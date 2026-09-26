@@ -180,6 +180,7 @@ def _a_materia_usuario_response(cursada: MateriaUsuario) -> MateriaUsuarioRespon
         id=cursada.id,
         usuario_id=cursada.usuario_id,
         materia_id=cursada.materia_id,
+        materia_nombre=cursada.materia.nombre,
         cursando=cursada.cursando,
         nota_parcial_1=cursada.nota_parcial_1,
         nota_parcial_2=cursada.nota_parcial_2,

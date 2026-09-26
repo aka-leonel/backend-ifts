@@ -62,3 +62,5 @@ class MateriaUsuario(Base):
     examen_final = Column(Float, nullable=True)
     # `nota_final` NO es columna: se calcula en el service (promedio de los
     # parciales si promocionó, o examen_final si no) — ver derivar_nota_final().
+
+    materia = relationship("Materia", lazy="selectin")
