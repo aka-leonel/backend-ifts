@@ -130,6 +130,52 @@ class CorrelativaRepository:
     def get_by_materia(self, materia_id: int) -> list[Correlativa]:
         return self.query_by_materia(materia_id).all()
 
+    def get_by_id(self, correlativa_id: int) -> Correlativa | None:
+        return self.db.query(Correlativa).filter(Correlativa.id == correlativa_id).first()
+
+    def create(self, materia_id: int, requiere_id: int) -> Correlativa:
+        correlativa = Correlativa(materia_id=materia_id, requiere_id=requiere_id)
+        self.db.add(correlativa)
+        self.db.commit()
+        self.db.refresh(correlativa)
+        return correlativa
+
+    def delete(self, correlativa_id: int) -> Correlativa | None:
+        correlativa = self.get_by_id(correlativa_id)
+        if correlativa is None:
+            return None
+
+        self.db.delete(correlativa)
+        self.db.commit()
+        return correlativa
+
+    def existe_camino(self, desde_id: int, hasta_id: int) -> bool:
+        """Recorre el grafo de correlativas (arista materia_id -> requiere_id)
+        en BFS partiendo de `desde_id` siguiendo lo que cada materia requiere.
+        Devuelve True si se puede llegar a `hasta_id`.
+
+        Se usa para detectar ciclos antes de crear una correlativa nueva
+        `materia_id -> requiere_id`: si ya existe un camino desde
+        `requiere_id` hasta `materia_id`, agregarla cerraría un ciclo (la
+        materia terminaría requiriéndose indirectamente a sí misma).
+        """
+        visitados: set[int] = set()
+        pendientes = [desde_id]
+        while pendientes:
+            actual = pendientes.pop()
+            if actual == hasta_id:
+                return True
+            if actual in visitados:
+                continue
+            visitados.add(actual)
+            siguientes = (
+                self.db.query(Correlativa.requiere_id)
+                .filter(Correlativa.materia_id == actual)
+                .all()
+            )
+            pendientes.extend(requiere_id for (requiere_id,) in siguientes)
+        return False
+
 
 class MateriaUsuarioRepository:
     def __init__(self, db: Session):
