@@ -32,7 +32,7 @@ except ImportError:
     AsyncIOScheduler = None  # type: ignore
     check_and_send_reminder_notifications_default = None  # type: ignore
 
-scheduler: AsyncIOScheduler | None = None
+scheduler: "AsyncIOScheduler | None" = None
 
 
 def _get_scheduler_interval_minutes() -> int:
