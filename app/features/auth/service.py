@@ -227,7 +227,7 @@ class AuthService:
         self.repository.update(reset_token.usuario_id, password_hash=hashed)
         self.reset_repository.marcar_usado(reset_token.id)
 
-    # ========== Cambiar contraseña (usuario logueado) ==========
+# ========== Cambiar contraseña (usuario logueado) ==========
 
     def cambiar_password(self, user_id: int, password_actual: str, password_nueva: str) -> None:
         """Cambia la contraseña de un usuario autenticado.

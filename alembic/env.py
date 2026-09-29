@@ -12,6 +12,7 @@ from app.features.auth import model as auth_model
 from app.features.materias import model as materias_model
 from app.features.recordatorios import model as recordatorios_model
 from app.features.recursos import model as recursos_model
+from app.features.notificaciones import model as notificaciones_model
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

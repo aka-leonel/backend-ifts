@@ -33,6 +33,14 @@ API backend para un Instituto de Formación Técnica Superior (IFTS) que gestion
 - RF-19: Eliminar recordatorios por usuario.
 - RF-20: Buscar recordatorios por tipo, rango de fechas (desde/hasta), materia. Ordenar por fecha descendente.
 
+### Notificaciones Push (notificaciones)
+- RF-22: Modelo de suscripciones push con campos: usuario_id, endpoint, p256dh, auth. Migración de Alembic correspondiente.
+- RF-23: Endpoint POST /notificaciones/suscripcion para registrar suscripción push del usuario autenticado.
+- RF-24: Endpoint DELETE /notificaciones/suscripcion para eliminar suscripción push del usuario autenticado.
+- RF-25: Envío de notificaciones push usando pywebpush con claves VAPID configuradas en variables de entorno.
+- RF-26: Limpieza automática de suscripciones que respondan con 404 (no encontrado) o 410 (gone) al enviar push.
+- RF-27: Job periódico (APScheduler) que busque recordatorios próximos a vencer y envíe notificaciones push correspondientes.
+
 ### Búsqueda (materias)
 - RF-21: Búsqueda de materias por texto libre (nombre, código) con filtros opcionales de año y cuatrimestre. Endpoint: `GET /materias/buscar?q=...&anio=...&cuatrimestre=...`
 
@@ -45,6 +53,9 @@ API backend para un Instituto de Formación Técnica Superior (IFTS) que gestion
 - RNF-06: Estructura de paquetes por feature (model, schema, repository, service, router, dependencies).
 - RNF-07: Enmascaramiento de `password_hash` en respuestas JSON.
 - RNF-08: Validación de schemas con Pydantic v2 (`from_attributes = True`).
+- RNF-09: Claves VAPID (pública y privada) configuradas via variables de entorno para notificaciones push.
+- RNF-10: HTTPS obligatorio para notificaciones push (localhost permitido en desarrollo).
+- RNF-11: Job scheduler (APScheduler) para ejecución periódica de envío de notificaciones push.
 
 ## Restricciones
 - Las contraseñas nunca se exponen en respuestas.
@@ -53,6 +64,9 @@ API backend para un Instituto de Formación Técnica Superior (IFTS) que gestion
 - `get_usuario_actual()` en materias/router.py retorna hardcodeo `1` — pendiente de reemplazo por JWT real.
 - El modelo `Recurso` no tiene campo `tipo`. Se requiere agregarlo para soportar el filtrado RF-16.
 - La búsqueda de materias (RF-21) usa un endpoint nuevo (`/materias/buscar`) que no existe aún.
+- **Notificaciones Push:** Android (Chrome, Edge, Firefox) funciona con PWA cerrada; iOS 16.4+ requiere PWA instalada ("Añadir a pantalla de inicio").
+- **Notificaciones Push:** HTTPS obligatorio (localhost válido en desarrollo).
+- **Notificaciones Push:** Alternativa sin push: mostrar recordatorios dentro de la app al abrirla (no avisa con app cerrada).
 
 ## Fuentes Verificables
 - `app/main.py` — rutas registradas, CORS configurado.

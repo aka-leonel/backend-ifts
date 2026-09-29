@@ -2592,6 +2592,15 @@
         }
       }
     },
+<<<<<<< HEAD
+    "/auth/change-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Change Password",
+        "operationId": "change_password_auth_change_password_post",
+=======
     "/auth/password": {
       "patch": {
         "tags": [
@@ -2600,11 +2609,16 @@
         "summary": "Cambiar Password",
         "description": "Cambia la contraseña del usuario autenticado. Requiere la actual.",
         "operationId": "cambiar_password_auth_password_patch",
+>>>>>>> 2756426b78e976c3bf5afca7e6de1e2528f71231
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
+<<<<<<< HEAD
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+=======
                 "$ref": "#/components/schemas/CambiarPasswordRequest"
+>>>>>>> 2756426b78e976c3bf5afca7e6de1e2528f71231
               }
             }
           },
@@ -2779,6 +2793,33 @@
         },
         "type": "object",
         "title": "CarreraUpdate"
+      },
+      "ChangePasswordRequest": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Current Password",
+            "examples": [
+              "secreta123"
+            ]
+          },
+          "new_password": {
+            "type": "string",
+            "minLength": 8,
+            "title": "New Password",
+            "examples": [
+              "nuevaSecreta123"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "ChangePasswordRequest",
+        "description": "`POST /auth/change-password` — cambio autenticado desde Perfil."
       },
       "ConvenioCreate": {
         "properties": {

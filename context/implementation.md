@@ -1,179 +1,315 @@
-# Plan de Implementación - miIFTS: Búsqueda y Filtros
+# Plan de Implementación: Notificaciones Push (Persona B)
 
-## Fase: IMPLEMENTACIÓN - Búsqueda y Filtrado (Sprint Integrante 3)
+## Objetivo
+Implementar el sistema de notificaciones push para recordatorios (RF-22 a RF-27, RNF-09 a RNF-11) siguiendo la arquitectura por features del proyecto.
 
-### Resumen
-Implementar 3 endpoints de búsqueda/filtrado siguiendo el patrón 4 capas y las decisiones D09, D10, D11.
+---
 
-### Orden de Ejecución
+## Desglose de Tasks
+
+### Task 1: Modelo y Migración de Suscripciones Push
+**ID:** NOTIF-001
+**Objetivo:** Crear modelo SQLAlchemy `PushSubscription` y migración Alembic correspondiente.
+**Requisitos:** RF-22
+**Componentes afectados:**
+- `app/features/notificaciones/model.py` (nuevo)
+- `alembic/versions/xxxx_push_subscriptions.py` (nuevo)
+- `alembic/env.py` (importar modelo)
+
+**Detalles de implementación:**
+- Tabla: `push_subscriptions`
+- Campos: `id` (PK), `usuario_id` (FK → usuarios.id, unique), `endpoint` (String, unique), `p256dh` (String), `auth` (String), `fecha_creacion` (DateTime, server_default=now)
+- Índices en `usuario_id` y `endpoint`
+- Relación `usuario = relationship("Usuario", back_populates="push_subscriptions")` en modelo Usuario
+
+**Criterios de aceptación:**
+- Migración se ejecuta sin errores (`alembic upgrade head`)
+- Modelo se integra con Base.metadata existente
+- Relación bidireccional con Usuario funciona
+
+---
+
+### Task 2: Schemas Pydantic para Suscripciones
+**ID:** NOTIF-002
+**Objetivo:** Definir schemas de entrada/salida para suscripciones push.
+**Requisitos:** RF-23, RF-24
+**Componentes afectados:**
+- `app/features/notificaciones/schema.py` (nuevo)
+
+**Schemas requeridos:**
+- `PushSubscriptionCreate`: `endpoint` (str, URL válida), `p256dh` (str, base64), `auth` (str, base64)
+- `PushSubscriptionResponse`: `id`, `usuario_id`, `endpoint`, `fecha_creacion`
+- Validaciones: endpoint no vacío, p256dh/auth no vacíos (base64 válido)
+
+**Criterios de aceptación:**
+- `from_attributes = True` en ConfigDict
+- Validación de campos requeridos
+- No expone claves privadas en respuesta
+
+---
+
+### Task 3: Repository de Suscripciones Push
+**ID:** NOTIF-003
+**Objetivo:** Capa de acceso a datos para suscripciones push.
+**Requisitos:** RF-22, RF-23, RF-24, RF-26
+**Componentes afectados:**
+- `app/features/notificaciones/repository.py` (nuevo)
+
+**Métodos requeridos:**
+- `get_by_usuario(usuario_id: int)` → suscripción del usuario (una por usuario)
+- `get_by_endpoint(endpoint: str)` → suscripción por endpoint (para cleanup)
+- `create(subscription: PushSubscription)` → guardar nueva
+- `delete_by_usuario(usuario_id: int)` → eliminar suscripción del usuario
+- `delete_by_endpoint(endpoint: str)` → eliminar por endpoint (cleanup 404/410)
+- `get_all()` → todas las suscripciones activas (para job de envío)
+
+**Criterios de aceptación:**
+- Una sola suscripción por usuario (enforce en DB con unique constraint o lógica)
+- CRUD completo funcional
+
+---
+
+### Task 4: Service de Notificaciones Push
+**ID:** NOTIF-004
+**Objetivo:** Lógica de negocio para gestión de suscripciones y envío push.
+**Requisitos:** RF-23, RF-24, RF-25, RF-26
+**Componentes afectados:**
+- `app/features/notificaciones/service.py` (nuevo)
+
+**Funciones requeridas:**
+- `suscribir_usuario(db, usuario_id, subscription_data)` → registra/actualiza suscripción
+- `desuscribir_usuario(db, usuario_id)` → elimina suscripción del usuario
+- `enviar_push_a_usuario(db, usuario_id, titulo, cuerpo, data_opcional)` → envía push a un usuario
+- `enviar_push_a_suscripcion(endpoint, p256dh, auth, payload)` → bajo nivel, usa pywebpush
+- `limpiar_suscripciones_invalidas(db, endpoints_invalidos)` → elimina suscripciones 404/410
+- Manejo de errores pywebpush (WebPushException) → detectar 404/410 y limpiar
+
+**Configuración VAPID:**
+- Leer `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` de variables de entorno
+- Leer `VAPID_CLAIMS_SUB` (mailto: o https://) de variable de entorno
+- Validar presencia al iniciar servicio
+
+**Criterios de aceptación:**
+- Envío push funciona con claves VAPID de entorno
+- Limpieza automática al recibir 404/410
+- Excepciones de dominio apropiadas (NotFoundError, BadRequestError)
+
+---
+
+### Task 5: Router de Notificaciones Push
+**ID:** NOTIF-005
+**Objetivo:** Endpoints REST para suscripciones push.
+**Requisitos:** RF-23, RF-24
+**Componentes afectados:**
+- `app/features/notificaciones/router.py` (nuevo)
+
+**Endpoints:**
+- `POST /notificaciones/suscripcion` (201) — registra suscripción del usuario autenticado
+  - Body: `PushSubscriptionCreate`
+  - Response: `PushSubscriptionResponse`
+  - Auth: `get_current_user`
+- `DELETE /notificaciones/suscripcion` (204) — elimina suscripción del usuario autenticado
+  - Auth: `get_current_user`
+
+**Convenciones:**
+- Prefix `/notificaciones`, tags=["notificaciones"]
+- response_model explícito
+- Status codes HTTP correctos
+
+**Criterios de aceptación:**
+- Endpoints registrados en `main.py`
+- Autenticación JWT requerida
+- Validación de entrada con Pydantic
+
+---
+
+### Task 6: Dependencias y Registro en main.py
+**ID:** NOTIF-006
+**Objetivo:** Integrar feature notificaciones en la app principal.
+**Requisitos:** RF-23, RF-24
+**Componentes afectados:**
+- `app/features/notificaciones/dependencies.py` (nuevo) — `get_notificacion_service`
+- `app/main.py` — importar e incluir router
+
+**Criterios de aceptación:**
+- Router incluido en FastAPI app
+- Dependencia de service disponible
+
+---
+
+### Task 7: Job Periódico con APScheduler
+**ID:** NOTIF-007
+**Objetivo:** Scheduler que busque recordatorios próximos a vencer y envíe notificaciones.
+**Requisitos:** RF-27, RNF-11
+**Componentes afectados:**
+- `app/features/notificaciones/scheduler.py` (nuevo)
+- `app/main.py` — inicializar scheduler en lifespan
+
+**Detalles de implementación:**
+- Usar `AsyncIOScheduler` de APScheduler
+- Job que se ejecute cada N minutos (configurable, ej: 5 min)
+- Buscar recordatorios con `fecha` entre `ahora` y `ahora + ventana` (ej: 1 hora)
+- Para cada recordatorio, enviar push al `usuario_id` del recordatorio
+- Payload push: `{ "titulo": recordatorio.titulo, "recordatorio_id": recordatorio.id, "tipo": recordatorio.tipo }`
+- Evitar duplicados: marcar recordatorios notificados o usar ventana deslizante
+
+**Criterios de aceptación:**
+- Scheduler inicia al arrancar la app
+- Job se ejecuta periódicamente
+- Envía push solo para recordatorios en ventana temporal
+- No envía duplicados para el mismo recordatorio
+
+---
+
+### Task 8: Variables de Entorno y Configuración
+**ID:** NOTIF-008
+**Objetivo:** Documentar y validar variables de entorno requeridas.
+**Requisitos:** RNF-09, RNF-10
+**Componentes afectados:**
+- `.env.example` — agregar VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CLAIMS_SUB
+- Validación en service al iniciar
+
+**Variables requeridas:**
+- `VAPID_PUBLIC_KEY` — clave pública VAPID (base64 URL-safe)
+- `VAPID_PRIVATE_KEY` — clave privada VAPID (base64 URL-safe)
+- `VAPID_CLAIMS_SUB` — contacto para VAPID (ej: `mailto:admin@miifts.com` o `https://miifts.com`)
+
+**Criterios de aceptación:**
+- Variables documentadas en .env.example
+- Service falla claro si faltan en producción
+- Localhost permitido para desarrollo (RNF-10)
+
+---
+
+### Task 9: Tests de Integración
+**ID:** NOTIF-009
+**Objetivo:** Tests pytest para endpoints y lógica de notificaciones.
+**Requisitos:** RNF-05
+**Componentes afectados:**
+- `tests/test_notificaciones.py` (nuevo)
+
+**Tests requeridos:**
+- POST /notificaciones/suscripcion — crea suscripción válida (201)
+- POST /notificaciones/suscripcion — rechaza endpoint duplicado (409)
+- POST /notificaciones/suscripcion — valida campos requeridos (422)
+- DELETE /notificaciones/suscripcion — elimina propia suscripción (204)
+- DELETE /notificaciones/suscripcion — 404 si no tiene suscripción
+- Auth requerido en ambos endpoints (401 sin token)
+- Service: enviar_push_a_suscripcion — mock pywebpush
+- Service: limpieza 404/410 — mock WebPushException
+
+**Criterios de aceptación:**
+- Tests pasan con `pytest tests/test_notificaciones.py`
+- Usan fixtures existentes (client, auth_headers, db_session)
+- Cobertura de casos principales y edge cases
+
+---
+
+### Task 10: Actualizar Documentación y Contexto
+**ID:** NOTIF-010
+**Objetivo:** Actualizar context/architecture.md y decisions.md si aplica.
+**Componentes afectados:**
+- `context/architecture.md` — agregar feature notificaciones a estructura
+- `context/decisions.md` — decisión de pywebpush + APScheduler
+
+---
+
+## Dependencias Entre Tasks
 
 ```
-D09 (tipo Recurso) → RF-21 (materias) → RF-16 (recursos) → RF-20 (recordatorios) → Tests
+NOTIF-001 (modelo + migración)
+    ↓
+NOTIF-002 (schemas)
+    ↓
+NOTIF-003 (repository)
+    ↓
+NOTIF-004 (service) ← NOTIF-008 (config VAPID)
+    ↓
+NOTIF-005 (router) ← NOTIF-006 (deps + main.py)
+    ↓
+NOTIF-007 (scheduler) ← NOTIF-004, NOTIF-003
+    ↓
+NOTIF-009 (tests)
+    ↓
+NOTIF-010 (docs)
 ```
 
-D09 es prerrequisito para RF-16. RF-21 y RF-20 son independientes entre sí y de D09.
+---
+
+## Orden de Ejecución Recomendado
+
+1. **NOTIF-001** — Modelo y migración (base de todo)
+2. **NOTIF-002** — Schemas
+3. **NOTIF-003** — Repository
+4. **NOTIF-008** — Variables de entorno (necesario para service)
+5. **NOTIF-004** — Service (core logic)
+6. **NOTIF-006** — Dependencias y main.py
+7. **NOTIF-005** — Router (endpoints)
+8. **NOTIF-007** — Scheduler (integra recordatorios + push)
+9. **NOTIF-009** — Tests
+10. **NOTIF-010** — Documentación
 
 ---
 
-## Tareas
+## Notas de Implementación
 
-### T01 — D09: Agregar campo `tipo` al modelo Recurso
-**Objective:** Agregar columna `tipo` (String, nullable=True) al modelo Recurso para habilitar filtrado por tipo de archivo. Prerrequisito para RF-16.
+### Convenciones a seguir:
+- Estructura por feature: `model.py`, `schema.py`, `repository.py`, `service.py`, `router.py`, `dependencies.py`, `__init__.py`
+- `from_attributes = True` en todos los response schemas
+- Excepciones de dominio (`NotFoundError`, `DuplicateError`, `BadRequestError`)
+- `response_model` explícito en routers
+- Status codes HTTP semánticos
+- Logging en service para trazabilidad
 
-**Capas afectadas:** model, schema, repository
-**Archivos:**
-- `app/features/recursos/model.py` — agregar `tipo = Column(String, nullable=True)`
-- `app/features/recursos/schema.py` — agregar `tipo: Optional[str] = None` a `RecursoBase`
-- `app/features/recursos/repository.py` — actualizar `create_recurso` y `update_recurso` para incluir `tipo`
+### Integración con Recordatorios:
+- El scheduler (NOTIF-007) consultará recordatorios usando `RecordatorioRepository` existente
+- No modificar feature `recordatorios` — solo usar su repository desde `notificaciones.service`
+- Importar: `from app.features.recordatorios.repository import RecordatorioRepository`
 
-**Dependencias:** Ninguna (primer task)
+### Dependencias nuevas en requirements.txt:
+- `pywebpush` — para envío de notificaciones push
+- `apscheduler` — para job periódico
 
-**Aceptación:**
-- Recurso model tiene campo `tipo` nullable
-- RecursoCreate y RecursoResponse incluyen `tipo` opcional
-- create/update persisten `tipo` correctamente
-- Tests existentes no se rompen
-
-**Guidance:**
-- Usar `Column(String, nullable=True)` en el modelo
-- Agregar `tipo: Optional[str] = None` a `RecursoBase` para que hereden Create y Response
-- En repository, `create_recurso` debe pasar `tipo` al crear el objeto
-- No requiere migration en desarrollo (Base.metadata.drop_all/create_all en tests)
-
----
-
-### T02 — RF-21: Endpoint búsqueda de materias
-**Objective:** Implementar `GET /materias/buscar` con texto libre y filtros opcionales de año/cuatrimestre.
-
-**Capas afectadas:** schema, repository, service, router
-**Archivos:**
-- `app/features/materias/schema.py` — agregar `MateriaSearchQuery` (q, anio, cuatrimestre)
-- `app/features/materias/repository.py` — agregar método `search(q, anio, cuatrimestre)` en `MateriaRepository`
-- `app/features/materias/service.py` — agregar función `buscar_materias(db, q, anio, cuatrimestre)`
-- `app/features/materias/router.py` — agregar endpoint `GET /materias/buscar`
-
-**Dependencias:** Ninguna (independiente de D09)
-
-**Aceptación:**
-- `GET /materias/buscar?q=programacion` devuelve materias cuyo nombre o código contienen "programacion"
-- `GET /materias/buscar?q=programacion&anio=1` filtra además por año
-- `GET /materias/buscar?q=programacion&anio=1&cuatrimestre=1` filtra por año y cuatrimestre
-- Sin resultados devuelve lista vacía `[]`
-- No requiere autenticación
-- FastAPI genera OpenAPI/Swagger automáticamente
-- `response_model` explícito: `List[MateriaResponse]`
-
-**Guidance:**
-- El parámetro `q` es texto libre: usar `or_` con `ilike()` sobre `Materia.nombre` y `Materia.codigo`
-- Filtros `anio` y `cuatrimestre` son opcionales, aplicar solo si no son None
-- Usar `ilike` para búsqueda insensible a mayúsculas
-- Router: no usar `Depends(get_current_user)` (no requiere auth, como otros endpoints de materias)
-- Schema de query: `class MateriaSearchQuery(BaseModel)` con `Config.from_attributes = True`
-
----
-
-### T03 — RF-16: Filtros avanzados para recursos
-**Objective:** Extender `GET /recursos/` con filtros por materia_id, tipo, rango de fechas y ordenamiento.
-
-**Capas afectadas:** schema, repository, service, router
-**Archivos:**
-- `app/features/recursos/schema.py` — agregar schema de query params (materia_id, tipo, desde, hasta)
-- `app/features/recursos/repository.py` — agregar método `filter_recursos(...)` en `RecursoRepository`
-- `app/features/recursos/service.py` — agregar función `get_recursos_filtrados(db, filters)` en `RecursoService`
-- `app/features/recursos/routers/recursos.py` — extender `GET /` con query params opcionales
-
-**Dependencias:** T01 (D09 requiere campo `tipo` en modelo)
-
-**Aceptación:**
-- `GET /recursos/?materia_id=1&tipo=pdf&desde=2024-01-01` funciona correctamente
-- Filtros opcionales: materia_id, tipo, desde, hasta
-- Ordenamiento por fecha_creacion, titulo
-- Sin resultados devuelve lista vacía `[]`
-- `response_model` explícito: `List[RecursoResponse]`
-- FastAPI genera OpenAPI/Swagger con ejemplos
-
-**Guidance:**
-- `desde` y `hasta` son `date` query params; comparar con `func.date(Recurso.fecha_creacion)`
-- En repository, construir query dinámico con SQLAlchemy, agregando filtros solo si no son None
-- Ordenar por `Recurso.fecha_creacion.desc(), Recurso.titulo` por defecto
-- Extender el `GET /` existente, no crear endpoint nuevo
-
----
-
-### T04 — RF-20: Búsqueda de recordatorios con filtros
-**Objective:** Extender `GET /recordatorios` con filtros por tipo, rango de fechas, materia_id y ordenamiento por fecha descendente.
-
-**Capas afectadas:** schema, repository, service, router
-**Archivos:**
-- `app/features/recordatorios/schema.py` — agregar schema de query params (tipo, desde, hasta, materia_id)
-- `app/features/recordatorios/repository.py` — agregar método `search(tipo, desde, hasta, materia_id, usuario_id)`
-- `app/features/recordatorios/service.py` — agregar función `get_recordatorios_filtrados(db, usuario_id, ...)`
-- `app/features/recordatorios/router.py` — extender `GET /` con query params opcionales
-
-**Dependencias:** Ninguna (independiente)
-
-**Aceptación:**
-- `GET /recordatorios/?tipo=examen&desde=2024-12-01&hasta=2024-12-31` funciona correctamente
-- Filtros opcionales: tipo, desde, hasta, materia_id
-- `usuario_id` sigue siendo requerido (extender, no reemplazar)
-- Ordenamiento por fecha descendente (próximos primero)
-- Sin resultados devuelve lista vacía `[]`
-- `response_model` explícito: `List[RecordatorioResponse]`
-- FastAPI genera OpenAPI/Swagger con ejemplos
-
-**Guidance:**
-- `desde` y `hasta` son `date` query params; comparar con `func.date(Recordatorio.fecha)`
-- Construir query dinámico en repository: base = `usuario_id`, agregar filtros condicionalmente
-- Ordenar por `Recordatorio.fecha.desc()`
-- Extender la función/service existente con params opcionales
-
----
-
-### T05 — Tests para endpoints de búsqueda/filtro
-**Objective:** Crear tests de validación para los 3 nuevos endpoints cubriendo casos funcionales y edge cases.
-
-**Archivos:**
-- `tests/test_recursos.py` — tests de filtrado de recursos
-- `tests/test_recordatorios.py` — tests de búsqueda de recordatorios
-- `tests/test_materias.py` — agregar tests de búsqueda de materias
-
-**Dependencias:** T01, T02, T03, T04
-
-**Aceptación:**
-- Tests para búsqueda vacía (sin resultados): `[]`
-- Tests para cada filtro individual y combinado
-- Tests para ordenamiento (fecha descendente en recordatorios)
-- Tests de edge cases: filtros sin coincidencia
-- Tests existentes (test_auth.py, tests xfail en test_materias.py) no se ven afectados
-- Todos los tests pasan con pytest
-
-**Guidance:**
-- Reutilizar fixtures de `conftest.py`: `client`, `db_session`, `carrera_test`
-- Crear datos de test directamente en la sesión DB (Recurso, Recordatorio, Materia)
-- Verificar status codes 200 y contenido de respuestas
-- No modificar tests xfail existentes
-
----
-
-## Flujo de Ejecución
-
-```
-[T01] D09: campo tipo en Recurso
-  ↓ (prerrequisito)
-[T02] RF-21: búsqueda de materias ← paraleloizable con T04
-[T03] RF-16: filtros de recursos ← depende de T01
-[T04] RF-20: búsqueda de recordatorios ← paraleloizable con T02
-  ↓
-[T05] Tests de todos los endpoints
+### VAPID Keys Generation (para desarrollo):
+```bash
+# Generar claves VAPID (una sola vez)
+python -c "from pywebpush import generate_vapid_keys; print(generate_vapid_keys())"
 ```
 
-T02 y T04 pueden ejecutarse en paralelo con T01 (sin dependencia). T03 depende de T01.
+---
 
-## Contexto de Test Data Necesario
+## Estimación de Esfuerzo
 
-Para los tests se necesitarán datos de prueba:
-- Recursos con distintos `tipo` ("pdf", "docx", "link"), `materia_id`, `fecha_creacion`
-- Recordatorios con distintos `tipo` ("parcial", "tp", "final", "examen"), `fecha`, `materia_id`
-- Materias con distintos `nombre`, `codigo`, `anio`, `cuatrimestre`
+| Task | Complejidad | Estimación |
+|------|-------------|------------|
+| NOTIF-001 | Baja | 30 min |
+| NOTIF-002 | Baja | 20 min |
+| NOTIF-003 | Baja | 30 min |
+| NOTIF-004 | Media | 60 min |
+| NOTIF-005 | Baja | 30 min |
+| NOTIF-006 | Baja | 15 min |
+| NOTIF-007 | Media | 60 min |
+| NOTIF-008 | Baja | 15 min |
+| NOTIF-009 | Media | 60 min |
+| NOTIF-010 | Baja | 15 min |
+| **Total** | | **~5.5 horas** |
 
-Todos los datos se crean directamente en `db_session` dentro de cada test.
+---
+
+## Riesgos y Mitigaciones
+
+| Riesgo | Impacto | Mitigación |
+|--------|---------|------------|
+| pywebpush no compatible con Python version | Alto | Verificar versión en requirements, testear temprano |
+| VAPID keys no configuradas en deploy | Alto | Validar al inicio, documentar claramente |
+| Scheduler no inicia en producción (gunicorn/uvicorn workers) | Medio | Usar lifespan de FastAPI, considerar worker dedicado |
+| Duplicados de notificación para mismo recordatorio | Medio | Ventana deslizante + tracking de notificados |
+| iOS PWA requiere instalación | Bajo | Documentar en README, no bloquea backend |
+
+---
+
+## Próximos Pasos
+
+1. Ejecutar NOTIF-001: Crear modelo y migración
+2. Ejecutar migración y verificar
+3. Continuar con tasks secuenciales
