@@ -57,7 +57,9 @@ def check_and_send_reminder_notifications(db_session_factory: Callable[[], Sessi
         }
     """
     window_minutes = get_reminder_window_minutes()
-    now = datetime.utcnow()
+    # Hora local naive: el front manda la hora de pared tal cual (sin zona) y
+    # la BD la guarda así; el validador de RecordatorioCreate usa el mismo criterio.
+    now = datetime.now()
     window_end = now + timedelta(minutes=window_minutes)
     
     logger.info(
