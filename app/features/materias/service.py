@@ -16,6 +16,7 @@ from app.features.materias.repository import (
 from app.features.materias.schema import (
     CarreraCreate,
     CarreraUpdate,
+    CorrelativaCreate,
     MateriaCreate,
     MateriaUpdate,
     MateriaUsuarioCreate,
@@ -122,6 +123,38 @@ def get_correlativas(
     db: Session, materia_id: int, params: PaginationParams
 ) -> PaginatedResponse[Correlativa]:
     return paginate(CorrelativaRepository(db).query_by_materia(materia_id), params)
+
+
+def create_correlativa(db: Session, datos: CorrelativaCreate) -> Correlativa:
+    """Da de alta una correlativa: para cursar `materia_id` hay que tener
+    `requiere_id`. Valida que ambas materias existan y que agregarla no
+    genere un ciclo (directo o indirecto) en el grafo de correlativas.
+    """
+    materia_repo = MateriaRepository(db)
+    if materia_repo.get_by_id(datos.materia_id) is None:
+        raise NotFoundError("La materia no existe")
+    if materia_repo.get_by_id(datos.requiere_id) is None:
+        raise NotFoundError("La materia requerida no existe")
+
+    correlativa_repo = CorrelativaRepository(db)
+    if correlativa_repo.existe_camino(datos.requiere_id, datos.materia_id):
+        raise BusinessRuleError(
+            "Esa correlativa generaría un ciclo: la materia requerida ya "
+            "depende, directa o indirectamente, de esta materia"
+        )
+
+    try:
+        return correlativa_repo.create(datos.materia_id, datos.requiere_id)
+    except IntegrityError:
+        db.rollback()
+        raise DuplicateError("Esa correlativa ya existe")
+
+
+def delete_correlativa(db: Session, correlativa_id: int) -> Correlativa:
+    correlativa = CorrelativaRepository(db).delete(correlativa_id)
+    if correlativa is None:
+        raise NotFoundError("Correlativa no encontrada")
+    return correlativa
 
 
 def promociona_por_parciales(

@@ -14,6 +14,7 @@ from app.features.materias.schema import (
     CarreraCreate,
     CarreraResponse,
     CarreraUpdate,
+    CorrelativaCreate,
     CorrelativaResponse,
     MateriaCreate,
     MateriaResponse,
@@ -102,6 +103,25 @@ def get_correlativas(
     pagination: PaginationParams = Depends(),
 ):
     return service.get_correlativas(db, materia_id, pagination)
+
+
+@router.post("/correlativas", response_model=CorrelativaResponse, status_code=status.HTTP_201_CREATED)
+def crear_correlativa(
+    datos: CorrelativaCreate,
+    db: Session = Depends(get_db),
+    usuario_actual: UsuarioResponse = Depends(require_admin),
+):
+    return service.create_correlativa(db, datos)
+
+
+@router.delete("/correlativas/{correlativa_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_correlativa(
+    correlativa_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: UsuarioResponse = Depends(require_admin),
+):
+    service.delete_correlativa(db, correlativa_id)
+    return None
 
 
 @router.get("/usuario/{usuario_id}", response_model=PaginatedResponse[MateriaUsuarioResponse])

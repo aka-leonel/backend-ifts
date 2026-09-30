@@ -172,6 +172,22 @@ class MateriaUpdate(BaseModel):
         return v
 
 
+class CorrelativaCreate(BaseModel):
+    materia_id: int = Field(..., description="Materia que exige la correlativa", examples=[5])
+    requiere_id: int = Field(
+        ..., description="Materia que hay que tener aprobada/cursada para poder cursar `materia_id`",
+        examples=[2],
+    )
+
+    @field_validator("requiere_id")
+    @classmethod
+    def _no_autorreferencia(cls, v: int, info) -> int:
+        materia_id = info.data.get("materia_id")
+        if materia_id is not None and v == materia_id:
+            raise ValueError("Una materia no puede ser correlativa de sí misma")
+        return v
+
+
 class CorrelativaResponse(BaseModel):
     id: int
     materia_id: int

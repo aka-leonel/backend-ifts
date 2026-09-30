@@ -1,3 +1,5 @@
+
+
 # Sprint 7 — Reparto de tareas
 
 Reparto equitativo por complejidad entre 3 personas. Las tareas relacionadas o dependientes quedan con la misma persona, con front y back incluidos.
