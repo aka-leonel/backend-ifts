@@ -21,7 +21,7 @@ from app.features.auth.model import Usuario, RolUsuario
 from app.features.materias.model import IFTS, Carrera, Materia, Correlativa, MateriaUsuario
 from app.features.recordatorios.model import Recordatorio
 from app.features.recursos.model import Recurso, Convenio, TalentoTech
-
+from app.features.notificaciones.model import PushSubscription
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
