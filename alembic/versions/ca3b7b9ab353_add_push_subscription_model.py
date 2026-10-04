@@ -34,20 +34,10 @@ def upgrade() -> None:
     op.create_index(op.f('ix_push_subscriptions_endpoint'), 'push_subscriptions', ['endpoint'], unique=True)
     op.create_index(op.f('ix_push_subscriptions_id'), 'push_subscriptions', ['id'], unique=False)
     op.create_index(op.f('ix_push_subscriptions_usuario_id'), 'push_subscriptions', ['usuario_id'], unique=False)
-    op.add_column('materias_usuario', sa.Column('examen_final', sa.Float(), nullable=True))
-    op.drop_column('materias_usuario', 'nota_final')
-    op.create_index(op.f('ix_recordatorios_materia_id'), 'recordatorios', ['materia_id'], unique=False)
-    op.create_index(op.f('ix_recordatorios_usuario_id'), 'recordatorios', ['usuario_id'], unique=False)
-    op.create_index(op.f('ix_talentotech_carrera_id'), 'talentotech', ['carrera_id'], unique=False)
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index(op.f('ix_talentotech_carrera_id'), table_name='talentotech')
-    op.drop_index(op.f('ix_recordatorios_usuario_id'), table_name='recordatorios')
-    op.drop_index(op.f('ix_recordatorios_materia_id'), table_name='recordatorios')
-    op.add_column('materias_usuario', sa.Column('nota_final', sa.FLOAT(), nullable=True))
-    op.drop_column('materias_usuario', 'examen_final')
     op.drop_index(op.f('ix_push_subscriptions_usuario_id'), table_name='push_subscriptions')
     op.drop_index(op.f('ix_push_subscriptions_id'), table_name='push_subscriptions')
     op.drop_index(op.f('ix_push_subscriptions_endpoint'), table_name='push_subscriptions')
