@@ -17,6 +17,7 @@ from app.features.auth.schema import (
     TokenResponse,
 )
 from app.features.auth.model import Usuario
+from app.shared.utils.email import enviar_email
 from app.shared.exceptions import (
     BadRequestError,
     DuplicateError,
@@ -206,16 +207,18 @@ class AuthService:
         self._enviar_email_reset(user.email, token)
 
     def _enviar_email_reset(self, email: str, token: str) -> None:
-        """Punto de integración con el proveedor de email.
-
-        TODO: no hay SMTP/proveedor configurado todavía. Mientras tanto, se
-        loguea el link para poder probar el flujo completo en dev.
-        """
+        """Manda el link de reset por SMTP. El token no se loguea."""
         frontend_url = os.getenv(
             "FRONTEND_RESET_PASSWORD_URL", "http://localhost:5173/reset-password"
         )
         link = f"{frontend_url}?token={token}"
-        logger.info("Reset de contraseña para %s: %s", email, link)
+        cuerpo = (
+            "Recibimos un pedido para restablecer tu contraseña de miIFTS.\n\n"
+            f"Ingresá a este link (vence en {RESET_PASSWORD_TOKEN_EXPIRE_MINUTES} "
+            f"minutos y sirve una sola vez):\n{link}\n\n"
+            "Si no fuiste vos, ignorá este mensaje."
+        )
+        enviar_email(email, "Restablecer contraseña - miIFTS", cuerpo)
 
     def restablecer_password(self, token: str, nueva_password: str) -> None:
         """Valida el token de un solo uso y actualiza la contraseña."""

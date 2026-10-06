@@ -129,10 +129,8 @@ Flujo de dos pasos, ambos endpoints **públicos** (sin token):
   manda por email con un link a `FRONTEND_RESET_PASSWORD_URL?token=<token>`
   (`FRONTEND_RESET_PASSWORD_URL` es una env var del backend, default
   `http://localhost:5173/reset-password` — avisar si la URL real del front es otra).
-- **Gap actual**: todavía no hay proveedor de SMTP configurado. En dev el
-  link se loguea en la consola del backend en vez de mandarse por email de
-  verdad — para probar el flujo end-to-end, pedile a quien tenga el backend
-  levantado el link de los logs.
+- El email se manda por SMTP (env vars `SMTP_*` del backend). Si el backend no
+  tiene `SMTP_HOST` configurado, no se envía nada y el token **no** se loguea.
 
 ```jsonc
 // 2) POST /auth/reset-password — con el token de la URL + contraseña nueva
