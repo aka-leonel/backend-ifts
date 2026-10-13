@@ -13,6 +13,7 @@ from app.features.recordatorios.router import router as recordatorios_router
 from app.features.recursos.router import recursos_main_router as recursos_router
 from app.features.auth.router import router as auth_ruoter
 from app.features.notificaciones.router import router as notificaciones_router
+from app.features.quiz.router import router as quiz_router
 from app.shared.exceptions import APIException
 
 # Sin esto, el logger raíz queda en WARNING por defecto y todos los
@@ -167,6 +168,7 @@ app.include_router(materias_router)
 app.include_router(recursos_router)
 app.include_router(auth_ruoter)
 app.include_router(notificaciones_router)
+app.include_router(quiz_router)
 
 
 @app.get("/")

@@ -23,3 +23,6 @@ pylint==3.2.7
 pywebpush>=1.13
 apscheduler>=3.10
 tzdata
+
+# Quiz con IA
+pypdf==5.1.0
