@@ -422,7 +422,7 @@ def test_reminder_window_desde_variable_entorno(monkeypatch):
 
 
 @patch("app.features.notificaciones.service.webpush")
-@freeze_time("2025-01-15 10:00:00")
+@freeze_time("2025-01-15 13:00:00")  # 10:00 hora Buenos Aires
 def test_job_recordatorios_proximos_envia_push(mock_webpush, db_session, carrera_test, monkeypatch):
     """
     Test de integración: crear recordatorio en ventana temporal,
@@ -474,7 +474,7 @@ def test_job_recordatorios_proximos_envia_push(mock_webpush, db_session, carrera
 
 
 @patch("app.features.notificaciones.service.webpush")
-@freeze_time("2025-01-15 10:00:00")
+@freeze_time("2025-01-15 13:00:00")  # 10:00 hora Buenos Aires
 def test_job_recordatorios_fuera_ventana_no_envia(mock_webpush, db_session, carrera_test, monkeypatch):
     """
     Verifica que recordatorios FUERA de la ventana temporal NO disparan push.
@@ -505,7 +505,7 @@ def test_job_recordatorios_fuera_ventana_no_envia(mock_webpush, db_session, carr
 
 
 @patch("app.features.notificaciones.service.webpush")
-@freeze_time("2025-01-15 10:00:00")
+@freeze_time("2025-01-15 13:00:00")  # 10:00 hora Buenos Aires
 def test_job_multiples_recordatorios_mismo_usuario(mock_webpush, db_session, carrera_test, monkeypatch):
     """
     Verifica que múltiples recordatorios para el mismo usuario
@@ -541,7 +541,7 @@ def test_job_multiples_recordatorios_mismo_usuario(mock_webpush, db_session, car
 
 
 @patch("app.features.notificaciones.service.webpush")
-@freeze_time("2025-01-15 10:00:00")
+@freeze_time("2025-01-15 13:00:00")  # 10:00 hora Buenos Aires
 def test_job_usuario_sin_suscripcion(mock_webpush, db_session, carrera_test, monkeypatch):
     """
     Verifica que usuarios sin suscripción push se contabilizan en no_subscription.
@@ -573,7 +573,7 @@ def test_job_usuario_sin_suscripcion(mock_webpush, db_session, carrera_test, mon
 
 
 @patch("app.features.notificaciones.service.webpush")
-@freeze_time("2025-01-15 10:00:00")
+@freeze_time("2025-01-15 13:00:00")  # 10:00 hora Buenos Aires
 def test_job_maneja_error_en_recordatorio(mock_webpush, db_session, carrera_test, monkeypatch):
     """
     Verifica que error en un recordatorio no rompe el job.
@@ -784,7 +784,7 @@ def test_integracion_endpoint_suscripcion_y_envio(mock_webpush, client, auth_hea
 
 
 @patch("app.features.notificaciones.service.webpush")
-@freeze_time("2025-06-20 14:00:00")
+@freeze_time("2025-06-20 17:00:00")  # 14:00 hora Buenos Aires
 def test_scheduler_payload_incluye_campos_esperados(mock_webpush, db_session, carrera_test, monkeypatch):
     """
     Verifica que el payload del push enviado por el scheduler incluye
