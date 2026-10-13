@@ -2,6 +2,8 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
 
+from app.shared.utils.tiempo import ahora_local
+
 class RecordatorioCreate(BaseModel):
     titulo: str = Field(..., examples=["Parcial de Programación I"])
     fecha: datetime = Field(
@@ -22,7 +24,7 @@ class RecordatorioCreate(BaseModel):
     @field_validator("fecha")
     @classmethod
     def _fecha_futura(cls, v: datetime) -> datetime:
-        ahora = datetime.now(tz=v.tzinfo) if v.tzinfo else datetime.now()
+        ahora = datetime.now(tz=v.tzinfo) if v.tzinfo else ahora_local()
         if v < ahora:
             raise ValueError("La fecha del recordatorio debe ser futura")
         return v
@@ -58,7 +60,7 @@ class RecordatorioUpdate(BaseModel):
     def _fecha_futura(cls, v: Optional[datetime]) -> Optional[datetime]:
         if v is None:
             return v
-        ahora = datetime.now(tz=v.tzinfo) if v.tzinfo else datetime.now()
+        ahora = datetime.now(tz=v.tzinfo) if v.tzinfo else ahora_local()
         if v < ahora:
             raise ValueError("La fecha del recordatorio debe ser futura")
         return v

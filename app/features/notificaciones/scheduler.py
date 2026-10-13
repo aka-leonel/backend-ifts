@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.features.recordatorios.model import Recordatorio
 from app.features.recordatorios.repository import RecordatorioRepository
 from app.features.notificaciones.service import PushNotificationService
+from app.shared.utils.tiempo import ahora_local
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +58,9 @@ def check_and_send_reminder_notifications(db_session_factory: Callable[[], Sessi
         }
     """
     window_minutes = get_reminder_window_minutes()
-    # Hora local naive: el front manda la hora de pared tal cual (sin zona) y
+    # Hora local naive (Argentina): el front manda la hora de pared tal cual y
     # la BD la guarda así; el validador de RecordatorioCreate usa el mismo criterio.
-    now = datetime.now()
+    now = ahora_local()
     window_end = now + timedelta(minutes=window_minutes)
     
     logger.info(

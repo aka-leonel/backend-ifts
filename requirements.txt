@@ -22,3 +22,4 @@ pylint==3.2.7
 # Notificaciones push
 pywebpush>=1.13
 apscheduler>=3.10
+tzdata
