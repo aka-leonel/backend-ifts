@@ -10,6 +10,8 @@ según el plan de estudios real de tu institución (usá el PDF como fuente).
 """
 import sys
 import os
+from app.features.notificaciones.model import PushSubscription
+from app.features.quiz.model import QuizUso
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
