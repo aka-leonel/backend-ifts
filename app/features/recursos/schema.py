@@ -36,10 +36,45 @@ class ConvenioCreate(BaseModel):
     carrera_destino: str
     descripcion: str
     link_info: HttpUrl
-    carrera_id: int
+    carrera_ids: Optional[list[int]] = None
+    todas_las_carreras: bool = False
 
-class ConvenioResponse(ConvenioCreate):
+    @field_validator("institucion", "carrera_destino", "descripcion")
+    @classmethod
+    def _strip_textos(cls, v: str) -> str:
+        return v.strip() if isinstance(v, str) else v
+
+class ConvenioUpdate(BaseModel):
+    """Edición parcial: sólo se aplican los campos presentes en el body."""
+
+    institucion: Optional[str] = None
+    carrera_destino: Optional[str] = None
+    descripcion: Optional[str] = None
+    link_info: Optional[HttpUrl] = None
+    carrera_ids: Optional[list[int]] = None
+    todas_las_carreras: Optional[bool] = None
+
+    @field_validator("institucion", "carrera_destino", "descripcion")
+    @classmethod
+    def _strip_textos(cls, v: Optional[str]) -> Optional[str]:
+        return v.strip() if isinstance(v, str) else v
+
+class CarreraResumen(BaseModel):
     id: int
+    nombre: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ConvenioResponse(BaseModel):
+    """Contrato de salida: `carreras` es `[]` cuando `todas_las_carreras` es true."""
+
+    id: int
+    institucion: str
+    carrera_destino: str
+    descripcion: str
+    link_info: str
+    todas_las_carreras: bool
+    carreras: list[CarreraResumen]
 
     model_config = ConfigDict(from_attributes=True)
 

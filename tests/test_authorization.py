@@ -365,7 +365,7 @@ def _convenio_payload(carrera_id):
         "carrera_destino": "Lic. en Sistemas",
         "descripcion": "Articulación de la tecnicatura con la licenciatura",
         "link_info": "https://www.ungs.edu.ar/convenio",
-        "carrera_id": carrera_id,
+        "carrera_ids": [carrera_id],
     }
 
 

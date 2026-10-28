@@ -754,6 +754,92 @@
         }
       }
     },
+    "/materias/correlativas": {
+      "post": {
+        "tags": [
+          "materias"
+        ],
+        "summary": "Crear Correlativa",
+        "operationId": "crear_correlativa_materias_correlativas_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrelativaCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrelativaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/materias/correlativas/{correlativa_id}": {
+      "delete": {
+        "tags": [
+          "materias"
+        ],
+        "summary": "Eliminar Correlativa",
+        "operationId": "eliminar_correlativa_materias_correlativas__correlativa_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "correlativa_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Correlativa Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/materias/usuario/{usuario_id}": {
       "get": {
         "tags": [
@@ -1659,6 +1745,24 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda por texto libre",
+              "title": "Q"
+            },
+            "description": "Búsqueda por texto libre"
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -1739,6 +1843,61 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ConvenioCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConvenioResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "convenios"
+        ],
+        "summary": "Update Parcial",
+        "operationId": "update_parcial_convenios__convenio_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "convenio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Convenio Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvenioUpdate"
               }
             }
           }
@@ -1853,6 +2012,24 @@
         "summary": "Get All",
         "operationId": "get_all_convenios__get",
         "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda por texto libre",
+              "title": "Q"
+            },
+            "description": "Búsqueda por texto libre"
+          },
           {
             "name": "page",
             "in": "query",
@@ -2592,15 +2769,6 @@
         }
       }
     },
-<<<<<<< HEAD
-    "/auth/change-password": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Change Password",
-        "operationId": "change_password_auth_change_password_post",
-=======
     "/auth/password": {
       "patch": {
         "tags": [
@@ -2609,16 +2777,11 @@
         "summary": "Cambiar Password",
         "description": "Cambia la contraseña del usuario autenticado. Requiere la actual.",
         "operationId": "cambiar_password_auth_password_patch",
->>>>>>> 2756426b78e976c3bf5afca7e6de1e2528f71231
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-<<<<<<< HEAD
-                "$ref": "#/components/schemas/ChangePasswordRequest"
-=======
                 "$ref": "#/components/schemas/CambiarPasswordRequest"
->>>>>>> 2756426b78e976c3bf5afca7e6de1e2528f71231
               }
             }
           },
@@ -2651,6 +2814,153 @@
             "OAuth2PasswordBearer": []
           }
         ]
+      }
+    },
+    "/notificaciones/suscripcion": {
+      "post": {
+        "tags": [
+          "notificaciones"
+        ],
+        "summary": "Crear Suscripcion",
+        "description": "Registra o actualiza la suscripción push del usuario autenticado.\n\n- **endpoint**: URL del endpoint de push del navegador\n- **p256dh**: Clave pública P-256 en base64 URL-safe\n- **auth**: Secreto de autenticación en base64 URL-safe\n\nRetorna la suscripción creada/actualizada con su ID y fecha de creación.",
+        "operationId": "crear_suscripcion_notificaciones_suscripcion_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "notificaciones"
+        ],
+        "summary": "Eliminar Suscripcion",
+        "description": "Elimina la suscripción push del usuario autenticado.\n\n- **endpoint**: URL del endpoint de la suscripción a eliminar\n\nRetorna 204 No Content si se eliminó correctamente.\nRetorna 404 si la suscripción no existe para este usuario.",
+        "operationId": "eliminar_suscripcion_notificaciones_suscripcion_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/quiz/": {
+      "post": {
+        "tags": [
+          "quiz"
+        ],
+        "summary": "Generar Quiz",
+        "operationId": "generar_quiz_quiz__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cantidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 1,
+              "description": "Cantidad de preguntas",
+              "default": 5,
+              "title": "Cantidad"
+            },
+            "description": "Cantidad de preguntas"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_generar_quiz_quiz__post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/": {
@@ -2688,6 +2998,21 @@
   },
   "components": {
     "schemas": {
+      "Body_generar_quiz_quiz__post": {
+        "properties": {
+          "archivo": {
+            "type": "string",
+            "format": "binary",
+            "title": "Archivo",
+            "description": "PDF con el material de estudio (máx. 10 MB)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "archivo"
+        ],
+        "title": "Body_generar_quiz_quiz__post"
+      },
       "CambiarPasswordRequest": {
         "properties": {
           "password_actual": {
@@ -2766,6 +3091,24 @@
         ],
         "title": "CarreraResponse"
       },
+      "CarreraResumen": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre"
+        ],
+        "title": "CarreraResumen"
+      },
       "CarreraUpdate": {
         "properties": {
           "nombre": {
@@ -2794,33 +3137,6 @@
         "type": "object",
         "title": "CarreraUpdate"
       },
-      "ChangePasswordRequest": {
-        "properties": {
-          "current_password": {
-            "type": "string",
-            "minLength": 1,
-            "title": "Current Password",
-            "examples": [
-              "secreta123"
-            ]
-          },
-          "new_password": {
-            "type": "string",
-            "minLength": 8,
-            "title": "New Password",
-            "examples": [
-              "nuevaSecreta123"
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "current_password",
-          "new_password"
-        ],
-        "title": "ChangePasswordRequest",
-        "description": "`POST /auth/change-password` — cambio autenticado desde Perfil."
-      },
       "ConvenioCreate": {
         "properties": {
           "institucion": {
@@ -2842,9 +3158,24 @@
             "format": "uri",
             "title": "Link Info"
           },
-          "carrera_id": {
-            "type": "integer",
-            "title": "Carrera Id"
+          "carrera_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carrera Ids"
+          },
+          "todas_las_carreras": {
+            "type": "boolean",
+            "title": "Todas Las Carreras",
+            "default": false
           }
         },
         "type": "object",
@@ -2852,13 +3183,16 @@
           "institucion",
           "carrera_destino",
           "descripcion",
-          "link_info",
-          "carrera_id"
+          "link_info"
         ],
         "title": "ConvenioCreate"
       },
       "ConvenioResponse": {
         "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
           "institucion": {
             "type": "string",
             "title": "Institucion"
@@ -2873,30 +3207,137 @@
           },
           "link_info": {
             "type": "string",
-            "maxLength": 2083,
-            "minLength": 1,
-            "format": "uri",
             "title": "Link Info"
           },
-          "carrera_id": {
-            "type": "integer",
-            "title": "Carrera Id"
+          "todas_las_carreras": {
+            "type": "boolean",
+            "title": "Todas Las Carreras"
           },
-          "id": {
-            "type": "integer",
-            "title": "Id"
+          "carreras": {
+            "items": {
+              "$ref": "#/components/schemas/CarreraResumen"
+            },
+            "type": "array",
+            "title": "Carreras"
           }
         },
         "type": "object",
         "required": [
+          "id",
           "institucion",
           "carrera_destino",
           "descripcion",
           "link_info",
-          "carrera_id",
-          "id"
+          "todas_las_carreras",
+          "carreras"
         ],
-        "title": "ConvenioResponse"
+        "title": "ConvenioResponse",
+        "description": "Contrato de salida: `carreras` es `[]` cuando `todas_las_carreras` es true."
+      },
+      "ConvenioUpdate": {
+        "properties": {
+          "institucion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institucion"
+          },
+          "carrera_destino": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carrera Destino"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "link_info": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2083,
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Info"
+          },
+          "carrera_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carrera Ids"
+          },
+          "todas_las_carreras": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todas Las Carreras"
+          }
+        },
+        "type": "object",
+        "title": "ConvenioUpdate",
+        "description": "Edición parcial: sólo se aplican los campos presentes en el body."
+      },
+      "CorrelativaCreate": {
+        "properties": {
+          "materia_id": {
+            "type": "integer",
+            "title": "Materia Id",
+            "description": "Materia que exige la correlativa",
+            "examples": [
+              5
+            ]
+          },
+          "requiere_id": {
+            "type": "integer",
+            "title": "Requiere Id",
+            "description": "Materia que hay que tener aprobada/cursada para poder cursar `materia_id`",
+            "examples": [
+              2
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "materia_id",
+          "requiere_id"
+        ],
+        "title": "CorrelativaCreate"
       },
       "CorrelativaResponse": {
         "properties": {
@@ -3170,6 +3611,10 @@
             "type": "integer",
             "title": "Materia Id"
           },
+          "materia_nombre": {
+            "type": "string",
+            "title": "Materia Nombre"
+          },
           "cursando": {
             "type": "boolean",
             "title": "Cursando"
@@ -3229,6 +3674,7 @@
           "id",
           "usuario_id",
           "materia_id",
+          "materia_nombre",
           "cursando",
           "estado",
           "nota_parcial_1",
@@ -3635,6 +4081,42 @@
         "title": "PerfilUpdate",
         "description": "`PATCH /auth/me` — el alumno sólo edita su propio nombre y apellido.\n\nLa carrera se muestra en el perfil pero no se cambia desde acá. El email\nidentifica la cuenta y el rol nunca se acepta desde el request. Cualquier\notro campo del body se ignora."
       },
+      "Pregunta": {
+        "properties": {
+          "enunciado": {
+            "type": "string",
+            "title": "Enunciado"
+          },
+          "opciones": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Opciones"
+          },
+          "correcta": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Correcta",
+            "description": "Índice (0-3) de la opción correcta"
+          },
+          "explicacion": {
+            "type": "string",
+            "title": "Explicacion",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "enunciado",
+          "opciones",
+          "correcta"
+        ],
+        "title": "Pregunta"
+      },
       "PromedioResponse": {
         "properties": {
           "promedio": {
@@ -3659,6 +4141,110 @@
           "materias_computadas"
         ],
         "title": "PromedioResponse"
+      },
+      "PushSubscriptionCreate": {
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Endpoint",
+            "description": "URL del endpoint de push del navegador"
+          },
+          "p256dh": {
+            "type": "string",
+            "minLength": 87,
+            "title": "P256Dh",
+            "description": "Clave pública P-256 (base64 URL-safe)"
+          },
+          "auth": {
+            "type": "string",
+            "minLength": 24,
+            "title": "Auth",
+            "description": "Secreto de autenticación (base64 URL-safe)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "endpoint",
+          "p256dh",
+          "auth"
+        ],
+        "title": "PushSubscriptionCreate",
+        "description": "Datos para crear una suscripción push (POST /notificaciones/suscripcion).\n\nendpoint: URL del endpoint de push del navegador (validada como HttpUrl).\np256dh: Clave pública P-256 en base64 URL-safe (mínimo 88 caracteres).\nauth: Secreto de autenticación en base64 URL-safe (mínimo 24 caracteres)."
+      },
+      "PushSubscriptionDelete": {
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Endpoint",
+            "description": "URL del endpoint de la suscripción a eliminar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "endpoint"
+        ],
+        "title": "PushSubscriptionDelete",
+        "description": "Datos para eliminar una suscripción push (DELETE /notificaciones/suscripcion).\n\nSe identifica la suscripción a eliminar por su endpoint."
+      },
+      "PushSubscriptionResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "usuario_id": {
+            "type": "integer",
+            "title": "Usuario Id"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint"
+          },
+          "p256dh": {
+            "type": "string",
+            "title": "P256Dh"
+          },
+          "auth": {
+            "type": "string",
+            "title": "Auth"
+          },
+          "fecha_creacion": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Creacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "usuario_id",
+          "endpoint",
+          "p256dh",
+          "auth",
+          "fecha_creacion"
+        ],
+        "title": "PushSubscriptionResponse",
+        "description": "Respuesta con los datos de una suscripción push.\n\nIncluye las claves para que el frontend pueda gestionarlas si es necesario."
+      },
+      "QuizResponse": {
+        "properties": {
+          "preguntas": {
+            "items": {
+              "$ref": "#/components/schemas/Pregunta"
+            },
+            "type": "array",
+            "title": "Preguntas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "preguntas"
+        ],
+        "title": "QuizResponse"
       },
       "RecordatorioCreate": {
         "properties": {

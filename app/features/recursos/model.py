@@ -1,4 +1,15 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, Text, DateTime
+from sqlalchemy import (
+    Boolean,
+    Column,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    UniqueConstraint,
+    text,
+)
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 from app.features.materias.model import Materia, Carrera
@@ -20,14 +31,46 @@ class Recurso(Base):
 
 class Convenio(Base):
     __tablename__ = "convenios"
+    __table_args__ = (
+        UniqueConstraint(
+            "institucion",
+            "carrera_destino",
+            name="uq_convenios_institucion_destino",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    carrera_id = Column(Integer, ForeignKey("carreras.id"), nullable=False,  index=True)
-    
     institucion = Column(String(150), nullable=False)
     carrera_destino = Column(String(150), nullable=False)
     descripcion = Column(Text, nullable=False)
     link_info = Column(Text, nullable=False)
+    todas_las_carreras = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+
+    carreras = relationship(
+        "Carrera",
+        secondary="convenios_carreras",
+        lazy="selectin",
+        order_by="Carrera.nombre",
+    )
+
+
+class ConvenioCarrera(Base):
+    """Tabla intermedia N:M entre convenios y carreras de origen (D17)."""
+
+    __tablename__ = "convenios_carreras"
+
+    convenio_id = Column(
+        Integer,
+        ForeignKey("convenios.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    carrera_id = Column(
+        Integer,
+        ForeignKey("carreras.id"),
+        primary_key=True,
+    )
 
 
 class TalentoTech(Base):

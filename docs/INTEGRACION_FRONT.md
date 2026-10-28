@@ -253,19 +253,36 @@ las cursadas que ya cerraron (promocionada, aprobada o desaprobada); las que sig
 
 ### 3.4 Convenios y TalentoTech
 
+> **Convenios tiene documento propio y actualizado:** `docs/CONVENIOS_FRONT.md`
+> (N:M con carreras de origen, `todas_las_carreras`, PATCH, búsqueda `q`, orden
+> estable, 422/409). Esta sección queda como referencia general.
+
 > Lectura pública. Escritura **solo admin** (`403` estudiante, `401` sin token).
 > Desde el front del alumno son **solo lectura**.
 
 | Método | Path | Acceso | Notas |
 |--------|------|--------|-------|
-| `GET` | `/convenios/` | Pub | paginado → `ConvenioResponse` |
-| `GET` | `/convenios/carrera/{carrera_id}` | Pub | paginado |
-| `GET` | `/convenios/{id}` | Pub | `ConvenioResponse` |
+| `GET` | `/convenios/` | Pub | paginado → `ConvenioResponse`. Filtro opcional `?q=` (texto libre, case-insensitive, sobre institución/destino/descripción). Orden `lower(institucion) ASC, id ASC` (case-insensitive) |
+| `GET` | `/convenios/carrera/{carrera_id}` | Pub | paginado. Convenios explícitos de esa carrera **+** los `todas_las_carreras`; mismo `?q=` y orden |
+| `GET` | `/convenios/{id}` | Pub | `ConvenioResponse`; `404` si no existe |
 | `GET` | `/talentotech/` | Pub | paginado → `TalentoTechResponse` |
 | `GET` | `/talentotech/carrera/{carrera_id}` | Pub | paginado |
 | `GET` | `/talentotech/categoria/{categoria}` | Pub | paginado |
 | `GET` | `/talentotech/{id}` | Pub | `TalentoTechResponse` |
-| `POST/PUT/DELETE` | `/convenios/*`, `/talentotech/*` | Admin | `require_admin`: `403` estudiante, `401` sin token |
+| `POST/PUT/PATCH/DELETE` | `/convenios/*`, `/talentotech/*` | Admin | `require_admin`: `403` estudiante, `401` sin token |
+
+Convenios — reglas de escritura:
+- `POST` y `PUT` reciben `ConvenioCreate`: `institucion`, `carrera_destino`,
+  `descripcion`, `link_info` + `carrera_ids` (mín. 1) **o** `todas_las_carreras: true`
+  (excluyentes). `PUT` es reemplazo total.
+- `PATCH /convenios/{id}` recibe `ConvenioUpdate` (todos opcionales) y aplica **sólo los
+  campos presentes**. Body `{}` devuelve `200` con el convenio sin cambios. `404` si el id no existe.
+  `carrera_ids` reemplaza el conjunto; `todas_las_carreras: true` limpia las carreras explícitas.
+- `carrera_ids` inexistente en `POST`/`PUT`/`PATCH` → `422` con `detail` que enumera los ids faltantes.
+- Flag e ids incompatibles, o flag `false` sin carreras → `422`.
+- Duplicado por `(institucion, carrera_destino)` → `409` (incluye `PATCH`), aunque cambien las carreras.
+- Los textos se normalizan con `strip()` (los espacios al borde no cuentan).
+- La comparación de unicidad es case-sensitive.
 
 ### 3.5 Recordatorios
 
@@ -415,9 +432,20 @@ export interface Recurso {
 export interface RecursoCreate {
   titulo: string; url: string; descripcion: string; tipo?: string | null; materia_id: number;
 }
+export interface CarreraResumen {
+  id: number; nombre: string;
+}
 export interface Convenio {
   id: number; institucion: string; carrera_destino: string; descripcion: string;
-  link_info: string; carrera_id: number;
+  link_info: string; todas_las_carreras: boolean; carreras: CarreraResumen[];
+}
+export interface ConvenioCreate {
+  institucion: string; carrera_destino: string; descripcion: string;
+  link_info: string; carrera_ids?: number[] | null; todas_las_carreras?: boolean;
+}
+export interface ConvenioUpdate {   // PATCH /convenios/{id} — todos opcionales
+  institucion?: string; carrera_destino?: string; descripcion?: string;
+  link_info?: string; carrera_ids?: number[]; todas_las_carreras?: boolean;
 }
 export interface TalentoTech {
   id: number; carrera_id: number; nombre_curso: string; categoria: string;

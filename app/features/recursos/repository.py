@@ -1,8 +1,10 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
+from sqlalchemy import false, or_
 from datetime import date
 
 from app.features.recursos.model import Recurso, Convenio, TalentoTech
+from app.features.materias.model import Carrera
 from app.features.recursos.schema import RecursoBase, RecursoCreate, ConvenioResponse, TalentoTechResponse, TalentoTechCreate, ConvenioCreate
 from typing import Optional
 
@@ -99,31 +101,110 @@ class ConvenioRepository:
         return self.db.query(Convenio).filter(Convenio.id == convenio_id).first()  
 
     def get_all(self) -> list[Convenio]:
-        return self.db.query(Convenio).all()
+        return self.query_all().all()
 
-    def query_all(self):
-        return self.db.query(Convenio)
-
-    def query_by_carrera(self, carrera_id: int):
-        return self.db.query(Convenio).filter(Convenio.carrera_id == carrera_id)
-
-    def get_convenios_by_carrera(self, carrera_id: int) -> list[Convenio]:
-        return self.query_by_carrera(carrera_id).all()
-
-    def create_convenio(self, convenio: ConvenioCreate) -> Convenio:
-        db_convenio = Convenio(
-            institucion = convenio.institucion,
-            carrera_destino = convenio.carrera_destino,
-            descripcion = convenio.descripcion,
-            link_info = str(convenio.link_info),
-            carrera_id = convenio.carrera_id
+    @staticmethod
+    def _aplicar_busqueda(query, q: Optional[str]):
+        """Filtra por texto libre (D15). `q` vacío/ausente no filtra."""
+        if q is None:
+            return query
+        texto = q.strip()
+        if not texto:
+            return query
+        patron = f"%{texto}%"
+        return query.filter(
+            or_(
+                Convenio.institucion.ilike(patron),
+                Convenio.carrera_destino.ilike(patron),
+                Convenio.descripcion.ilike(patron),
+            )
         )
+
+    @staticmethod
+    def _orden_estable(query):
+        """D14/D19: orden alfabético por institución (case-insensitive), desempate por id."""
+        return query.order_by(func.lower(Convenio.institucion).asc(), Convenio.id.asc())
+
+    def query_all(self, q: Optional[str] = None):
+        return self._orden_estable(self._aplicar_busqueda(self.db.query(Convenio), q))
+
+    def query_by_carrera(self, carrera_id: int, q: Optional[str] = None):
+        """Convenios explícitos de la carrera + wildcard, sin duplicar filas (D17).
+
+        `carreras.any(...)` genera un EXISTS, así que `count()` sigue contando
+        convenios y no filas de la tabla intermedia. Si la carrera no existe se
+        devuelve vacío (aunque haya convenios wildcard).
+        """
+        if not self.carreras_existentes([carrera_id]):
+            return self.db.query(Convenio).filter(false())
+        query = self.db.query(Convenio).filter(
+            or_(
+                Convenio.todas_las_carreras.is_(True),
+                Convenio.carreras.any(Carrera.id == carrera_id),
+            )
+        )
+        return self._orden_estable(self._aplicar_busqueda(query, q))
+
+    def get_convenios_by_carrera(self, carrera_id: int, q: Optional[str] = None) -> list[Convenio]:
+        return self.query_by_carrera(carrera_id, q).all()
+
+    def carreras_existentes(self, carrera_ids: list[int]) -> set[int]:
+        """D17: valida todos los ids referenciados de una sola consulta."""
+        if not carrera_ids:
+            return set()
+        return {
+            fila[0]
+            for fila in self.db.query(Carrera.id)
+            .filter(Carrera.id.in_(carrera_ids))
+            .all()
+        }
+
+    def get_by_unique_key(
+        self,
+        institucion: str,
+        carrera_destino: str,
+        exclude_id: Optional[int] = None,
+    ) -> Optional[Convenio]:
+        """Busca un convenio con la misma clave única (D17)."""
+        query = self.db.query(Convenio).filter(
+            Convenio.institucion == institucion,
+            Convenio.carrera_destino == carrera_destino,
+        )
+        if exclude_id is not None:
+            query = query.filter(Convenio.id != exclude_id)
+        return query.first()
+
+    def get_carreras(self, carrera_ids: list[int]) -> list[Carrera]:
+        """Devuelve las carreras en el orden recibido (ids ya validados)."""
+        if not carrera_ids:
+            return []
+        por_id = {
+            carrera.id: carrera
+            for carrera in self.db.query(Carrera)
+            .filter(Carrera.id.in_(carrera_ids))
+            .all()
+        }
+        return [por_id[cid] for cid in carrera_ids if cid in por_id]
+
+    def create_convenio(
+        self, convenio: ConvenioCreate, carreras: list[Carrera]
+    ) -> Convenio:
+        db_convenio = Convenio(
+            institucion=convenio.institucion,
+            carrera_destino=convenio.carrera_destino,
+            descripcion=convenio.descripcion,
+            link_info=str(convenio.link_info),
+            todas_las_carreras=convenio.todas_las_carreras,
+        )
+        db_convenio.carreras = list(carreras)
         self.db.add(db_convenio)
         self.db.commit()
         self.db.refresh(db_convenio)
         return db_convenio
 
-    def update_convenio(self, convenio_id: int, convenio: ConvenioCreate) -> Optional[Convenio]:
+    def update_convenio(
+        self, convenio_id: int, convenio: ConvenioCreate, carreras: list[Carrera]
+    ) -> Optional[Convenio]:
         db_convenio = self.db.query(Convenio).filter(Convenio.id == convenio_id).first()
         if db_convenio is None:
             return None
@@ -131,7 +212,34 @@ class ConvenioRepository:
         db_convenio.carrera_destino = convenio.carrera_destino
         db_convenio.descripcion = convenio.descripcion
         db_convenio.link_info = str(convenio.link_info)
-        db_convenio.carrera_id = convenio.carrera_id
+        db_convenio.todas_las_carreras = convenio.todas_las_carreras
+        db_convenio.carreras = list(carreras)
+        self.db.commit()
+        self.db.refresh(db_convenio)
+        return db_convenio
+
+    def update_convenio_parcial(
+        self,
+        convenio_id: int,
+        datos: dict,
+        carreras: Optional[list[Carrera]] = None,
+    ) -> Optional[Convenio]:
+        """D16/D17: aplica sólo los campos presentes.
+
+        `carreras` se pasa sólo cuando hay que reemplazar el conjunto de la
+        tabla intermedia; `None` conserva las filas actuales.
+        """
+        db_convenio = self.db.query(Convenio).filter(Convenio.id == convenio_id).first()
+        if db_convenio is None:
+            return None
+        for campo, valor in datos.items():
+            if campo in {"carrera_ids", "carreras"}:
+                continue
+            if campo == "link_info":
+                valor = str(valor)
+            setattr(db_convenio, campo, valor)
+        if carreras is not None:
+            db_convenio.carreras = list(carreras)
         self.db.commit()
         self.db.refresh(db_convenio)
         return db_convenio
@@ -140,6 +248,8 @@ class ConvenioRepository:
         db_convenio = self.db.query(Convenio).filter(Convenio.id == convenio_id).first()
         if db_convenio is None:
             return None
+        # SQLite no fuerza FK por defecto: el ORM borra la fila de la
+        # intermedia al eliminar el convenio (relacion N:M cargada).
         self.db.delete(db_convenio)
         self.db.commit()
     
