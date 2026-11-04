@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query, status
 
 from app.features.recursos.service import ConvenioService
-from app.features.recursos import ConvenioCreate, ConvenioResponse
+from app.features.recursos import ConvenioCreate, ConvenioResponse, ConvenioUpdate
 from app.features.recursos.dependencies import get_convenio_service
 from app.features.auth.dependencies import require_admin
 from app.features.auth.schema import UsuarioResponse
@@ -16,10 +18,11 @@ router = APIRouter(
 @router.get("/carrera/{carrera_id}", response_model=PaginatedResponse[ConvenioResponse])
 def get_by_carrera(
     carrera_id: int,
+    q: Optional[str] = Query(None, description="Búsqueda por texto libre"),
     service_convenio: ConvenioService = Depends(get_convenio_service),
     pagination: PaginationParams = Depends(),
 ):
-    return service_convenio.get_by_carrera_paginado(carrera_id, pagination)
+    return service_convenio.get_by_carrera_paginado(carrera_id, pagination, q=q)
 
 
 @router.put("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_200_OK)
@@ -30,6 +33,15 @@ def update(
     usuario_actual: UsuarioResponse = Depends(require_admin),
 ):
     return service_convenio.update(convenio_id, convenio)
+
+@router.patch("/{convenio_id}", response_model=ConvenioResponse, status_code=status.HTTP_200_OK)
+def update_parcial(
+    convenio_id: int,
+    convenio: ConvenioUpdate,
+    service_convenio: ConvenioService = Depends(get_convenio_service),
+    usuario_actual: UsuarioResponse = Depends(require_admin),
+):
+    return service_convenio.update_parcial(convenio_id, convenio)
 
 @router.delete("/{convenio_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete(
@@ -46,10 +58,11 @@ def get_by_id(convenio_id: int, service_convenio: ConvenioService = Depends(get_
 
 @router.get("/", response_model=PaginatedResponse[ConvenioResponse])
 def get_all(
+    q: Optional[str] = Query(None, description="Búsqueda por texto libre"),
     service_convenio: ConvenioService = Depends(get_convenio_service),
     pagination: PaginationParams = Depends(),
 ):
-    return service_convenio.get_all_paginado(pagination)
+    return service_convenio.get_all_paginado(pagination, q=q)
 
 
 @router.post("/", response_model=ConvenioResponse, status_code=status.HTTP_201_CREATED)

@@ -22,10 +22,52 @@ API backend para un Instituto de Formación Técnica Superior (IFTS) que gestion
 ### Recursos (recursos)
 - RF-11: CRUD de recursos académicos (título, URL, descripción, materia).
 - RF-12: Listar recursos por usuario o por materia.
-- RF-13: CRUD de convenios interinstitucionales (institución, carrera destino, link).
+- RF-13: CRUD de convenios interinstitucionales (institución, carrera destino, descripción, link).
 - RF-14: CRUD de cursos TalentoTech (carrera, categoría, link de inscripción).
 - RF-15: Listar convenios/talentotech por carrera o categoría.
 - RF-16: Filtrar recursos por materia, tipo de archivo, rango de fechas. Ordenar por fecha_creacion o titulo.
+
+### Convenios — contrato extendido (Sprint actual)
+- RF-28: `PATCH /convenios/{id}` (solo admin) para edición parcial: se actualizan únicamente los campos presentes en el body. `PUT` se mantiene como reemplazo total.
+- RF-29: Búsqueda de convenios por texto libre vía `?q=` en `GET /convenios/` y `GET /convenios/carrera/{carrera_id}`. Debe matchear case-insensitive por subcadena en `institucion`, `carrera_destino` y `descripcion`. `q` vacío o ausente no filtra.
+- RF-30: Validar la existencia de **todas** las carreras referenciadas por un convenio. Si falta alguna → `422` con la lista de ids inexistentes (no `409` de integridad ni filas huérfanas).
+- RF-31: Unicidad del convenio por `(institucion, carrera_destino)`. Duplicado exacto en alta o edición → `409`.
+- RF-32: Orden estable y alfabético case-insensitive en todos los listados de convenios: `lower(institucion) ASC, id ASC` (paginación determinista).
+- RF-33: Poblar convenios desde `seed.py` de forma idempotente, usando `carrera_ids` o `todas_las_carreras`.
+- RF-34: Un convenio puede aplicar a **una o varias carreras de origen** (relación N:M en `convenios_carreras`) o a **todas** (`todas_las_carreras = true`).
+- RF-35: `GET /convenios/carrera/{carrera_id}` devuelve los convenios asociados explícitamente a esa carrera **más** los marcados `todas_las_carreras`.
+- RF-36: Invariante de representación: si `todas_las_carreras = true`, la lista de carreras explícitas queda vacía y no se aceptan `carrera_ids`; si es `false`, el convenio debe tener al menos una carrera.
+
+#### Criterios de aceptación (RF-28…RF-36)
+- AC-1: `PATCH /convenios/{id}` con un solo campo devuelve `200` y el convenio completo, con el resto de campos intactos. Body vacío devuelve `200` sin cambios. Sin token o rol estudiante → `401`/`403`. `id` inexistente → `404`.
+- AC-2: `GET /convenios/?q=<texto>` devuelve solo convenios cuyo `institucion`, `carrera_destino` o `descripcion` contenga el texto (case-insensitive). Mismo comportamiento en `/convenios/carrera/{id}?q=`. Sin `q` el resultado es el listado completo.
+- AC-3: `POST`/`PUT`/`PATCH` con algún `carrera_id` inexistente → `422` con `detail` que enumere los ids faltantes; nunca `500`/`409` genérico.
+- AC-4: Segundo `POST` con misma `institucion` + `carrera_destino` → `409`, aunque cambien las carreras de origen. `PATCH` que colisione con otro convenio → `409`.
+- AC-5: Dos listados sucesivos con la misma data y paginación devuelven el mismo orden; orden por `institucion` y desempate por `id`.
+- AC-6: `python seed.py` y `python seed.py --convenios` no duplican convenios ni fallan por la unique constraint.
+- AC-7: Los tests existentes de estructura paginada y autorización siguen pasando; se agregan tests de PATCH, búsqueda, carrera inexistente, duplicado, orden, M2M y flag.
+- AC-8: El código actual compila/importa sin dependencias nuevas.
+- AC-9: Un convenio con `carrera_ids = [1,2]` aparece en `/convenios/carrera/1` y `/convenios/carrera/2`, y **no** en `/convenios/carrera/3`. La respuesta incluye `carreras` con `id` y `nombre`.
+- AC-10: Un convenio con `todas_las_carreras = true` aparece en `/convenios/carrera/{id}` para **cualquier** carrera existente y también para una carrera sin convenios explícitos. En la respuesta, `todas_las_carreras` es `true` y `carreras` es `[]`.
+- AC-11: `POST`/`PUT`/`PATCH` con `todas_las_carreras = true` **y** `carrera_ids` no vacío → `422`. `PATCH` que pone `todas_las_carreras = false` sin `carrera_ids` y sin carreras previas → `422`.
+- AC-12: `PATCH` que cambia `todas_las_carreras` a `true` elimina las filas de `convenios_carreras` de ese convenio.
+- AC-13: `carrera_ids` con duplicados se deduplica sin error.
+- AC-14: `docs/openapi.json` se regenera y refleja el contrato nuevo.
+
+### TalentoTech — contrato de card + N:M con carreras (Sprint actual)
+- RF-37: `TalentoTechResponse` debe exponer los datos de la card: `institucion`, `nombre_curso`, `categoria`, `descripcion`, `duracion`, `modalidad_cursada`, `dificultad` (opcional), `link_inscripcion`, `todas_las_carreras` y `carreras: CarreraResumen[]`.
+- RF-38: Un curso puede aplicar a una o varias carreras de origen (`talentotech_carreras`) o a todas (`todas_las_carreras = true`), con la misma invariante que convenios (flag e ids excluyentes; flag `false` exige al menos una carrera).
+- RF-39: Unicidad por `(institucion, nombre_curso)`; duplicado en alta o edición → `409`.
+- RF-40: `GET /talentotech/carrera/{carrera_id}` devuelve los cursos explícitos de esa carrera más los wildcard; si la carrera no existe, vacío.
+- RF-41: Carga idempotente desde `seed.py` (`--talentotech`) y orden estable `lower(nombre_curso) ASC, id ASC`.
+
+#### Criterios de aceptación (RF-37…RF-41)
+- AC-15: `POST /talentotech/` con `carrera_ids` devuelve `201` y la card completa, con `carreras` y `todas_las_carreras=false`.
+- AC-16: `POST` con `todas_las_carreras=true` devuelve `carreras=[]` y el curso aparece en `/talentotech/carrera/{id}` de cualquier carrera existente.
+- AC-17: Carrera inexistente → `422`; flag e ids juntos → `422`; ninguno de los dos → `422`.
+- AC-18: Duplicado `(institucion, nombre_curso)` → `409`.
+- AC-19: `PUT /talentotech/{id}` reemplaza todos los campos y las carreras; pasar a wildcard limpia las filas de la intermedia.
+- AC-20: `python seed.py --talentotech` no duplica cursos; segunda corrida inserta 0.
 
 ### Recordatorios (recordatorios)
 - RF-17: Crear recordatorios por usuario (título, fecha, tipo, materia opcional).

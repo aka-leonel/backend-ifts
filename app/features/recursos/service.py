@@ -4,9 +4,9 @@ from typing import List, Optional
 from datetime import date
 
 from app.features.recursos.model import Recurso, Convenio, TalentoTech
-from app.features.recursos.schema import RecursoCreate, ConvenioCreate, TalentoTechCreate
+from app.features.recursos.schema import RecursoCreate, ConvenioCreate, ConvenioUpdate, TalentoTechCreate
 from app.features.recursos.repository import RecursoRepository, ConvenioRepository, TalentoTechRepository
-from app.shared.exceptions import DuplicateError, NotFoundError
+from app.shared.exceptions import DomainValidationError, DuplicateError, NotFoundError
 from app.shared.schemas.pagination import PaginatedResponse
 from app.shared.utils.pagination import PaginationParams, paginate
 
@@ -18,6 +18,48 @@ TalentoTechNotFound = NotFoundError
 RecursoAlreadyExists = DuplicateError
 ConvenioAlreadyExists = DuplicateError
 TalentoTechAlreadyExists = DuplicateError
+
+
+def _validar_carreras(repository, carrera_ids: Optional[list[int]]) -> list[int]:
+    """Deduplica preservando orden y valida que todos los ids existan."""
+    if not carrera_ids:
+        return []
+    deduplicados = list(dict.fromkeys(carrera_ids))
+    existentes = repository.carreras_existentes(deduplicados)
+    faltantes = [cid for cid in deduplicados if cid not in existentes]
+    if faltantes:
+        if len(faltantes) == 1:
+            raise DomainValidationError(f"No existe la carrera {faltantes[0]}")
+        raise DomainValidationError(
+            "No existen las carreras: " + ", ".join(str(cid) for cid in faltantes)
+        )
+    return deduplicados
+
+
+def _resolver_conjunto(
+    repository,
+    carrera_ids: Optional[list[int]],
+    todas_las_carreras: bool,
+) -> list[int]:
+    """Aplica la invariante flag↔ids y devuelve los ids finales.
+
+    `todas_las_carreras=True` ⇒ sin ids y sin filas explícitas.
+    `False` ⇒ al menos una carrera.
+    """
+    if todas_las_carreras:
+        if carrera_ids:
+            raise DomainValidationError(
+                "Si 'todas_las_carreras' es true no se debe enviar 'carrera_ids'"
+            )
+        return []
+    ids = _validar_carreras(repository, carrera_ids)
+    if not ids:
+        raise DomainValidationError(
+            "Debe indicar al menos una carrera en 'carrera_ids' o marcar "
+            "'todas_las_carreras'"
+        )
+    return ids
+
 
 class RecursoService:
     def __init__(self, repository: RecursoRepository):
@@ -86,27 +128,117 @@ class ConvenioService:
             raise NotFoundError(f"No se encontró el convenio {convenio_id}")
 
         return convenio_valid
-    
+
+    def _validar_carreras(self, carrera_ids: Optional[list[int]]) -> list[int]:
+        """D17: deduplica preservando orden y valida que todos los ids existan."""
+        return _validar_carreras(self.repository, carrera_ids)
+
+    def _resolver_conjunto(
+        self, carrera_ids: Optional[list[int]], todas_las_carreras: bool
+    ) -> list[int]:
+        """Aplica la invariante flag↔ids y devuelve los ids finales."""
+        return _resolver_conjunto(self.repository, carrera_ids, todas_las_carreras)
+
+    def _validar_unicidad(
+        self,
+        institucion: str,
+        carrera_destino: str,
+        exclude_id: Optional[int] = None,
+    ) -> None:
+        """D17: no se permite duplicar (institucion, carrera_destino)."""
+        existente = self.repository.get_by_unique_key(
+            institucion, carrera_destino, exclude_id=exclude_id
+        )
+        if existente is not None:
+            raise DuplicateError(
+                "Ya existe un convenio con la misma institución y carrera destino"
+            )
+
     def get_all(self) -> list[Convenio]:
         return self.repository.get_all()
 
-    def get_all_paginado(self, params: PaginationParams) -> PaginatedResponse[Convenio]:
-        return paginate(self.repository.query_all(), params)
+    def get_all_paginado(
+        self, params: PaginationParams, q: Optional[str] = None
+    ) -> PaginatedResponse[Convenio]:
+        return paginate(self.repository.query_all(q=q), params)
 
-    def get_by_carrera(self, carrera_id: int) -> list[Convenio]:
-        return self.repository.get_convenios_by_carrera(carrera_id)
+    def get_by_carrera(self, carrera_id: int, q: Optional[str] = None) -> list[Convenio]:
+        return self.repository.get_convenios_by_carrera(carrera_id, q=q)
 
     def get_by_carrera_paginado(
-        self, carrera_id: int, params: PaginationParams
+        self, carrera_id: int, params: PaginationParams, q: Optional[str] = None
     ) -> PaginatedResponse[Convenio]:
-        return paginate(self.repository.query_by_carrera(carrera_id), params)
-    
+        return paginate(self.repository.query_by_carrera(carrera_id, q=q), params)
+
     def create(self, convenio: ConvenioCreate) -> Convenio:
-        return self.repository.create_convenio(convenio)
+        ids = self._resolver_conjunto(
+            convenio.carrera_ids, convenio.todas_las_carreras
+        )
+        self._validar_unicidad(convenio.institucion, convenio.carrera_destino)
+        carreras = self.repository.get_carreras(ids)
+        return self.repository.create_convenio(convenio, carreras)
 
     def update(self, convenio_id: int, convenio: ConvenioCreate) -> Convenio:
         self.get_by_id(convenio_id)
-        return self.repository.update_convenio(convenio_id, convenio)
+        ids = self._resolver_conjunto(
+            convenio.carrera_ids, convenio.todas_las_carreras
+        )
+        self._validar_unicidad(
+            convenio.institucion,
+            convenio.carrera_destino,
+            exclude_id=convenio_id,
+        )
+        carreras = self.repository.get_carreras(ids)
+        return self.repository.update_convenio(convenio_id, convenio, carreras)
+
+    def update_parcial(self, convenio_id: int, convenio: ConvenioUpdate) -> Convenio:
+        """D16/D17: PATCH. Body vacío devuelve el convenio sin cambios."""
+        actual = self.get_by_id(convenio_id)
+        datos = convenio.model_dump(exclude_unset=True)
+        # Un `null` explícito no puede persistirse: las columnas son NOT NULL.
+        datos = {campo: valor for campo, valor in datos.items() if valor is not None}
+        if not datos:
+            return actual
+
+        ids_actuales = [carrera.id for carrera in actual.carreras]
+        flag_final = datos.get("todas_las_carreras", actual.todas_las_carreras)
+        ids_presente = "carrera_ids" in datos
+        carreras: Optional[list] = None
+
+        if flag_final:
+            if ids_presente and datos["carrera_ids"]:
+                raise DomainValidationError(
+                    "Si 'todas_las_carreras' es true no se debe enviar 'carrera_ids'"
+                )
+            # Pasar a wildcard limpia las filas explícitas.
+            if ids_presente or not actual.todas_las_carreras:
+                carreras = []
+        else:
+            if ids_presente:
+                ids_finales = self._validar_carreras(datos["carrera_ids"])
+                if not ids_finales:
+                    raise DomainValidationError(
+                        "Debe indicar al menos una carrera en 'carrera_ids' o marcar "
+                        "'todas_las_carreras'"
+                    )
+                carreras = self.repository.get_carreras(ids_finales)
+            elif not ids_actuales:
+                raise DomainValidationError(
+                    "Debe indicar al menos una carrera en 'carrera_ids' o marcar "
+                    "'todas_las_carreras'"
+                )
+            # Si no viene `carrera_ids`, se conservan las carreras actuales.
+
+        # Se combina con el estado actual para detectar colisiones al editar
+        # sólo parte de la clave única.
+        self._validar_unicidad(
+            datos.get("institucion", actual.institucion),
+            datos.get("carrera_destino", actual.carrera_destino),
+            exclude_id=convenio_id,
+        )
+        return self.repository.update_convenio_parcial(
+            convenio_id, datos, carreras
+        )
 
     def delete(self, convenio_id: int) -> None:
         self.get_by_id(convenio_id)
@@ -115,6 +247,21 @@ class ConvenioService:
 class TalentoTechService:
     def __init__(self, repository: TalentoTechRepository):
         self.repository = repository
+
+    def _validar_unicidad(
+        self,
+        institucion: str,
+        nombre_curso: str,
+        exclude_id: Optional[int] = None,
+    ) -> None:
+        """No se permite duplicar (institucion, nombre_curso)."""
+        existente = self.repository.get_by_unique_key(
+            institucion, nombre_curso, exclude_id=exclude_id
+        )
+        if existente is not None:
+            raise DuplicateError(
+                "Ya existe un curso TalentoTech con la misma institución y nombre"
+            )
 
     def get_all(self) -> list[TalentoTech]:
         return self.repository.get_all()
@@ -146,11 +293,25 @@ class TalentoTechService:
         return paginate(self.repository.query_by_categoria(categoria), params)
 
     def create(self, talentotech: TalentoTechCreate) -> TalentoTech:
-        return self.repository.create_talentotech(talentotech)
+        ids = _resolver_conjunto(
+            self.repository, talentotech.carrera_ids, talentotech.todas_las_carreras
+        )
+        self._validar_unicidad(talentotech.institucion, talentotech.nombre_curso)
+        carreras = self.repository.get_carreras(ids)
+        return self.repository.create_talentotech(talentotech, carreras)
 
     def update(self, talentotech_id: int, talentotech: TalentoTechCreate) -> TalentoTech:
         self.get_by_id(talentotech_id)
-        return self.repository.update_talentotech(talentotech_id, talentotech)
+        ids = _resolver_conjunto(
+            self.repository, talentotech.carrera_ids, talentotech.todas_las_carreras
+        )
+        self._validar_unicidad(
+            talentotech.institucion,
+            talentotech.nombre_curso,
+            exclude_id=talentotech_id,
+        )
+        carreras = self.repository.get_carreras(ids)
+        return self.repository.update_talentotech(talentotech_id, talentotech, carreras)
 
     def delete(self, talentotech_id: int) -> None:
         self.get_by_id(talentotech_id)
