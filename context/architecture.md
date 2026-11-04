@@ -84,8 +84,30 @@ Flujo de una request: `Router → Service → Repository → DB`.
 | `materias_usuario` | id | usuario_id → users, materia_id → materias | cursando, notas (parcial 1/2, final), estado calculado |
 | `recordatorios` | id | usuario_id → users, materia_id → materias (opt.) | título, fecha, tipo |
 | `recursos` | id | usuario_id → users, materia_id → materias | título, URL, descripción, fecha_creacion |
-| `convenios` | id | carrera_id → carreras | institución, carrera_destino, link_info |
+| `convenios` | id | — (carreras vía `convenios_carreras`) | institución, carrera_destino, descripción, link_info, todas_las_carreras; unique `(institucion, carrera_destino)` |
+| `convenios_carreras` | (convenio_id, carrera_id) | convenio_id → convenios, carrera_id → carreras | N:M origen↔convenio; FK `ON DELETE CASCADE` |
 | `talentotech` | id | carrera_id → carreras | nombre_curso, categoría, link_inscripcion |
+
+## Convenios — contrato vigente
+Feature dentro de `app/features/recursos/` (modelo `Convenio`, router `routers/convenios.py`).
+
+- **Campos**: `id`, `institucion` (≤150), `carrera_destino` (≤150), `descripcion` (Text), `link_info` (URL http/https), `todas_las_carreras` (bool), `carreras` (vía `convenios_carreras`).
+- **`carrera_destino` es el nombre de la carrera de destino del convenio**; no se embebe `carrera_nombre` en la respuesta.
+- **Relación N:M** con carreras de origen (`convenios_carreras`). Invariante: `todas_las_carreras = true` ⇒ sin filas explícitas y sin `carrera_ids` en el request; `false` ⇒ al menos una carrera.
+- **Contrato**: request `carrera_ids: [int]` (mín. 1, deduplicado) o `todas_las_carreras: true`; response `todas_las_carreras: bool` + `carreras: [{id, nombre}]` (vacío cuando es wildcard).
+- **Endpoints**:
+  | Método | Path | Acceso | Notas |
+  |---|---|---|---|
+  | GET | `/convenios/?q=&page=&per_page=` | Público | `q` busca en institución/destino/descripción; orden `institucion, id` |
+  | GET | `/convenios/carrera/{carrera_id}?q=&page=&per_page=` | Público | Convenios explícitos de esa carrera **+** los `todas_las_carreras`; lista vacía si la carrera no existe |
+  | GET | `/convenios/{id}` | Público | 404 si no existe |
+  | POST | `/convenios/` | Admin | 201; 422 si falta carrera o combinación flag/ids inválida; 409 si duplicado |
+  | PATCH | `/convenios/{id}` | Admin | Edición parcial; `carrera_ids` reemplaza el conjunto; 404/422/409 |
+  | PUT | `/convenios/{id}` | Admin | Reemplazo total |
+  | DELETE | `/convenios/{id}` | Admin | 204 |
+- **Validaciones de dominio**: existencia de todos los `carrera_ids` (422 con lista de faltantes), unicidad `(institucion, carrera_destino)` (409), `link_info` como `HttpUrl` (422), invariante flag↔ids (422).
+- **Paginación**: `PaginatedResponse[ConvenioResponse]`; máx. 100 por página. La consulta por carrera usa `EXISTS` para no duplicar filas.
+- **Documentación para el front**: `docs/CONVENIOS_FRONT.md` (contrato completo, errores, tipos TS).
 
 ## Configuración
 - **`.env`** (gitignored): `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`.
@@ -112,4 +134,4 @@ Flujo de una request: `Router → Service → Repository → DB`.
 - Nombres de tablas snake_case explícitos.
 - Excepciones personalizadas de servicio (ej: `RecursoNotFound`, `ConvenioNotFound`).
 - Los routers devuelven `response_model` explícito y status codes HTTP.
-- `seed.py` drop+create tables y llena datos de IFTS/carreras/materias.
+- `seed.py` drop+create tables y llena datos de IFTS/carreras/materias; `--no-drop` solo si está vacía; `--convenios` inserta únicamente convenios faltantes sin borrar nada (idempotente, resuelve carreras por nombre).
