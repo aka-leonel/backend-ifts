@@ -4548,9 +4548,9 @@
       },
       "TalentoTechCreate": {
         "properties": {
-          "carrera_id": {
-            "type": "integer",
-            "title": "Carrera Id"
+          "institucion": {
+            "type": "string",
+            "title": "Institucion"
           },
           "nombre_curso": {
             "type": "string",
@@ -4568,30 +4568,70 @@
             "type": "string",
             "title": "Duracion"
           },
+          "modalidad_cursada": {
+            "type": "string",
+            "title": "Modalidad Cursada"
+          },
+          "dificultad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dificultad"
+          },
           "link_inscripcion": {
             "type": "string",
             "maxLength": 2083,
             "minLength": 1,
             "format": "uri",
             "title": "Link Inscripcion"
+          },
+          "carrera_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carrera Ids"
+          },
+          "todas_las_carreras": {
+            "type": "boolean",
+            "title": "Todas Las Carreras",
+            "default": false
           }
         },
         "type": "object",
         "required": [
-          "carrera_id",
+          "institucion",
           "nombre_curso",
           "categoria",
           "descripcion",
           "duracion",
+          "modalidad_cursada",
           "link_inscripcion"
         ],
-        "title": "TalentoTechCreate"
+        "title": "TalentoTechCreate",
+        "description": "Alta/edición de un curso TalentoTech.\n\nIgual que convenios: `carrera_ids` (mín. 1) **o** `todas_las_carreras: true`,\nexcluyentes."
       },
       "TalentoTechResponse": {
         "properties": {
-          "carrera_id": {
+          "id": {
             "type": "integer",
-            "title": "Carrera Id"
+            "title": "Id"
+          },
+          "institucion": {
+            "type": "string",
+            "title": "Institucion"
           },
           "nombre_curso": {
             "type": "string",
@@ -4609,29 +4649,52 @@
             "type": "string",
             "title": "Duracion"
           },
+          "modalidad_cursada": {
+            "type": "string",
+            "title": "Modalidad Cursada"
+          },
+          "dificultad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dificultad"
+          },
           "link_inscripcion": {
             "type": "string",
-            "maxLength": 2083,
-            "minLength": 1,
-            "format": "uri",
             "title": "Link Inscripcion"
           },
-          "id": {
-            "type": "integer",
-            "title": "Id"
+          "todas_las_carreras": {
+            "type": "boolean",
+            "title": "Todas Las Carreras"
+          },
+          "carreras": {
+            "items": {
+              "$ref": "#/components/schemas/CarreraResumen"
+            },
+            "type": "array",
+            "title": "Carreras"
           }
         },
         "type": "object",
         "required": [
-          "carrera_id",
+          "id",
+          "institucion",
           "nombre_curso",
           "categoria",
           "descripcion",
           "duracion",
+          "modalidad_cursada",
           "link_inscripcion",
-          "id"
+          "todas_las_carreras",
+          "carreras"
         ],
-        "title": "TalentoTechResponse"
+        "title": "TalentoTechResponse",
+        "description": "Contrato de salida para cards: incluye carrera(s) de origen.\n\n`carreras` es `[]` cuando `todas_las_carreras` es true (aplica a todas)."
       },
       "TokenResponse": {
         "properties": {

@@ -256,6 +256,10 @@ las cursadas que ya cerraron (promocionada, aprobada o desaprobada); las que sig
 > **Convenios tiene documento propio y actualizado:** `docs/CONVENIOS_FRONT.md`
 > (N:M con carreras de origen, `todas_las_carreras`, PATCH, búsqueda `q`, orden
 > estable, 422/409). Esta sección queda como referencia general.
+>
+> **TalentoTech también tiene documento propio:** `docs/TALENTOTECH_FRONT.md`
+> (card completa, N:M con carreras de origen, `todas_las_carreras`, `PUT`,
+> orden estable, 422/409).
 
 > Lectura pública. Escritura **solo admin** (`403` estudiante, `401` sin token).
 > Desde el front del alumno son **solo lectura**.
@@ -265,10 +269,10 @@ las cursadas que ya cerraron (promocionada, aprobada o desaprobada); las que sig
 | `GET` | `/convenios/` | Pub | paginado → `ConvenioResponse`. Filtro opcional `?q=` (texto libre, case-insensitive, sobre institución/destino/descripción). Orden `lower(institucion) ASC, id ASC` (case-insensitive) |
 | `GET` | `/convenios/carrera/{carrera_id}` | Pub | paginado. Convenios explícitos de esa carrera **+** los `todas_las_carreras`; mismo `?q=` y orden |
 | `GET` | `/convenios/{id}` | Pub | `ConvenioResponse`; `404` si no existe |
-| `GET` | `/talentotech/` | Pub | paginado → `TalentoTechResponse` |
-| `GET` | `/talentotech/carrera/{carrera_id}` | Pub | paginado |
-| `GET` | `/talentotech/categoria/{categoria}` | Pub | paginado |
-| `GET` | `/talentotech/{id}` | Pub | `TalentoTechResponse` |
+| `GET` | `/talentotech/` | Pub | paginado → `TalentoTechResponse`. Orden `lower(nombre_curso) ASC, id ASC` |
+| `GET` | `/talentotech/carrera/{carrera_id}` | Pub | cursos explícitos de esa carrera **+** los `todas_las_carreras`; mismo orden |
+| `GET` | `/talentotech/categoria/{categoria}` | Pub | paginado; mismo orden |
+| `GET` | `/talentotech/{id}` | Pub | `TalentoTechResponse`; `404` si no existe |
 | `POST/PUT/PATCH/DELETE` | `/convenios/*`, `/talentotech/*` | Admin | `require_admin`: `403` estudiante, `401` sin token |
 
 Convenios — reglas de escritura:
@@ -283,6 +287,16 @@ Convenios — reglas de escritura:
 - Duplicado por `(institucion, carrera_destino)` → `409` (incluye `PATCH`), aunque cambien las carreras.
 - Los textos se normalizan con `strip()` (los espacios al borde no cuentan).
 - La comparación de unicidad es case-sensitive.
+
+TalentoTech — contrato (card):
+- `POST /talentotech/` y `PUT /talentotech/{id}` reciben `TalentoTechCreate`:
+  `institucion`, `nombre_curso`, `categoria`, `descripcion`, `duracion`,
+  `modalidad_cursada`, `link_inscripcion` y `dificultad` (opcional) +
+  `carrera_ids` (mín. 1) **o** `todas_las_carreras: true` (excluyentes).
+- `TalentoTechResponse` devuelve todos esos campos + `id`, `todas_las_carreras`
+  y `carreras: CarreraResumen[]` (vacío si aplica a todas).
+- Carrera inexistente → `422`; duplicado por `(institucion, nombre_curso)` → `409`.
+- `PUT` es reemplazo total (también de las carreras).
 
 ### 3.5 Recordatorios
 
@@ -448,8 +462,15 @@ export interface ConvenioUpdate {   // PATCH /convenios/{id} — todos opcionale
   link_info?: string; carrera_ids?: number[]; todas_las_carreras?: boolean;
 }
 export interface TalentoTech {
-  id: number; carrera_id: number; nombre_curso: string; categoria: string;
-  descripcion: string; duracion: string; link_inscripcion: string;
+  id: number; institucion: string; nombre_curso: string; categoria: string;
+  descripcion: string; duracion: string; modalidad_cursada: string;
+  dificultad: string | null; link_inscripcion: string;
+  todas_las_carreras: boolean; carreras: CarreraResumen[];
+}
+export interface TalentoTechCreate {
+  institucion: string; nombre_curso: string; categoria: string; descripcion: string;
+  duracion: string; modalidad_cursada: string; dificultad?: string | null;
+  link_inscripcion: string; carrera_ids?: number[] | null; todas_las_carreras?: boolean;
 }
 
 // ---- recordatorios ----

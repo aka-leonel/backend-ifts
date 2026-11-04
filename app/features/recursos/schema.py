@@ -79,14 +79,51 @@ class ConvenioResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class TalentoTechCreate(BaseModel):
-    carrera_id: int
+    """Alta/edición de un curso TalentoTech.
+
+    Igual que convenios: `carrera_ids` (mín. 1) **o** `todas_las_carreras: true`,
+    excluyentes.
+    """
+
+    institucion: str
     nombre_curso: str
     categoria: str
     descripcion: str
     duracion: str
+    modalidad_cursada: str
+    dificultad: Optional[str] = None
     link_inscripcion: HttpUrl
+    carrera_ids: Optional[list[int]] = None
+    todas_las_carreras: bool = False
 
-class TalentoTechResponse(TalentoTechCreate):
+    @field_validator(
+        "institucion",
+        "nombre_curso",
+        "categoria",
+        "descripcion",
+        "duracion",
+        "modalidad_cursada",
+    )
+    @classmethod
+    def _strip_textos(cls, v: str) -> str:
+        return v.strip() if isinstance(v, str) else v
+
+class TalentoTechResponse(BaseModel):
+    """Contrato de salida para cards: incluye carrera(s) de origen.
+
+    `carreras` es `[]` cuando `todas_las_carreras` es true (aplica a todas).
+    """
+
     id: int
+    institucion: str
+    nombre_curso: str
+    categoria: str
+    descripcion: str
+    duracion: str
+    modalidad_cursada: str
+    dificultad: Optional[str] = None
+    link_inscripcion: str
+    todas_las_carreras: bool
+    carreras: list[CarreraResumen]
 
     model_config = ConfigDict(from_attributes=True)

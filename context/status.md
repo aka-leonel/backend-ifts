@@ -3,12 +3,12 @@
 ## Fase: COMPLETE
 
 ## Feature activa
-`convenios` — N:M con carreras de origen + `todas_las_carreras` (RF-28…RF-36, AC-1…AC-14, D17).
+`talentotech` — N:M con carreras + `todas_las_carreras` (RF-37…RF-41, AC-15…AC-20, D20).
+`convenios` — N:M sentó el patrón: RF-28…RF-36, AC-1…AC-14, D17.
 
 ## Próxima Acción
-- Confirmación del usuario del `link_info` del nuevo convenio UNLZ *Gestión de Sistemas de
-  Automatización y Robótica* (se usó la página de oferta de UNLZ).
-- Revisión final del Arquitecto (breaking change de contrato + D18/D19).
+- Revisión final del Arquitecto (D20 + breaking change de contrato de TalentoTech).
+- Commit de los cambios pendientes (14+ archivos sin commitear).
 
 ## Tasks
 
@@ -22,7 +22,9 @@
 | CONV2-006 | Docs + `openapi.json` | Completada | CONV2-003 |
 
 ## Validación (evidencia)
-- `DATABASE_URL=sqlite:///./_pytest.db python -m pytest -q`: **296 passed, 1 skipped**.
+- `DATABASE_URL=sqlite:///./_pytest.db python -m pytest -q`: **312 passed, 1 skipped**
+  (incluye 16 tests en `tests/test_talentotech.py`; se actualizaron 3 tests de
+  autorización al contrato nuevo).
 - `tests/test_convenios.py`: **33 passed** (M2M, wildcard, PATCH ids/flag, invariantes,
   ids inexistentes, duplicado, dedupe, orden, búsqueda, paginación sin duplicados,
   carreras ordenadas por nombre, delete de intermedia). Incluye
@@ -65,6 +67,34 @@
   `/3`=8; carrera 99 total=0; login admin OK; `?q=videojuegos` total=1.
 - Entregable `docs/DATA_CONVENIOS.md` (JSON + seed, comandos local/Postgres/API,
   verificación y notas).
+
+## TalentoTech (N:M + card)
+- Mismo modelo que convenios: tabla intermedia `talentotech_carreras` + flag
+  `todas_las_carreras`. Se agregaron `institucion`, `modalidad_cursada` (NOT NULL) y
+  `dificultad` (nullable); se eliminó `carrera_id`.
+- `TalentoTechResponse` ya no hereda de Create: expone `id`, `institucion`,
+  `nombre_curso`, `categoria`, `descripcion`, `duracion`, `modalidad_cursada`,
+  `dificultad`, `link_inscripcion`, `todas_las_carreras` y `carreras: CarreraResumen[]`.
+- Unicidad `(institucion, nombre_curso)` → 409. Orden `lower(nombre_curso) ASC, id ASC`.
+- Migración `e8b3c1d5f7a9` (down_revision `d4f6a1c9e2b7`), aplicada en SQLite local y en
+  Postgres Docker (head). Seed `--talentotech` idempotente.
+- Dato cargado en ambas bases: 1 curso ("Tecnologías Emergentes", Agencia de Habilidades
+  para el Futuro, wildcard=true, 0 asociaciones, `modalidad_cursada="Virtual Asincrónico"`).
+  Segunda corrida: insertados 0.
+- `modalidad_cursada` confirmada por el usuario ("Virtual Asincrónico") y corregida en
+  `seed.py`, `docs/DATA_TALENTOTECH.md`, `context/decisions.md` (D20) y en ambas bases
+  (SQLite local y Postgres Docker); contenedor `api` recompilado (imagen con seed correcto).
+- `carrera_ids` acepta una o varias carreras (igual que convenios): test de regresión
+  `test_crear_con_varias_carreras` agregado.
+- API: `GET /talentotech/` total=1, `modalidad_cursada="Virtual Asincrónico"`,
+  `todas_las_carreras=true`, `carreras=[]`; `/carrera/1`, `/2`, `/3` → 1 cada una;
+  `/carrera/99` → 0; `/categoria/IT` → 1.
+- Docs: `docs/INTEGRACION_FRONT.md` (§3.4 + tipos TS), `docs/DATA_TALENTOTECH.md` (nuevo),
+  `docs/openapi.json` regenerado (37 paths), `context/requirements.md` (RF-37…RF-41 /
+  AC-15…AC-20), `context/decisions.md` (D20).
+- Nuevo `docs/TALENTOTECH_FRONT.md`: contrato de API de TalentoTech para el agente del front
+  (card completa, `carrera_ids`/`todas_las_carreras`, `PUT`, orden estable, formatos de 422/409);
+  `docs/INTEGRACION_FRONT.md` §3.4 y `docs/DATA_TALENTOTECH.md` apuntan a ese documento.
 
 ## Blockers
 - Ninguno.

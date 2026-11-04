@@ -54,6 +54,21 @@ API backend para un Instituto de Formación Técnica Superior (IFTS) que gestion
 - AC-13: `carrera_ids` con duplicados se deduplica sin error.
 - AC-14: `docs/openapi.json` se regenera y refleja el contrato nuevo.
 
+### TalentoTech — contrato de card + N:M con carreras (Sprint actual)
+- RF-37: `TalentoTechResponse` debe exponer los datos de la card: `institucion`, `nombre_curso`, `categoria`, `descripcion`, `duracion`, `modalidad_cursada`, `dificultad` (opcional), `link_inscripcion`, `todas_las_carreras` y `carreras: CarreraResumen[]`.
+- RF-38: Un curso puede aplicar a una o varias carreras de origen (`talentotech_carreras`) o a todas (`todas_las_carreras = true`), con la misma invariante que convenios (flag e ids excluyentes; flag `false` exige al menos una carrera).
+- RF-39: Unicidad por `(institucion, nombre_curso)`; duplicado en alta o edición → `409`.
+- RF-40: `GET /talentotech/carrera/{carrera_id}` devuelve los cursos explícitos de esa carrera más los wildcard; si la carrera no existe, vacío.
+- RF-41: Carga idempotente desde `seed.py` (`--talentotech`) y orden estable `lower(nombre_curso) ASC, id ASC`.
+
+#### Criterios de aceptación (RF-37…RF-41)
+- AC-15: `POST /talentotech/` con `carrera_ids` devuelve `201` y la card completa, con `carreras` y `todas_las_carreras=false`.
+- AC-16: `POST` con `todas_las_carreras=true` devuelve `carreras=[]` y el curso aparece en `/talentotech/carrera/{id}` de cualquier carrera existente.
+- AC-17: Carrera inexistente → `422`; flag e ids juntos → `422`; ninguno de los dos → `422`.
+- AC-18: Duplicado `(institucion, nombre_curso)` → `409`.
+- AC-19: `PUT /talentotech/{id}` reemplaza todos los campos y las carreras; pasar a wildcard limpia las filas de la intermedia.
+- AC-20: `python seed.py --talentotech` no duplica cursos; segunda corrida inserta 0.
+
 ### Recordatorios (recordatorios)
 - RF-17: Crear recordatorios por usuario (título, fecha, tipo, materia opcional).
 - RF-18: Listar recordatorios por usuario.

@@ -168,3 +168,23 @@
   - Cambia el orden observable del listado y de `GET /convenios/carrera/{id}`.
   - Se agregó un test de regresión (`test_orden_institucion_es_case_insensitive`).
   - Sigue siendo un orden determinista y estable (desempate por `id`).
+
+## D20: TalentoTech — mismo modelo N:M + flag que convenios y response de card
+- **Context**: `TalentoTech` tenía un `carrera_id` único, no persistía `modalidad_cursada` ni `dificultad` (el modelo no tenía esas columnas aunque el schema sí), y `TalentoTechResponse` heredaba de `Create`, por lo que no podía serializar una fila real ni entregar al front las carreras de origen. Además faltaba `institucion`, dato necesario para la card. La data provista usa `todas_las_carreras: true`.
+- **Decisión**:
+  - Replicar en TalentoTech el modelo de convenios (D17): `talentotech_carreras (talentotech_id, carrera_id)` + `talentotech.todas_las_carreras`.
+  - Agregar `institucion`, `modalidad_cursada` (NOT NULL) y `dificultad` (nullable).
+  - Unicidad `(institucion, nombre_curso)`; dedupe/validación de carreras y wildcard con las mismas invariantes que convenios.
+  - `TalentoTechResponse` deja de heredar de `Create` y expone `id`, todos los campos de la card, `todas_las_carreras` y `carreras: CarreraResumen[]`.
+  - Orden estable `lower(nombre_curso) ASC, id ASC` en todos los listados.
+  - Seed idempotente `--talentotech` por `(institucion, nombre_curso)`.
+- **Alternativas**:
+  - **Mantener `carrera_id` único**: no representa el `todas_las_carreras` provisto ni el caso "un curso para varias carreras"; descartado.
+  - **Sólo flag sin N:M**: no permite cursos para un subconjunto de carreras; descartado por la misma razón que en D17.
+  - **`dificultad` obligatoria**: la data provista no la trae y la card no la necesita; se dejó nullable.
+- **Rationale**: Consistencia con el contrato ya validado de convenios, reutilización de la lógica de carreras y una respuesta que el front puede renderizar sin joins adicionales.
+- **Consecuencias**:
+  - Cambio incompatible del contrato de TalentoTech (`carrera_id` desaparece del request/response).
+  - Migración `e8b3c1d5f7a9` (down_revision `d4f6a1c9e2b7`): crea la intermedia, copia `carrera_id`, agrega columnas/flag, cambia la unique y dropea `carrera_id`.
+  - `TalentoTechCreate` ya no incluye `carrera_id`; los clientes deben enviar `carrera_ids` o `todas_las_carreras`.
+  - `modalidad_cursada` del curso cargado quedó en `"Virtual Asincrónico"` (valor final confirmado por el usuario).

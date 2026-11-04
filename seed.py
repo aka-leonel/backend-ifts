@@ -174,6 +174,29 @@ CONVENIOS_SEED: list[dict] = [
     },
 ]
 
+# ── Cursos TalentoTech a cargar ──────────────────────────────────────────────
+# Mismo formato que CONVENIOS_SEED: `todas_las_carreras: true` o `carrera_ids`.
+# La idempotencia es por (institucion, nombre_curso).
+TALENTOTECH_SEED: list[dict] = [
+    {
+        "todas_las_carreras": True,
+        "institucion": "Agencia de Habilidades para el Futuro",
+        "nombre_curso": "Tecnologías Emergentes",
+        "categoria": "IT",
+        "descripcion": (
+            "En este curso te sumergirás en aquellas revoluciones que están "
+            "transformando al mundo, pero sobre todo, a los humanos. La idea detrás "
+            "de este programa es que no podemos entender la inteligencia artificial, "
+            "la robótica, el blockchain, el internet de las cosas o la realidad "
+            "virtual como elementos separados, sino más bien como revoluciones "
+            "convergentes, que se relacionan y potencian una a otra."
+        ),
+        "duracion": "30hs",
+        "modalidad_cursada": "Virtual Asincrónico",
+        "link_inscripcion": "https://talentotech.bue.edu.ar/home/inscripcion/adultos",
+    },
+]
+
 # Nombre real de cada carrera del seed. La clave es la que se usa en
 # CONVENIOS_SEED; el valor es el `nombre` que tiene que existir en la tabla
 # `carreras`. Se usa tanto al crear las carreras como al cargar convenios sobre
@@ -201,6 +224,55 @@ def hay_datos():
         db.close()
 
 
+def _resolver_carreras_seed(datos, por_id, por_nombre, etiqueta):
+    """Resuelve `carrera_ids` / `todas_las_carreras` / atajo `carrera`.
+
+    Devuelve `(carreras_item, todas)`. `etiqueta` es el nombre de la lista
+    (CONVENIOS_SEED / TALENTOTECH_SEED) para los mensajes de error.
+    """
+    todas = bool(datos.get("todas_las_carreras"))
+    ids = datos.get("carrera_ids")
+
+    if ids is None and "carrera" in datos:
+        clave = datos["carrera"]
+        if clave not in CARRERAS_SEED:
+            raise ValueError(
+                f"{etiqueta}: carrera desconocida {clave!r}. "
+                f"Usá una de: {', '.join(sorted(CARRERAS_SEED))} "
+                f"o pasá 'carrera_ids' directamente."
+            )
+        carrera = por_nombre.get(CARRERAS_SEED[clave])
+        if carrera is None:
+            raise ValueError(
+                "Faltan carreras en la base: "
+                + CARRERAS_SEED[clave]
+                + ". Corré `python seed.py` o creá las carreras antes de cargar."
+            )
+        ids = [carrera.id]
+
+    if todas:
+        if ids:
+            raise ValueError(
+                f"{etiqueta}: 'todas_las_carreras': true no admite "
+                "'carrera_ids'. Usá uno u otro."
+            )
+        return [], True
+
+    if not ids:
+        raise ValueError(
+            f"{etiqueta}: cada ítem necesita 'carrera_ids' no vacío "
+            "o 'todas_las_carreras': true."
+        )
+    ids = list(dict.fromkeys(ids))
+    faltantes = [cid for cid in ids if cid not in por_id]
+    if faltantes:
+        raise ValueError(
+            f"{etiqueta}: no existen las carreras {faltantes}. "
+            f"IDs disponibles: {sorted(por_id)}"
+        )
+    return [por_id[cid] for cid in ids], False
+
+
 def _insertar_convenios(db) -> int:
     """Inserta los convenios de `CONVENIOS_SEED` que todavía no existan.
 
@@ -216,51 +288,10 @@ def _insertar_convenios(db) -> int:
     por_id = {c.id: c for c in carreras}
     por_nombre = {c.nombre: c for c in carreras}
 
-    resueltos = []
-    for datos in CONVENIOS_SEED:
-        todas = bool(datos.get("todas_las_carreras"))
-        ids = datos.get("carrera_ids")
-
-        if ids is None and "carrera" in datos:
-            clave = datos["carrera"]
-            if clave not in CARRERAS_SEED:
-                raise ValueError(
-                    f"CONVENIOS_SEED: carrera desconocida {clave!r}. "
-                    f"Usá una de: {', '.join(sorted(CARRERAS_SEED))} "
-                    f"o pasá 'carrera_ids' directamente."
-                )
-            carrera = por_nombre.get(CARRERAS_SEED[clave])
-            if carrera is None:
-                raise ValueError(
-                    "Faltan carreras en la base: "
-                    + CARRERAS_SEED[clave]
-                    + ". Corré `python seed.py` o creá las carreras antes de cargar convenios."
-                )
-            ids = [carrera.id]
-
-        if todas:
-            if ids:
-                raise ValueError(
-                    "CONVENIOS_SEED: 'todas_las_carreras': true no admite "
-                    "'carrera_ids'. Usá uno u otro."
-                )
-            carreras_item = []
-        else:
-            if not ids:
-                raise ValueError(
-                    "CONVENIOS_SEED: cada ítem necesita 'carrera_ids' no vacío "
-                    "o 'todas_las_carreras': true."
-                )
-            ids = list(dict.fromkeys(ids))
-            faltantes = [cid for cid in ids if cid not in por_id]
-            if faltantes:
-                raise ValueError(
-                    f"CONVENIOS_SEED: no existen las carreras {faltantes}. "
-                    f"IDs disponibles: {sorted(por_id)}"
-                )
-            carreras_item = [por_id[cid] for cid in ids]
-
-        resueltos.append((carreras_item, todas, datos))
+    resueltos = [
+        (*_resolver_carreras_seed(datos, por_id, por_nombre, "CONVENIOS_SEED"), datos)
+        for datos in CONVENIOS_SEED
+    ]
 
     insertados = 0
     print("Cargando convenios...")
@@ -288,6 +319,53 @@ def _insertar_convenios(db) -> int:
     return insertados
 
 
+def _insertar_talentotech(db) -> int:
+    """Inserta los cursos de `TALENTOTECH_SEED` que todavía no existan.
+
+    Idempotente por `(institucion, nombre_curso)`. Devuelve cuántos insertó.
+    """
+    if not TALENTOTECH_SEED:
+        return 0
+
+    carreras = db.query(Carrera).all()
+    por_id = {c.id: c for c in carreras}
+    por_nombre = {c.nombre: c for c in carreras}
+
+    resueltos = [
+        (*_resolver_carreras_seed(datos, por_id, por_nombre, "TALENTOTECH_SEED"), datos)
+        for datos in TALENTOTECH_SEED
+    ]
+
+    insertados = 0
+    print("Cargando TalentoTech...")
+    for carreras_item, todas, datos in resueltos:
+        ya_existe = (
+            db.query(TalentoTech)
+            .filter(
+                TalentoTech.institucion == datos["institucion"],
+                TalentoTech.nombre_curso == datos["nombre_curso"],
+            )
+            .first()
+        )
+        if ya_existe is not None:
+            continue
+        curso = TalentoTech(
+            institucion=datos["institucion"],
+            nombre_curso=datos["nombre_curso"],
+            categoria=datos["categoria"],
+            descripcion=datos["descripcion"],
+            duracion=datos["duracion"],
+            modalidad_cursada=datos["modalidad_cursada"],
+            dificultad=datos.get("dificultad"),
+            link_inscripcion=datos["link_inscripcion"],
+            todas_las_carreras=todas,
+        )
+        curso.carreras = carreras_item
+        db.add(curso)
+        insertados += 1
+    return insertados
+
+
 def seed_convenios_only() -> None:
     """Carga sólo convenios sobre una base ya existente, sin borrar nada."""
     if not CONVENIOS_SEED:
@@ -305,6 +383,28 @@ def seed_convenios_only() -> None:
     except Exception as exc:
         db.rollback()
         print(f"\nError al cargar convenios: {exc}")
+        raise
+    finally:
+        db.close()
+
+
+def seed_talentotech_only() -> None:
+    """Carga sólo cursos TalentoTech sobre una base ya existente, sin borrar nada."""
+    if not TALENTOTECH_SEED:
+        print("TALENTOTECH_SEED está vacío: no hay cursos para cargar.")
+        return
+
+    db = SessionLocal()
+    try:
+        insertados = _insertar_talentotech(db)
+        db.commit()
+        print(
+            f"\n[OK] TalentoTech insertados: {insertados}. "
+            f"Ya existían: {len(TALENTOTECH_SEED) - insertados}."
+        )
+    except Exception as exc:
+        db.rollback()
+        print(f"\nError al cargar TalentoTech: {exc}")
         raise
     finally:
         db.close()
@@ -613,6 +713,10 @@ def seed():
         convenios_cargados = _insertar_convenios(db)
         db.flush()
 
+        # ── 8. TalentoTech ───────────────────────────────────────────────────
+        talentotech_cargados = _insertar_talentotech(db)
+        db.flush()
+
         db.commit()
 
         print("\n[OK] Seed completado.")
@@ -626,6 +730,7 @@ def seed():
             "" if convenios_cargados else " (lista vacía hasta que se carguen los datos reales)"
         )
         print(f"  Convenios:    {convenios_cargados}{detalle_convenios}")
+        print(f"  TalentoTech:  {talentotech_cargados}")
         print(f"  Usuario test:  test@miifts.ar / test1234   (id={test_user.id}, rol=estudiante)")
         print(f"  Usuario admin: admin@miifts.ar / admin1234  (id={admin_user.id}, rol=admin)")
         print("\n  IMPORTANTE: el usuario de prueba tiene id=1.")
@@ -645,6 +750,9 @@ if __name__ == "__main__":
         sys.exit(0)
     if "--convenios" in sys.argv:
         seed_convenios_only()
+        sys.exit(0)
+    if "--talentotech" in sys.argv:
+        seed_talentotech_only()
         sys.exit(0)
     no_drop = "--no-drop" in sys.argv
     if not no_drop:

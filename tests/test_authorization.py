@@ -371,12 +371,14 @@ def _convenio_payload(carrera_id):
 
 def _talentotech_payload(carrera_id):
     return {
-        "carrera_id": carrera_id,
+        "institucion": "Agencia de Habilidades para el Futuro",
         "nombre_curso": "QA Automation",
         "categoria": "testing",
         "descripcion": "Curso intensivo de automatización de pruebas",
         "duracion": "3 meses",
+        "modalidad_cursada": "Virtual",
         "link_inscripcion": "https://talentotech.ar/qa",
+        "carrera_ids": [carrera_id],
     }
 
 

@@ -19,6 +19,48 @@ RecursoAlreadyExists = DuplicateError
 ConvenioAlreadyExists = DuplicateError
 TalentoTechAlreadyExists = DuplicateError
 
+
+def _validar_carreras(repository, carrera_ids: Optional[list[int]]) -> list[int]:
+    """Deduplica preservando orden y valida que todos los ids existan."""
+    if not carrera_ids:
+        return []
+    deduplicados = list(dict.fromkeys(carrera_ids))
+    existentes = repository.carreras_existentes(deduplicados)
+    faltantes = [cid for cid in deduplicados if cid not in existentes]
+    if faltantes:
+        if len(faltantes) == 1:
+            raise DomainValidationError(f"No existe la carrera {faltantes[0]}")
+        raise DomainValidationError(
+            "No existen las carreras: " + ", ".join(str(cid) for cid in faltantes)
+        )
+    return deduplicados
+
+
+def _resolver_conjunto(
+    repository,
+    carrera_ids: Optional[list[int]],
+    todas_las_carreras: bool,
+) -> list[int]:
+    """Aplica la invariante flag↔ids y devuelve los ids finales.
+
+    `todas_las_carreras=True` ⇒ sin ids y sin filas explícitas.
+    `False` ⇒ al menos una carrera.
+    """
+    if todas_las_carreras:
+        if carrera_ids:
+            raise DomainValidationError(
+                "Si 'todas_las_carreras' es true no se debe enviar 'carrera_ids'"
+            )
+        return []
+    ids = _validar_carreras(repository, carrera_ids)
+    if not ids:
+        raise DomainValidationError(
+            "Debe indicar al menos una carrera en 'carrera_ids' o marcar "
+            "'todas_las_carreras'"
+        )
+    return ids
+
+
 class RecursoService:
     def __init__(self, repository: RecursoRepository):
         self.repository = repository
@@ -89,40 +131,13 @@ class ConvenioService:
 
     def _validar_carreras(self, carrera_ids: Optional[list[int]]) -> list[int]:
         """D17: deduplica preservando orden y valida que todos los ids existan."""
-        if not carrera_ids:
-            return []
-        deduplicados = list(dict.fromkeys(carrera_ids))
-        existentes = self.repository.carreras_existentes(deduplicados)
-        faltantes = [cid for cid in deduplicados if cid not in existentes]
-        if faltantes:
-            if len(faltantes) == 1:
-                raise DomainValidationError(f"No existe la carrera {faltantes[0]}")
-            raise DomainValidationError(
-                "No existen las carreras: " + ", ".join(str(cid) for cid in faltantes)
-            )
-        return deduplicados
+        return _validar_carreras(self.repository, carrera_ids)
 
     def _resolver_conjunto(
         self, carrera_ids: Optional[list[int]], todas_las_carreras: bool
     ) -> list[int]:
-        """Aplica la invariante flag↔ids y devuelve los ids finales.
-
-        `todas_las_carreras=True` ⇒ sin ids y sin filas explícitas.
-        `False` ⇒ al menos una carrera.
-        """
-        if todas_las_carreras:
-            if carrera_ids:
-                raise DomainValidationError(
-                    "Si 'todas_las_carreras' es true no se debe enviar 'carrera_ids'"
-                )
-            return []
-        ids = self._validar_carreras(carrera_ids)
-        if not ids:
-            raise DomainValidationError(
-                "Debe indicar al menos una carrera en 'carrera_ids' o marcar "
-                "'todas_las_carreras'"
-            )
-        return ids
+        """Aplica la invariante flag↔ids y devuelve los ids finales."""
+        return _resolver_conjunto(self.repository, carrera_ids, todas_las_carreras)
 
     def _validar_unicidad(
         self,
@@ -233,6 +248,21 @@ class TalentoTechService:
     def __init__(self, repository: TalentoTechRepository):
         self.repository = repository
 
+    def _validar_unicidad(
+        self,
+        institucion: str,
+        nombre_curso: str,
+        exclude_id: Optional[int] = None,
+    ) -> None:
+        """No se permite duplicar (institucion, nombre_curso)."""
+        existente = self.repository.get_by_unique_key(
+            institucion, nombre_curso, exclude_id=exclude_id
+        )
+        if existente is not None:
+            raise DuplicateError(
+                "Ya existe un curso TalentoTech con la misma institución y nombre"
+            )
+
     def get_all(self) -> list[TalentoTech]:
         return self.repository.get_all()
 
@@ -263,11 +293,25 @@ class TalentoTechService:
         return paginate(self.repository.query_by_categoria(categoria), params)
 
     def create(self, talentotech: TalentoTechCreate) -> TalentoTech:
-        return self.repository.create_talentotech(talentotech)
+        ids = _resolver_conjunto(
+            self.repository, talentotech.carrera_ids, talentotech.todas_las_carreras
+        )
+        self._validar_unicidad(talentotech.institucion, talentotech.nombre_curso)
+        carreras = self.repository.get_carreras(ids)
+        return self.repository.create_talentotech(talentotech, carreras)
 
     def update(self, talentotech_id: int, talentotech: TalentoTechCreate) -> TalentoTech:
         self.get_by_id(talentotech_id)
-        return self.repository.update_talentotech(talentotech_id, talentotech)
+        ids = _resolver_conjunto(
+            self.repository, talentotech.carrera_ids, talentotech.todas_las_carreras
+        )
+        self._validar_unicidad(
+            talentotech.institucion,
+            talentotech.nombre_curso,
+            exclude_id=talentotech_id,
+        )
+        carreras = self.repository.get_carreras(ids)
+        return self.repository.update_talentotech(talentotech_id, talentotech, carreras)
 
     def delete(self, talentotech_id: int) -> None:
         self.get_by_id(talentotech_id)

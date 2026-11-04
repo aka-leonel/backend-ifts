@@ -93,7 +93,34 @@ class RecursoRepository:
         return self.query_filtered(materia_id, tipo, desde, hasta).all()
 
 
-class ConvenioRepository:
+class _CarreraLookupMixin:
+    """Resolución de carreras de origen compartida por convenios y TalentoTech."""
+
+    def carreras_existentes(self, carrera_ids: list[int]) -> set[int]:
+        """Valida todos los ids referenciados de una sola consulta."""
+        if not carrera_ids:
+            return set()
+        return {
+            fila[0]
+            for fila in self.db.query(Carrera.id)
+            .filter(Carrera.id.in_(carrera_ids))
+            .all()
+        }
+
+    def get_carreras(self, carrera_ids: list[int]) -> list[Carrera]:
+        """Devuelve las carreras en el orden recibido (ids ya validados)."""
+        if not carrera_ids:
+            return []
+        por_id = {
+            carrera.id: carrera
+            for carrera in self.db.query(Carrera)
+            .filter(Carrera.id.in_(carrera_ids))
+            .all()
+        }
+        return [por_id[cid] for cid in carrera_ids if cid in por_id]
+
+
+class ConvenioRepository(_CarreraLookupMixin):
     def __init__(self, db: Session):
         self.db = db
 
@@ -148,17 +175,6 @@ class ConvenioRepository:
     def get_convenios_by_carrera(self, carrera_id: int, q: Optional[str] = None) -> list[Convenio]:
         return self.query_by_carrera(carrera_id, q).all()
 
-    def carreras_existentes(self, carrera_ids: list[int]) -> set[int]:
-        """D17: valida todos los ids referenciados de una sola consulta."""
-        if not carrera_ids:
-            return set()
-        return {
-            fila[0]
-            for fila in self.db.query(Carrera.id)
-            .filter(Carrera.id.in_(carrera_ids))
-            .all()
-        }
-
     def get_by_unique_key(
         self,
         institucion: str,
@@ -173,18 +189,6 @@ class ConvenioRepository:
         if exclude_id is not None:
             query = query.filter(Convenio.id != exclude_id)
         return query.first()
-
-    def get_carreras(self, carrera_ids: list[int]) -> list[Carrera]:
-        """Devuelve las carreras en el orden recibido (ids ya validados)."""
-        if not carrera_ids:
-            return []
-        por_id = {
-            carrera.id: carrera
-            for carrera in self.db.query(Carrera)
-            .filter(Carrera.id.in_(carrera_ids))
-            .all()
-        }
-        return [por_id[cid] for cid in carrera_ids if cid in por_id]
 
     def create_convenio(
         self, convenio: ConvenioCreate, carreras: list[Carrera]
@@ -253,24 +257,62 @@ class ConvenioRepository:
         self.db.delete(db_convenio)
         self.db.commit()
     
-class TalentoTechRepository:
+class TalentoTechRepository(_CarreraLookupMixin):
     def __init__(self, db: Session):
         self.db = db
 
+    @staticmethod
+    def _orden_estable(query):
+        """Orden alfabético por curso (case-insensitive), desempate por id."""
+        return query.order_by(
+            func.lower(TalentoTech.nombre_curso).asc(), TalentoTech.id.asc()
+        )
+
     def get_all(self) -> list[TalentoTech]:
-        return self.db.query(TalentoTech).all()
+        return self.query_all().all()
 
     def query_all(self):
-        return self.db.query(TalentoTech)
+        return self._orden_estable(self.db.query(TalentoTech))
 
     def get_talentotech_by_id(self, talentotech_id: int) -> Optional[TalentoTech]:
         return self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
-    
+
+    def get_by_unique_key(
+        self,
+        institucion: str,
+        nombre_curso: str,
+        exclude_id: Optional[int] = None,
+    ) -> Optional[TalentoTech]:
+        """Busca un curso con la misma clave única (institucion, nombre_curso)."""
+        query = self.db.query(TalentoTech).filter(
+            TalentoTech.institucion == institucion,
+            TalentoTech.nombre_curso == nombre_curso,
+        )
+        if exclude_id is not None:
+            query = query.filter(TalentoTech.id != exclude_id)
+        return query.first()
+
     def query_by_carrera(self, carrera_id: int):
-        return self.db.query(TalentoTech).filter(TalentoTech.carrera_id == carrera_id)
+        """Cursos explícitos de la carrera + wildcard, sin duplicar filas.
+
+        Si la carrera no existe se devuelve vacío (aunque haya wildcard), igual
+        que el contrato de convenios.
+        """
+        if not self.carreras_existentes([carrera_id]):
+            return self.db.query(TalentoTech).filter(false())
+        return self._orden_estable(
+            self.db.query(TalentoTech).filter(
+                or_(
+                    TalentoTech.todas_las_carreras.is_(True),
+                    TalentoTech.carreras.any(Carrera.id == carrera_id),
+                )
+            )
+        )
 
     def query_by_categoria(self, categoria: str):
-        return self.db.query(TalentoTech).filter(TalentoTech.categoria == categoria)
+        return self._orden_estable(
+            self.db.query(TalentoTech).filter(TalentoTech.categoria == categoria)
+        )
 
     def get_talentotech_by_carrera(self, carrera_id: int) -> list[TalentoTech]:
         return self.query_by_carrera(carrera_id).all()
@@ -278,38 +320,59 @@ class TalentoTechRepository:
     def get_talentotech_by_categoria(self, categoria: str) -> list[TalentoTech]:
         return self.query_by_categoria(categoria).all()
 
-    def create_talentotech(self, talentotech: TalentoTechCreate) -> TalentoTech:
+    def create_talentotech(
+        self, talentotech: TalentoTechCreate, carreras: list[Carrera]
+    ) -> TalentoTech:
         db_talentotech = TalentoTech(
-            carrera_id = talentotech.carrera_id,
-            nombre_curso = talentotech.nombre_curso,
-            categoria = talentotech.categoria,
-            descripcion = talentotech.descripcion,
-            duracion = talentotech.duracion,
-            link_inscripcion = str(talentotech.link_inscripcion)
+            institucion=talentotech.institucion,
+            nombre_curso=talentotech.nombre_curso,
+            categoria=talentotech.categoria,
+            descripcion=talentotech.descripcion,
+            duracion=talentotech.duracion,
+            modalidad_cursada=talentotech.modalidad_cursada,
+            dificultad=talentotech.dificultad,
+            link_inscripcion=str(talentotech.link_inscripcion),
+            todas_las_carreras=talentotech.todas_las_carreras,
         )
+        db_talentotech.carreras = list(carreras)
         self.db.add(db_talentotech)
         self.db.commit()
         self.db.refresh(db_talentotech)
         return db_talentotech
 
-    def update_talentotech(self, talentotech_id: int, talentotech: TalentoTechCreate) -> Optional[TalentoTech]:
-        db_talentotech = self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
-        if (db_talentotech) is None:
+    def update_talentotech(
+        self,
+        talentotech_id: int,
+        talentotech: TalentoTechCreate,
+        carreras: list[Carrera],
+    ) -> Optional[TalentoTech]:
+        db_talentotech = (
+            self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
+        )
+        if db_talentotech is None:
             return None
-        db_talentotech.carrera_id = talentotech.carrera_id
+        db_talentotech.institucion = talentotech.institucion
         db_talentotech.nombre_curso = talentotech.nombre_curso
         db_talentotech.categoria = talentotech.categoria
         db_talentotech.descripcion = talentotech.descripcion
         db_talentotech.duracion = talentotech.duracion
+        db_talentotech.modalidad_cursada = talentotech.modalidad_cursada
+        db_talentotech.dificultad = talentotech.dificultad
         db_talentotech.link_inscripcion = str(talentotech.link_inscripcion)
+        db_talentotech.todas_las_carreras = talentotech.todas_las_carreras
+        db_talentotech.carreras = list(carreras)
         self.db.commit()
         self.db.refresh(db_talentotech)
-        return db_talentotech   
+        return db_talentotech
 
     def delete_talentotech(self, talentotech_id: int) -> None:
-        db_talentotech = self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
+        db_talentotech = (
+            self.db.query(TalentoTech).filter(TalentoTech.id == talentotech_id).first()
+        )
         if db_talentotech is None:
             return None
+        # SQLite no fuerza FK por defecto: el ORM borra las filas de la
+        # intermedia al eliminar el curso (relación N:M cargada).
         self.db.delete(db_talentotech)
         self.db.commit()
         
